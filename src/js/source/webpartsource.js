@@ -366,7 +366,8 @@ ol.source.Vector.Webpart.prototype.loaderFn_ = function (extent, resolution, pro
 		{   var feature, features = [];
             var geometryAttribute = self.featureType_.geometryName;
             var format = new ol.format.WKT();
-			//
+            var r3d = /([-+]?(\d*[.])?\d+) ([-+]?(\d*[.])?\d+) ([-+]?(\d*[.])?\d+)/g;
+            
             for (var f=0; f<data.length; f++) 
 			{	var geom = data[f][geometryAttribute];
 				// 
@@ -377,7 +378,8 @@ ol.source.Vector.Webpart.prototype.loaderFn_ = function (extent, resolution, pro
 				}
 				// WKT
 				else
-				{   feature = format.readFeature(geom, 
+				{   geom = geom.replace (r3d, "$1 $3");
+                    feature = format.readFeature(geom, 
 						{   dataProjection: self.srsName_,
 							featureProjection : projection
 						});
