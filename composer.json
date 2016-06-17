@@ -1,0 +1,13 @@
+{
+    "name": "ign/ol3",
+    "description": "Utilitaires OL3",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Philippe Prévautel",
+            "email": "philippe.prevautel@ign.fr"
+        }
+    ]
+}
+
+
