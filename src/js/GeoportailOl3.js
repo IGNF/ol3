@@ -101,6 +101,9 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
     if ( ! geoservice) {
         return null;
     }
+    if( !options ){
+        var options = {visible: true, opacity: 1};        
+    }
     
     var extent = geoservice.map_extent.split(",");
     extent = extent.map(function (x) { 
