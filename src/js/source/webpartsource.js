@@ -39,8 +39,9 @@ ol.source.Vector.Webpart = function(opt_options)
 	}
 	this.featureType_ 	= options.featureType; 
 	this.maxFeatures_	= options.maxFeatures || 1000;
-	
-	var crs = this.featureType_.attributes[this.featureType_.geometryName].crs;
+        if(this.featureType_.attributes[this.featureType_.geometryName]){
+            var crs = this.featureType_.attributes[this.featureType_.geometryName].crs;
+        }else{crs=null;};
 	this.srsName_  = ( crs !== null ) ? crs : 'EPSG:4326';
 				
 	this.featureFilter_ = options.filter || {};
