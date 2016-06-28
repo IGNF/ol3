@@ -3,16 +3,19 @@
 */
 ol.layer.Vector.Webpart.Style = {};
 
+//variable globale, cache pour image icon
+var styleCache = {};
+
 /** Format string with pattern ${attr}
 *	@param {String} pattern
 *	@param {ol.Feature} feature width properties
 */
-ol.layer.Vector.Webpart.Style.formatProperties = function (format, feature)
+ol.layer.Vector.Webpart.Style.formatProperties = function (format, featureType, feature)
 {	if (!format || !format.replace || !feature) return format;
 	var i = format.replace(/\$\{([^\}]*)\}.*/, "$1");
 	if (i === format) return format;
 	else 
-	{	return ol.layer.Vector.Webpart.Style.formatProperties(format.replace("${"+i+"}", feature.get(i)), feature);
+	{   return ol.layer.Vector.Webpart.Style.formatProperties(format.replace("${"+i+"}", feature.get(featureType.symbo_attribute.name)) , feature);
 	}
 };
 
@@ -20,11 +23,12 @@ ol.layer.Vector.Webpart.Style.formatProperties = function (format, feature)
 *	@param {style} 
 *	@param {ol.Feature} feature width properties
 */
-ol.layer.Vector.Webpart.Style.formatFeatureStyle = function (fstyle, feature)
-{	if (!fstyle) return {};
+ol.layer.Vector.Webpart.Style.formatFeatureStyle = function (featureType, feature)
+{	if (!featureType.style) return {};
+        var fstyle = featureType.style; 
 	var fs = {};
 	for (var i in fstyle)
-	{	fs[i] = ol.layer.Vector.Webpart.Style.formatProperties (fstyle[i], feature)
+	{	fs[i] = ol.layer.Vector.Webpart.Style.formatProperties (fstyle[i], featureType, feature);
 	}
 	return fs;
 };
@@ -69,9 +73,10 @@ ol.layer.Vector.Webpart.Style.Fill = function (fstyle)
 
 /** Get Image style from featureType.style
 *	@param {featureType.style |  undefined}
+*	@param bool true si bibli de style
 *	@return ol.style.Image
 */
-ol.layer.Vector.Webpart.Style.Image = function (fstyle)
+ol.layer.Vector.Webpart.Style.Image = function (fstyle,bool)
 {	var image;
 	var radius = Number(fstyle.pointRadius) || 5;
 	var graphic = 
@@ -80,7 +85,9 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle)
 			triangle: [ 3, radius, undefined, 0 ],
 			star: [ 5, radius, radius/2, 0 ],
 			x: [ 4, radius, 0, Math.PI/4 ]
-		}
+		};
+        
+        //graphicName        
 	switch (fstyle.graphicName)
 	{	case "cross": 
 		case "star":
@@ -92,7 +99,7 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle)
 					triangle: [ 3, radius, undefined, 0 ],
 					star: [ 5, radius, radius/2, 0 ],
 					x: [ 4, radius, 0, Math.PI/4 ]
-				}
+				};
 			var g = graphic[fstyle.graphicName] || graphic.square;
 			image = new ol.style.RegularShape(
 				{	points: g[0],
@@ -101,7 +108,7 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle)
 					rotation: g[3],
 					stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle),
 					fill: ol.layer.Vector.Webpart.Style.Fill(fstyle)
-				})
+				});
 			break;
 		default:
 			image = new ol.style.Circle(
@@ -111,7 +118,30 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle)
 					});
 			break;
 	}
-	return image;
+        //externalGraphic
+        if(fstyle.externalGraphic){
+            if(bool){
+                src = urlLibraryImg+"./../../"+fstyle.name+"/"+fstyle.externalGraphic ;
+            }else{
+                src = urlImgAlone+"./../"+fstyle.externalGraphic ;
+            }   
+            image = new ol.style.Icon({
+//                size: [fstyle.graphicWidth, fstyle.graphicHeight],
+                //TODO le seul moyen de redimensionner une icone est de mettre une echelle
+                //il faudrait calculer le facteur d'echelle en fonction de la taille souhaitée [fstyle.graphicWidth, fstyle.graphicHeight] et 
+                //et de la taille de l'image originale
+                scale: 0.3, 
+                src: src ,
+                //permet de centrer le picto
+                offset : [0.5,0.5],
+                anchor: [0.5, 0.5],
+                anchorXUnits: 'fraction',
+                anchorYUnits: 'fraction'
+            });
+            image.load();
+            
+        } 
+        return image;
 };
 
 /** Get Text style from featureType.style
@@ -139,6 +169,37 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
 		});
 };
 
+(function(){
+    
+//rafraichit le style si l'image d'un ponctuel n'existe pas 
+//(remplace image par un symbole par defaut -> cercle )    
+function refreshStyle (feature,fstyle, st)
+{   var symb = st[0].getImage();
+    if (!symb) return;
+    var img = symb.getImage();
+    img.onerror = function()
+    {   if(styleCache['default']){
+            st[0] = styleCache['default'];
+        }else{
+        styleCache['default'] = new ol.style.Style(
+                { 
+                    image: new ol.style.Circle({ 
+                        radius:10, 
+                        fill: new ol.style.Fill ({
+                            color: [255,165,0,0.5]
+                        }),
+                        stroke: new ol.style.Stroke({
+                            color: [255,165,0,1], 
+                            width:2
+                        })
+                    })
+                });
+        st[0] = styleCache['default'];
+        }
+        feature.changed();
+    };
+};
+
 /** Get ol.style.function as defined in featureType
 * @param {featureType}
 * @return { ol.style.function | undefined }
@@ -147,17 +208,39 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType)
 {	if (!featureType) featureType = {};
 
 	return function(feature, res)
-	{	var fstyle = ol.layer.Vector.Webpart.Style.formatFeatureStyle (featureType.style, feature);
-		return [	
-			new ol.style.Style (
-			{	text: ol.layer.Vector.Webpart.Style.Text (fstyle),
-				image: ol.layer.Vector.Webpart.Style.Image (fstyle),
-				fill: ol.layer.Vector.Webpart.Style.Fill (fstyle),
-				stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle)
-			})
-		];
-	}
+	{	    
+            if (feature){
+                var idcache = null;
+               if(featureType.style.externalGraphic ){
+                   if(feature.getProperties()[featureType.symbo_attribute.name]){
+                       idcache = feature.getProperties()[featureType.symbo_attribute.name];
+                   }else{
+                       idcache = featureType.style.externalGraphic;
+                   };
+               }
+               var style = styleCache[idcache];
+               if(!style){
+                    //le style n'a pas encore ete defini
+                    var fstyle = ol.layer.Vector.Webpart.Style.formatFeatureStyle (featureType, feature);
+                    if(featureType.symbo_attribute){bool=true;}else{bool=false;};
+                    styleCache[idcache] = [	
+                            new ol.style.Style (
+                            {	text: ol.layer.Vector.Webpart.Style.Text (fstyle),
+                                    image: ol.layer.Vector.Webpart.Style.Image (fstyle,bool),
+                                    fill: ol.layer.Vector.Webpart.Style.Fill (fstyle),
+                                    stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle)
+                            })
+                    ];
+                    refreshStyle ( feature, fstyle, styleCache[idcache] );
+                };
+                feature.setStyle(style);
+                return styleCache[idcache];
+            }
+            return [];
+	};
 };
+
+})();
 
 /** Default style
  *	@return {ol.style.Style}

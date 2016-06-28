@@ -18,12 +18,12 @@ ol.layer.Vector.Webpart  = function(options, source_options)
 	// Webpart source
     source_options.maxResolution = options.maxResolution;
     options.source = new ol.source.Vector.Webpart(source_options);
-	
+    	
     // Style of the feature style
 	if (!options.style && ol.layer.Vector.Webpart.Style) {
         options.style = ol.layer.Vector.Webpart.Style.getFeatureStyleFn(options.source.getFeatureType());
     }
-	
+    
 	ol.layer.Vector.call(this, options);
 };
 ol.inherits(ol.layer.Vector.Webpart, ol.layer.Vector);
@@ -33,10 +33,10 @@ ol.inherits(ol.layer.Vector.Webpart, ol.layer.Vector);
 */
 ol.layer.Vector.Webpart.prototype.getFeatureType = function()
 {	return this.getSource().featureType_;
-}
+};
 
 /** FeatureType style of the layer
 */
 ol.layer.Vector.Webpart.prototype.getFeatureStyle = function()
 {	return this.getSource().featureType_.style;
-}
+};

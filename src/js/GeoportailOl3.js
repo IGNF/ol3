@@ -235,7 +235,7 @@ ol.Map.prototype.addFeatureType = function (featureType, opt, source_options)
 	var options     = $.extend({visible:true, opacity: 1}, opt);
 	var src_options = source_options || {};
     src_options = $.extend({featureType: featureType}, src_options);
-    
+  
     // VERIFIER QUE CA MARCHE ...
     var vectorLayer = new ol.layer.Vector.Webpart({  
         name: featureType.name,
