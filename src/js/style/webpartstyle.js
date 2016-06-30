@@ -211,7 +211,7 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType)
 	{	    
             if (feature){
                 var idcache = null;
-               if(featureType.style.externalGraphic ){
+               if(featureType.style && featureType.style.externalGraphic ){
                    if(feature.getProperties()[featureType.symbo_attribute.name]){
                        idcache = feature.getProperties()[featureType.symbo_attribute.name];
                    }else{

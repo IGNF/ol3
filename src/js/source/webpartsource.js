@@ -13,9 +13,9 @@ if (!proj4.defs["IGNF:LAMB93"]) proj4.defs("IGNF:LAMB93","+proj=lcc +lat_1=49 +l
  * @extends {ol.source.Vector}
  * @param {olx.source.WebpartOptions}
  *		- proxy {string} proxy path
- *		- maxFeatures {integer} max number of feature to load before overload(default 5000)
+ *		- maxFeatures {integer} max number of feature to load before overload(default 1000)
  *		- maxReload {integer} max number of feature before reload (for tiled layers)
- *      - maxResolution (integer) max resolution for requesting features (default 50)
+ *              - maxResolution (integer) max resolution for requesting features (default 50)
  *		- featureType {featureType} REQUIRED
  *		- filter {Object} Webpart filter, ie: {detruit:false}
  *		- tileZoom {integer} tile zoom for tiled layers (tile size are requested at tileZoom) (default 12)
@@ -46,10 +46,10 @@ ol.source.Vector.Webpart = function(opt_options)
 				
 	this.featureFilter_ = options.filter || {};
 	this.maxResolution_ = options.maxResolution || 80;
+        this.resolution = options.resolution || null ;
 	
 	// Strategy for loading source (bbox or tile)
-	var strategy = ol.loadingstrategy.bbox;
-	console.log (options.tileZoom)
+	var strategy = ol.loadingstrategy.bbox;	
 	if (options.tileZoom)
 	{	this.tiled_ = true;
 		var tileGrid = ol.tilegrid.createXYZ({ 
@@ -326,7 +326,7 @@ ol.source.Vector.Webpart.prototype.loaderFn_ = function (extent, resolution, pro
 {
 	// if (resolution > this.maxResolution_) return;
 	var self = this;
-
+        
 	// Save projection for writing
 	this.projection_ = projection;
 
@@ -357,7 +357,7 @@ ol.source.Vector.Webpart.prototype.loaderFn_ = function (extent, resolution, pro
 	{	// console.log('clear: '+this.getFeatures().length)
 		this.reload();
 	}
-
+               
 	// Ajax request to get features in bbox
 	this.request_ = $.ajax(
 	{	url: this.proxy_ || this.featureType_.wfs,
@@ -422,4 +422,18 @@ ol.source.Vector.Webpart.prototype.loaderFn_ = function (extent, resolution, pro
         }
     });
 };
-	
+
+
+/**
+ * le loading strategy bbox to force to reload features when zoom in (in case of maxFeatures is reached) 
+ * @param {type} extent
+ * @param {type} resolution
+ * @returns {Array}
+ */
+ol.loadingstrategy.bbox = function(extent, resolution) {
+    if(this.getFeatures().length >= this.maxFeatures_ && resolution<this.resolution){
+        this.reload();
+    }
+    this.resolution = resolution;
+    return [extent];
+};
