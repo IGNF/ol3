@@ -240,7 +240,7 @@ ol.Map.prototype.addFeatureType = function (featureType, opt, source_options)
     var vectorLayer = new ol.layer.Vector.Webpart({  
         name: featureType.name,
         visible: options.visible,
-	opacity: options.opacity,
+        opacity: options.opacity,
         minResolution: this.getResolutionFromZoom(featureType.maxZoomLevel),
         maxResolution: this.getResolutionFromZoom(featureType.minZoomLevel)
     },src_options);            

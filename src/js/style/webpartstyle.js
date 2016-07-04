@@ -1,3 +1,5 @@
+var ol = ol || {};
+
 /** 
 * @namespace ol.layer.Vector.Webpart.Style
 */
@@ -206,7 +208,6 @@ function refreshStyle (feature,fstyle, st)
 */
 ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType)
 {	if (!featureType) featureType = {};
-
 	return function(feature, res)
 	{	    
             if (feature){
@@ -260,7 +261,7 @@ ol.layer.Vector.Webpart.Style.zombie = function(options)
 			strokeColor: getColor(feature, 1),
 			strokeWidth: 2,
 			fillColor: getColor(feature, 0.5)
-		}	
+		};	
 		return [	
 			new ol.style.Style (
 			{	text: ol.layer.Vector.Webpart.Style.Text (fstyle),
@@ -312,20 +313,74 @@ ol.layer.Vector.Webpart.Style.vivant = function(options) {
 	};
 };
 
+/**
+ * Colors depending on day interval (in days)
+ * @param {type} options
+ */
+ol.layer.Vector.Webpart.Style.interval = function(options)  {
+    function getColor(feature, interval) {
+        var d = feature.get('daterec');
+        
+        var color = "#369";
+        for (var i=0; i<interval.length; i++) {	
+            if (d < interval[i].date) color = interval[i].color;
+            else break;
+        }
+        return color;
+    };
+    
+    var today = new Date();
+    today = today.getTime();
+		
+    var interval = new Array();
+    for (var i=0; i<options.length; i++) {
+        if (typeof (options[i].age) !== 'undefined') {
+            var d = new Date(); 
+            d.setTime(today - (24*3600000 * options[i].age));
+            interval.push ({
+                color: options[i].color,
+                date: d.getFullYear()+"-"+(d.getMonth()<9 ? '0':'')+(d.getMonth()+1)+"-"+(d.getDate()<10 ? '0':'')+d.getDate()
+            });
+        } else if (options[i].date) {
+            interval.push ({ 
+                color: options[i].color,
+                date: options[i].date 
+            });
+        }
+    }
+    interval.sort(function(a,b) { a.date > b.date; });
+    
+    return function(feature, res) {
+        var fstyle = {
+            strokeColor: getColor(feature, interval),
+			strokeWidth: 2,
+            fillOpacity: 0.5
+		};
+        return [	
+			new ol.style.Style (
+			{	text: ol.layer.Vector.Webpart.Style.Text (fstyle),
+				image: ol.layer.Vector.Webpart.Style.Image (fstyle),
+				fill: ol.layer.Vector.Webpart.Style.Fill (fstyle),
+				stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle)
+			})
+		];
+    };
+};
+
 /** Combinaison de style
 * @param {ol.style.StyleFunction | Array<ol.style.StyleFunction>}
 */
 ol.layer.Vector.Webpart.Style.combine = function(style)
 {	if (!(style instanceof Array)) style = [style];
-	return function(feature, res)
-	{	var s0 = [];
+	return function(feature, res) {	
+        var s0 = [];
 		for (var i=0; i<style.length; i++)
 		{	var s = style[i](feature, res);
 			for (var k=0; k<s.length; k++) s0.push(s[k]);
 		}
 		return s0;
-	}
-}
+	};
+};
 
 
 /** Style des troncon de route DBUni
@@ -391,7 +446,7 @@ ol.layer.Vector.Webpart.Style.troncon_de_route = function(options)
 			})
 		];
 	};
-}
+};
 
 /** Affichage du sens de parcours
 *	@param {Object} attribute (attribut a tester), glyph (lettre), size, direct (valeur), inverse (valeur)
@@ -406,11 +461,11 @@ ol.layer.Vector.Webpart.Style.sens = function(options)
 	};
 
 	function fleche(sens)
-	{	if (sens == options.direct || sens == options.inverse) return options.glyph;
+	{	if (sens === options.direct || sens === options.inverse) return options.glyph;
 		return '';
 	};
 	function lrot(sens, geom) 
-	{	if (sens != options.direct && sens != options.inverse) return 0;
+	{	if (sens !== options.direct && sens !== options.inverse) return 0;
 		var geo = geom.getCoordinates();
 		var x, y, dl=0, l = geom.getLength();
 		for (var i=0; i<geo.length-1; i++)
@@ -419,7 +474,7 @@ ol.layer.Vector.Webpart.Style.sens = function(options)
 			dl += Math.sqrt(x*x+y*y);
 			if (dl>=l/2) break;
 		}
-		if (sens == options.direct) return -Math.atan2(y,x);
+		if (sens === options.direct) return -Math.atan2(y,x);
 		else return Math.PI-Math.atan2(y,x);
 	};
 
@@ -499,7 +554,7 @@ ol.layer.Vector.Webpart.Style.batiment = function(options)
 	{	var fstyle = 
 		{	strokeColor: getColor(feature, 1),
 			fillColor: getColor(feature, 0.5)
-		}
+		};
 		if (options.symbol)
 		{	fstyle.label = getSymbol (feature);
 			fstyle.fontFamily = "Fontawesome";

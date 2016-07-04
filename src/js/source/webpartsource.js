@@ -1,3 +1,5 @@
+var ol = ol || {};
+
 /** Need proj4js to load projections
 */
 if (!proj4) throw ("PROJ4 is not defined!");
@@ -104,21 +106,43 @@ ol.Feature.State = {
 */
 ol.Feature.prototype.getState = function()
 {	return this.state_ || ol.Feature.State.UNKNOWN;
-}
+};
 
 /** Set feature state
 * @param { ol.Feature.State }
 */
 ol.Feature.prototype.setState = function(state)
 {	this.state_ = state;
-}
+};
 
 /** Get the layer featureType
 * @return { featureType }
 */
 ol.source.Vector.Webpart.prototype.getFeatureType = function()
 {	return this.featureType_;
-}
+};
+
+/**
+ * Modify loading feature filter
+ */
+ol.source.Vector.Webpart.prototype.setFeatureFilter = function(filter, options)
+{
+    this.featureFilter_ = {};
+    this.addFeatureFilter(filter);
+};
+
+ol.source.Vector.Webpart.prototype.addFeatureFilter = function(filter, options)
+{
+    switch (filter) {	
+        case 'detruit':	filter = { "detruit": true }; break;
+        case 'vivant':	filter = { "detruit": false }; break;
+        case 'depuis':	filter = { "daterec": {"$gt" : String(options) } }; break;
+        case 'jusqua':	filter = { "daterec": {"$lt" : String(options) } }; break;
+        default: break;
+    }
+    $.extend(this.featureFilter_, filter);
+    this.reload();
+};
 
 /** Reset edition 
 */
@@ -128,7 +152,7 @@ ol.source.Vector.Webpart.prototype.reset = function()
 	this.update_ = [];
 	this.preserved_.clear();
 	this.reload();
-}
+};
 
 /** Force source reload
 * @warning use this function instead of clear() to avoid delete events on reload
@@ -142,7 +166,7 @@ ol.source.Vector.Webpart.prototype.reload = function()
 	this.clear(true);
     this.on ('removefeature', this.onDeleteFeature_, this);
 	this.isloading_ = false;
-}
+};
 
 /** Get save actions
 * @return list of save actions + number of features in each states
@@ -159,7 +183,7 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
 	{	nb=0;
 		for (var i=0; i<t.length; i++)
 		{	var f = t[i];
-			if (f.getState() == state)
+			if (f.getState() === state)
 			{	var a = { feature: f.getProperties(), state: f.getState(), typeName: typeName };
 				var g = a.feature.geometry.clone();
 				g.transform (self.projection_, self.srsName_);
@@ -183,7 +207,7 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
 	res[ol.Feature.State.UPDATE] = getActions (this.update_, ol.Feature.State.UPDATE);
 
 	return res;
-}
+};
 
 /** Save changes
 */
@@ -211,7 +235,7 @@ ol.source.Vector.Webpart.prototype.save = function()
 			method: 'POST',
 			data: param,
 			success: function(data) 
-			{	if (data == "success")
+			{	if (data === "success")
 				{	// Clear history
 					self.reset();
 					self.dispatchEvent({ type:"saveend" });
@@ -223,7 +247,7 @@ ol.source.Vector.Webpart.prototype.save = function()
 				self.dispatchEvent({ type:"saveend", status:status, error:error });
 			}
 		});
-}
+};
 
 /**
  * Triggered when a feature is added / update add actions
@@ -273,7 +297,7 @@ ol.source.Vector.Webpart.prototype.onUpdateFeature_ = function(e)
     
     // if feature has already a state attribute (INSERT),
     // we don't need to add it in this.update_
-    if (e.feature.getState() != ol.Feature.State.UNKNOWN) return;
+    if (e.feature.getState() !== ol.Feature.State.UNKNOWN) return;
     
     e.feature.setState(ol.Feature.State.UPDATE);
     this.update_.push(e.feature);
@@ -298,10 +322,10 @@ ol.source.Vector.Webpart.prototype.findFeature_ = function(f)
 		return false;
 	}
     
-	// Allready loaded (features on tile edges)
+	// Already loaded (features on tile edges)
 	if (this.tiled_)
 	{	var g = f.getGeometry();
-		if (g.getType()!="Point")
+		if (g.getType() !== "Point")
 		{	var p = g.getFirstCoordinate();
 			if (find(this.getFeaturesInExtent([p[0]-1, p[1]-1, p[0]+1, p[1]+1])))
 			{	return null;
@@ -353,7 +377,7 @@ ol.source.Vector.Webpart.prototype.loaderFn_ = function (extent, resolution, pro
     this.dispatchEvent({type:"loadstart", remains:++this.tileloading_ } );
 
 	// Reload all if maxFeatures
-	if (this.maxReload_ && this.tileloading_==1 && this.getFeatures().length > this.maxReload_)
+	if (this.maxReload_ && this.tileloading_=== 1 && this.getFeatures().length > this.maxReload_)
 	{	// console.log('clear: '+this.getFeatures().length)
 		this.reload();
 	}
@@ -407,7 +431,7 @@ ol.source.Vector.Webpart.prototype.loaderFn_ = function (extent, resolution, pro
 				self.addFeatures(features);
             self.isloading_ = false;
             self.dispatchEvent({ type:"loadend", remains:--self.tileloading_ });
-			if (data.length == self.maxFeatures_) self.dispatchEvent({ type:"overload" });
+			if (data.length === self.maxFeatures_) self.dispatchEvent({ type:"overload" });
         },
 		// Error
         error: function(jqXHR, status, error) 
