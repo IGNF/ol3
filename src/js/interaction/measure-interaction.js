@@ -1,7 +1,26 @@
+/**
+ * Generate unique ? id
+ * @returns {String}
+ */
 function generateUid() {
 	return Math.random().toString(36).substr(2, 9);
 }
 
+var ol = ol || {};
+
+/**
+ * @classdesc
+ * Interaction for measure distance or area depending on geometry type
+ * 
+ * Additionnal options
+ * - multiple {bool} possibility to make many measures
+ * - drawStyle {ol.style} option is used to style the features (measures)
+ * - defStyle {ol.style} interaction style
+ *
+ * @constructor
+ * @extends {ol.interaction.Draw}
+ * @param {olx.interaction.DrawOptions=} options Options.
+ */
 ol.interaction.Measure = function(options)	{
 	if (!options) options = {};
 	
@@ -11,8 +30,11 @@ ol.interaction.Measure = function(options)	{
 	this.id = generateUid();
 	this.multiple = options.multiple || false;
 	this.wgs84Sphere = new ol.Sphere(6378137);
-	
-	// interaction default style
+
+    /**
+     * interaction default style
+     * @type ol.style.Style
+     */
 	var defStyle = new ol.style.Style({
 		fill: new ol.style.Fill({
 			color: 'rgba(255, 165, 0, 0.3)'
@@ -32,7 +54,10 @@ ol.interaction.Measure = function(options)	{
 		})
 	});
 	
-	// layer default style
+	/**
+     * Layer default style
+     * @type ol.style.Style
+     */
 	var defDrawStyle = new ol.style.Style({
 		fill: new ol.style.Fill({
 			color: 'rgba(255, 165, 0, 0.2)'
@@ -114,7 +139,9 @@ ol.interaction.Measure = function(options)	{
 		return output;
 	};
 	  
-	// Tooltip
+    /**
+     * Tooltip overlay creation
+     */
 	this.createMeasureTooltip = function() {
 		var elt = document.createElement('div');
 		elt.className = 'tooltip-' + this.id + ' tooltip-measure';
@@ -129,6 +156,9 @@ ol.interaction.Measure = function(options)	{
 		}
 	};
 	
+    /**
+     * Manage drawstart event
+     */
 	this.on('drawstart', function(evt) {
 		if (! this.multiple) {
 			self_.layer.getSource().clear();
@@ -157,6 +187,9 @@ ol.interaction.Measure = function(options)	{
 		});
 	}, this);
 	
+     /**
+     * Manage drawend event
+     */
 	this.on('drawend', function(evt) {
 		var elt = self_.measureOverlay.getElement();
 		elt.className =  'tooltip-' + this.id + ' tooltip-static';
@@ -164,20 +197,27 @@ ol.interaction.Measure = function(options)	{
 		self_.measureOverlay.setOffset([0, -7]);
 		ol.Observable.unByKey(self_.listener);
 	}, this);
-}
+};
 
 ol.inherits(ol.interaction.Measure, ol.interaction.Draw);
 
+/**
+ * Override ol.interaction.Draw.setMap
+ * @param {ol.Map} map
+ */
 ol.interaction.Measure.prototype.setMap = function (map) {
 	ol.interaction.Draw.prototype.setMap.call(this, map);
 
 	if (this.getMap())	{
 		this.getMap().removeLayer(this.layer);
-	}
-	
+    }
 	map.addLayer(this.layer);
 };
 
+/**
+ * Override ol.interaction.Draw.setActive
+ * @param {type} active
+ */
 ol.interaction.Measure.prototype.setActive = function(active)	{
 	ol.interaction.Draw.prototype.setActive.call(this, active);
 	this.layer.getSource().clear();
