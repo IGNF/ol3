@@ -70,6 +70,35 @@ ol.interaction.Measure = function(options)	{
 		})
 	});
 	
+    /**
+     * 
+     * @param {ol.Feature} feature
+     * @returns {ol.style.Style}
+     */
+    function getMeasureStyle(feature) {
+        return new ol.style.Style({
+            geometry: function(feature) {
+                var geometry = feature.getGeometry();
+                if (geometry instanceof ol.geom.LineString) {
+                    return new ol.geom.Point(geometry.getLastCoordinate());
+                } else if (geometry instanceof ol.geom.Circle) {
+					 return new ol.geom.Point(geometry.getCenter());
+				} else {
+                    return geometry.getInteriorPoint();
+                }
+            },	
+            text: new ol.style.Text({
+                font: 'bold 16px Arial, Verdana, Helvetica, sans-serif',
+                text:feature.get('measure'),
+                offsetY: -10,
+                stroke: new ol.style.Stroke({
+                    color: '#fff',
+                    width: 5
+                })
+            })
+        });
+    }
+    
 	/**
      * 
      * @param {ol.Feature} feature
@@ -77,24 +106,18 @@ ol.interaction.Measure = function(options)	{
      * @returns {Array}
      */
 	function styleFunction(feature, resolution) {
-		var style = new ol.style.Style({
+        var measureStyle = getMeasureStyle(feature);
+		
+        var style = new ol.style.Style({
 			fill: new ol.style.Fill({
 				color: 'rgba(255, 165, 0, 0.2)'
 			}),
 			stroke: new ol.style.Stroke({
 				color: '#ffa500',
 				width: 2
-			}),
-			text: new ol.style.Text({
-				font: 'bold 16px Arial, Verdana, Helvetica, sans-serif',
-				text:feature.get('measure'),
-				stroke: new ol.style.Stroke({
-					color: '#fff',
-					width: 5
-				})
 			})
 		});
-		return [style];
+		return [style, measureStyle];
 	}
 
 	this.layer =  new ol.layer.Vector({ 
