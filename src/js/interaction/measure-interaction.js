@@ -79,12 +79,13 @@ ol.interaction.Measure = function(options)	{
         return new ol.style.Style({
             geometry: function(feature) {
                 var geometry = feature.getGeometry();
-                if (geometry instanceof ol.geom.LineString) {
-                    return new ol.geom.Point(geometry.getLastCoordinate());
-                } else if (geometry instanceof ol.geom.Circle) {
-					 return new ol.geom.Point(geometry.getCenter());
-				} else {
-                    return geometry.getInteriorPoint();
+                switch(geometry.getType()) {
+                    case 'LineString':
+                        return new ol.geom.Point(geometry.getLastCoordinate());
+                    case 'Circle':
+                        return new ol.geom.Point(geometry.getCenter());
+                    case 'Polygon':
+                        return geometry.getInteriorPoint();
                 }
             },	
             text: new ol.style.Text({
