@@ -70,7 +70,7 @@ ol.interaction.Measure = function(options)	{
 		})
 	});
 	
-    /**
+	/**
      * 
      * @param {ol.Feature} feature
      * @returns {ol.style.Style}
@@ -99,7 +99,7 @@ ol.interaction.Measure = function(options)	{
             })
         });
     }
-    
+	
 	/**
      * 
      * @param {ol.Feature} feature
@@ -107,9 +107,7 @@ ol.interaction.Measure = function(options)	{
      * @returns {Array}
      */
 	function styleFunction(feature, resolution) {
-        var measureStyle = getMeasureStyle(feature);
-		
-        var style = new ol.style.Style({
+		var style = new ol.style.Style({
 			fill: new ol.style.Fill({
 				color: 'rgba(255, 165, 0, 0.2)'
 			}),
@@ -118,7 +116,7 @@ ol.interaction.Measure = function(options)	{
 				width: 2
 			})
 		});
-		return [style, measureStyle];
+		return [style, getMeasureStyle(feature)];
 	}
 
 	this.layer =  new ol.layer.Vector({ 
@@ -169,47 +167,30 @@ ol.interaction.Measure = function(options)	{
 	
     /**
      * Format area output.
-     * @param {ol.geom.Polygon} polygon
+     * @param {inherits ol.geom} geometry
      * @return {object} Formatted area.
      */
-	this.formatArea = function(polygon) {
+	this.formatArea = function(geometry) {
 		var area;
         
         var sourceProj = this.getMap().getView().getProjection();
-        var geom = polygon.clone().transform(sourceProj, 'EPSG:4326');
+        var geom = geometry.clone().transform(sourceProj, 'EPSG:4326');
 		
-		var coordinates = geom.getLinearRing(0).getCoordinates();
-		area = Math.abs(this.wgs84Sphere.geodesicArea(coordinates));
-       
+		switch(geom.getType()) {
+			case 'Circle':
+				var radius = this.wgs84Sphere.haversineDistance(
+					geom.getFirstCoordinate(),
+					geom.getLastCoordinate()
+				);
+				area = Math.PI * Math.pow(radius, 2);
+				break;
+			case 'Polygon':
+				var coordinates = geom.getLinearRing(0).getCoordinates();
+				area = Math.abs(this.wgs84Sphere.geodesicArea(coordinates));
+				break;
+		}
+		
         var output = {};
-        if (area > 10000) {
-			area = (Math.round(area / 1000000 * 100) / 100);
-			output.html = area + ' km<sup>2</sup>';
-			output.measure = area + ' km2';
-        } else {
-			area =(Math.round(area * 100) / 100);
-			output.html = area + ' m<sup>2</sup>';
-			output.measure = area + ' m2';
-        }
-        return output;
-	};
-    
-    /**
-     * Format area output for a circle.
-     * @param {ol.geom.Circle} circle
-     * @return {object} Formatted area.
-     */
-	this.formatCircleArea = function(circle) {
-		var sourceProj = this.getMap().getView().getProjection();
-        var geom = circle.clone().transform(sourceProj, 'EPSG:4326');
-        
-		var radius = this.wgs84Sphere.haversineDistance(
-            geom.getFirstCoordinate(),
-            geom.getLastCoordinate()
-        );
-        var area = Math.PI * Math.pow(radius, 2);
-      
-		var output = {};
         if (area > 10000) {
 			area = (Math.round(area / 1000000 * 100) / 100);
 			output.html = area + ' km<sup>2</sup>';
@@ -227,11 +208,11 @@ ol.interaction.Measure = function(options)	{
      */
 	var elt = document.createElement('div');
 	elt.className = 'tooltip-' + generateUid() + ' tooltip-measure';
-    this.measureOverlay = new ol.Overlay({
-       element: elt,
-       offset: [0, -15],
-       positioning: 'bottom-center'
-    });
+	this.measureOverlay = new ol.Overlay({
+		element: elt,
+		offset: [0, -15],
+		positioning: 'bottom-center'
+	});
 	
     /**
      * Manage drawstart event
@@ -248,23 +229,15 @@ ol.interaction.Measure = function(options)	{
 		 * Listener on geometry change
 		 */
 		self_.listener = evt.feature.getGeometry().on('change', function(evt) {
-			if (self_.measureOverlay.getElement().style.visibility === 'hidden') {
-				self_.measureOverlay.getElement().style.visibility = 'visible';
-			}
-	
 			var geom = evt.target;
 			
 			var output;
             if (geom instanceof ol.geom.LineString) {
 				output = self_.formatLength(geom);
-				ttPos = geom.getLastCoordinate();
-			} else if (geom instanceof ol.geom.Polygon) {
+			} else {
 				output = self_.formatArea(geom);
-				ttPos = geom.getLastCoordinate();
-			} else if (geom instanceof ol.geom.Circle) {
-				output = self_.formatCircleArea(geom);
-				ttPos = geom.getCenter();
 			}
+			ttPos = geom.getLastCoordinate();
 			
 			var elt = self_.measureOverlay.getElement();
 			elt.innerHTML = output.html;
@@ -277,7 +250,7 @@ ol.interaction.Measure = function(options)	{
      * Manage drawend event
      */
 	this.on('drawend', function(evt) {
-		self_.measureOverlay.getElement().style.visibility = 'hidden';
+		self_.measureOverlay.setPosition(undefined);
 		ol.Observable.unByKey(self_.listener);
 	}, this);
 };
