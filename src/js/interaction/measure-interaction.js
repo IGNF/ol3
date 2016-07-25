@@ -76,22 +76,24 @@ ol.interaction.Measure = function(options)	{
      * @returns {ol.style.Style}
      */
     function getMeasureStyle(feature) {
+		var offset = (feature.getGeometry().getType() === ol.geom.GeometryType.LINE_STRING) ? -10 : 0;
+		
         return new ol.style.Style({
             geometry: function(feature) {
                 var geometry = feature.getGeometry();
                 switch(geometry.getType()) {
-                    case 'LineString':
+                    case ol.geom.GeometryType.LINE_STRING:
                         return new ol.geom.Point(geometry.getLastCoordinate());
-                    case 'Circle':
+                    case ol.geom.GeometryType.CIRCLE:
                         return new ol.geom.Point(geometry.getCenter());
-                    case 'Polygon':
+                    case ol.geom.GeometryType.POLYGON:
                         return geometry.getInteriorPoint();
                 }
             },	
             text: new ol.style.Text({
                 font: 'bold 16px Arial, Verdana, Helvetica, sans-serif',
                 text:feature.get('measure'),
-                offsetY: -10,
+                offsetY: offset,
                 stroke: new ol.style.Stroke({
                     color: '#fff',
                     width: 5
@@ -177,14 +179,14 @@ ol.interaction.Measure = function(options)	{
         var geom = geometry.clone().transform(sourceProj, 'EPSG:4326');
 		
 		switch(geom.getType()) {
-			case 'Circle':
+			case ol.geom.GeometryType.CIRCLE:
 				var radius = this.wgs84Sphere.haversineDistance(
 					geom.getFirstCoordinate(),
 					geom.getLastCoordinate()
 				);
 				area = Math.PI * Math.pow(radius, 2);
 				break;
-			case 'Polygon':
+			case ol.geom.GeometryType.POLYGON:
 				var coordinates = geom.getLinearRing(0).getCoordinates();
 				area = Math.abs(this.wgs84Sphere.geodesicArea(coordinates));
 				break;
