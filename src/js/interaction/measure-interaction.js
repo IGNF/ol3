@@ -72,7 +72,15 @@ ol.interaction.Measure = function(options)	{
      * @returns {ol.style.Style}
      */
     function getMeasureStyle(feature) {
-		var offset = (feature.getGeometry().getType() === 'LineString') ? -10 : 0;
+        var margin      = 5;
+        var strokeWidth = 2;
+        var font        = 'bold 16px Arial';
+        
+        var w = ol.utils.getMeasureText(font,feature.get('measure'));
+        var offsetX = 0;
+		if (feature.getGeometry() instanceof ol.geom.LineString) {
+			offsetX = w/2 + margin + strokeWidth + 2;
+		}
 		
         return new ol.style.Style({
             geometry: function(feature) {
@@ -85,16 +93,25 @@ ol.interaction.Measure = function(options)	{
                     case 'Polygon':
                         return geometry.getInteriorPoint();
                 }
-            },	
-            text: new ol.style.Text({
-                font: 'bold 16px Arial, Verdana, Helvetica, sans-serif',
-                text:feature.get('measure'),
-                offsetY: offset,
+            },
+            image: new ol.style.Label({
+                font: font,
+                label:feature.get('measure'),
+                offsetX: offsetX,
                 stroke: new ol.style.Stroke({
                     color: '#fff',
-                    width: 5
+                    width: strokeWidth
                 })
             })
+            /*text: new ol.style.Text({
+                font: font,
+                text:feature.get('measure'),
+                offsetX: offsetX,
+                stroke: new ol.style.Stroke({
+                    color: '#fff',
+                    width: strokeWidth
+                })
+            })*/
         });
     }
 	
