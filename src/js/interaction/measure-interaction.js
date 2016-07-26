@@ -27,15 +27,11 @@ ol.interaction.Measure = function(options)	{
     var self_           = this;
 	this.listener       = null;
 	this.measureOverlay = null;
-	this.multiple = options.multiple || false;
-	this.wgs84Sphere = new ol.Sphere(6378137);
+	this.multiple       = options.multiple || false;
+	this.wgs84Sphere    = new ol.Sphere(6378137);
 	this.currentFeature = null;
 
-    var authorizedTypes = new Array(
-        ol.geom.GeometryType.LINE_STRING,
-        ol.geom.GeometryType.POLYGON,
-        ol.geom.GeometryType.CIRCLE
-    );
+    var authorizedTypes = new Array('LineString','Polygon','Circle');
     
     /**
      * Type is authorized ?
@@ -76,17 +72,17 @@ ol.interaction.Measure = function(options)	{
      * @returns {ol.style.Style}
      */
     function getMeasureStyle(feature) {
-		var offset = (feature.getGeometry().getType() === ol.geom.GeometryType.LINE_STRING) ? -10 : 0;
+		var offset = (feature.getGeometry().getType() === 'LineString') ? -10 : 0;
 		
         return new ol.style.Style({
             geometry: function(feature) {
                 var geometry = feature.getGeometry();
                 switch(geometry.getType()) {
-                    case ol.geom.GeometryType.LINE_STRING:
+                    case 'LineString':
                         return new ol.geom.Point(geometry.getLastCoordinate());
-                    case ol.geom.GeometryType.CIRCLE:
+                    case 'Circle':
                         return new ol.geom.Point(geometry.getCenter());
-                    case ol.geom.GeometryType.POLYGON:
+                    case 'Polygon':
                         return geometry.getInteriorPoint();
                 }
             },	
@@ -135,7 +131,7 @@ ol.interaction.Measure = function(options)	{
 		options.maxPoints = 2;
 	}*/
     if (! options.type) {
-        options.type = ol.geom.GeometryType.LINE_STRING;
+        options.type = 'LineString';
     } else if (! isAuthorized(options.type)) {
         throw 'Type ' + options.type + ' is not authorized.'; 
     }
@@ -179,14 +175,14 @@ ol.interaction.Measure = function(options)	{
         var geom = geometry.clone().transform(sourceProj, 'EPSG:4326');
 		
 		switch(geom.getType()) {
-			case ol.geom.GeometryType.CIRCLE:
+			case 'Circle':
 				var radius = this.wgs84Sphere.haversineDistance(
 					geom.getFirstCoordinate(),
 					geom.getLastCoordinate()
 				);
 				area = Math.PI * Math.pow(radius, 2);
 				break;
-			case ol.geom.GeometryType.POLYGON:
+			case 'Polygon':
 				var coordinates = geom.getLinearRing(0).getCoordinates();
 				area = Math.abs(this.wgs84Sphere.geodesicArea(coordinates));
 				break;
