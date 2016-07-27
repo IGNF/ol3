@@ -1,0 +1,83 @@
+@font-face {
+  font-family: 'fonttools';
+  src: url('../font/fonttools.eot?32116828');
+  src: url('../font/fonttools.eot?32116828#iefix') format('embedded-opentype'),
+       url('../font/fonttools.woff2?32116828') format('woff2'),
+       url('../font/fonttools.woff?32116828') format('woff'),
+       url('../font/fonttools.ttf?32116828') format('truetype'),
+       url('../font/fonttools.svg?32116828#fonttools') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+/* Chrome hack: SVG is rendered more smooth in Windozze. 100% magic, uncomment if you need it. */
+/* Note, that will break hinting! In other OS-es font will be not as sharp as it could be */
+/*
+@media screen and (-webkit-min-device-pixel-ratio:0) {
+  @font-face {
+    font-family: 'fonttools';
+    src: url('../font/fonttools.svg?32116828#fonttools') format('svg');
+  }
+}
+*/
+ 
+ [class^="tools-"]:before, [class*=" tools-"]:before {
+  font-family: "fonttools";
+  font-style: normal;
+  font-weight: normal;
+  speak: none;
+ 
+  display: inline-block;
+  text-decoration: inherit;
+  width: 1em;
+  margin-right: .2em;
+  text-align: center;
+  /* opacity: .8; */
+ 
+  /* For safety - reset parent styles, that can break glyph codes*/
+  font-variant: normal;
+  text-transform: none;
+ 
+  /* fix buttons height, for twitter bootstrap */
+  line-height: 1em;
+ 
+  /* Animation center compensation - margins should be symmetric */
+  /* remove if not needed */
+  margin-left: .2em;
+ 
+  /* you can be more comfortable with increased icons size */
+  /* font-size: 120%; */
+ 
+  /* Font smoothing. That was taken from TWBS */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+ 
+  /* Uncomment for 3D effect */
+  /* text-shadow: 1px 1px 1px rgba(127, 127, 127, 0.3); */
+}
+ 
+.tools-layer:before { content: '\e802'; } /* '' */
+.tools-layer2:before { content: '\e803'; } /* '' */
+.tools-layerdown:before { content: '\e804'; } /* '' */
+.tools-layers:before { content: '\e805'; } /* '' */
+.tools-layerup:before { content: '\e806'; } /* '' */
+.tools-locate:before { content: '\e807'; } /* '' */
+.tools-select:before { content: '\e814'; } /* '' */
+.tools-snap:before { content: '\e815'; } /* '' */
+.tools-vectorlayer:before { content: '\e816'; } /* '' */
+.tools-arrow:before { content: '\e817'; } /* '' */
+.tools-mantis:before { content: '\e818'; } /* '' */
+.tools-color:before { content: '\e819'; } /* '' */
+.tools-ol3:before { content: '\e81a'; } /* '' */
+.tools-drawlabel:before { content: '\e81b'; } /* '' */
+.tools-drawline:before { content: '\e81c'; } /* '' */
+.tools-drawpoly:before { content: '\e81d'; } /* '' */
+.tools-drawpoly-o:before { content: '\e81e'; } /* '' */
+.tools-modifyline:before { content: '\e81f'; } /* '' */
+.tools-modifypoly:before { content: '\e820'; } /* '' */
+.tools-copypoly:before { content: '\e821'; } /* '' */
+.tools-measure:before { content: '\e822'; } /* '' */
+.tools-measure-circle:before { content: '\e823'; } /* '' */
+.tools-measure-line:before { content: '\e824'; } /* '' */
+.tools-measure-poly:before { content: '\e825'; } /* '' */
+.tools-measure-poly-o:before { content: '\e826'; } /* '' */
+.tools-poi:before { content: '\e827'; } /* '' */
