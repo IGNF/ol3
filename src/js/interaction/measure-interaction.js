@@ -73,8 +73,8 @@ ol.interaction.Measure = function(options)	{
      */
     function getMeasureStyle(feature) {
         var margin      = 5;
-        var strokeWidth = 2;
-        var font        = 'bold 16px Arial';
+        var strokeWidth = 1;
+        var font        = '14px "Helvetica Neue",Helvetica,Arial,sans-serif';
         
         var w = ol.utils.getMeasureText(font,feature.get('measure'));
         var offsetX = 0;
@@ -94,15 +94,20 @@ ol.interaction.Measure = function(options)	{
                         return geometry.getInteriorPoint();
                 }
             },
-            image: new ol.style.Label({
+            image: new ol.style.Label(
+            {
                 font: font,
                 label:feature.get('measure'),
                 offsetX: offsetX,
+                fill: new ol.style.Fill({color:'#000'})
+            },
+            {   /* Rectangle options */
                 stroke: new ol.style.Stroke({
                     color: '#fff',
                     width: strokeWidth
-                })
-            })
+                }),
+				fill: new ol.style.Fill({color:'#ffcc33'})
+			})
             /*text: new ol.style.Text({
                 font: font,
                 text:feature.get('measure'),

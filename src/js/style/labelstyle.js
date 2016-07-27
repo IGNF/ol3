@@ -15,15 +15,17 @@ ol.utils.getMeasureText = function(font, text)	{
 	return Math.round(w);
 };
 
-/** 
- * olx.style.LabelOptions
+/** olx.style.LabelOptions
  * font {string} font in pixel size
  * label {string} label to display
- * stroke {ol.style.Stroke} Label rectangle border
- * Fill: {ol.style.Fill} rectangle background color
- * textColor {string} color of text
+ * stroke {ol.style.Stroke} text border color
+ * Fill: {ol.style.Fill} text color
  * offsetX {Number} Horizontal offset in pixels. Default is 0.
  * offsetY {Number} Vertical offset in pixels. Default is 0.
+ *
+ * Rectangle options
+ * stroke {ol.style.Stroke} rectangle stroke color
+ * Fill: {ol.style.Fill} rectangle background color
  */
 /**
  * @classdesc
@@ -34,9 +36,10 @@ ol.utils.getMeasureText = function(font, text)	{
  * @extends {ol.style.RegularShape}
  * @api
  */
-ol.style.Label = function(opt_options) 
+ol.style.Label = function(opt_options, rect_options) 
 {	
-	options = opt_options || {};
+	options 			= opt_options || {};
+	rect_options 	= rect_options || {};
 	
 	ol.style.RegularShape.call (this, {
 		radius: 2, 
@@ -44,7 +47,7 @@ ol.style.Label = function(opt_options)
 		fill: options.fill
 	});
 	
-	this.render_(options);
+	this.render_(options, rect_options);
 };
 ol.inherits(ol.style.Label, ol.style.RegularShape);
 
@@ -52,24 +55,31 @@ ol.inherits(ol.style.Label, ol.style.RegularShape);
  * Render the rectangle with label
  * @private
  */
-ol.style.Label.prototype.render_ = function(options) 
+ol.style.Label.prototype.render_ = function(options, rect_options) 
 {	
-	var margin 	= options.margin || 5;
+	var margin  = options.margin || 5;
 	var offsetX = options.offsetX || 0;
 	var offsetY = options.offsetY || 0;
 	
-	var font 		= options.font || '10px sans-serif';
-	var fillColor 	= options.fill ? ol.color.asString(options.fill.getColor()) : 'rgba(0,0,0,0.5)';
-	var strokeColor = options.stroke ? ol.color.asString(options.stroke.getColor()) : '#fff';
-	var strokeWidth = options.stroke ? options.stroke.getWidth() : 0;
-	var textColor	= options.textColor || '#fff';
+	// Rectangle
+	var fillColor 	= rect_options.fill ? ol.color.asString(rect_options.fill.getColor()) : 'rgba(0,0,0,0.5)';
+	var strokeColor = rect_options.stroke ? ol.color.asString(rect_options.stroke.getColor()) : '#fff';
+	var strokeWidth = rect_options.stroke ? rect_options.stroke.getWidth() : 0;
+
+	// Text
+	var font 			= options.font || '10px sans-serif';
+	var strokeTextWidth = options.stroke ? options.stroke.getWidth() : 0;
+	var strokeTextColor	= options.stroke ? ol.color.asString(options.stroke.getColor()) : '#fff';
+	var fillTextColor	= options.fill ? ol.color.asString(options.fill.getColor()) : '#fff';
 	
 	canvas = this.getImage();
 	var ctx = canvas.getContext('2d');
 
 	ctx.font = font;
-	var w = Math.round (ctx.measureText(options.label).width) + 2 * (margin + strokeWidth);
-	var h = Number (ctx.font.match(/\d+(\.\d+)?/g).join([])); /*Math.round  ( ctx.measureText("M").width );*/
+	var textWidth = Math.round (ctx.measureText(options.label).width) + 2 * strokeTextWidth;
+	
+	var w = textWidth+ 2 * (margin + strokeWidth);
+	var h = Number (ctx.font.match(/\d+(\.\d+)?/g).join([])) + 2 * strokeTextWidth;/*Math.round  ( ctx.measureText("M").width );*/
 	h += 2 * (margin + strokeWidth);
 	
 	canvas.width 	= w;
@@ -78,20 +88,27 @@ ol.style.Label.prototype.render_ = function(options)
 	s[0] = canvas.width;
 	s[1] = canvas.height;
 	
+	// Draw rectangle
 	ctx.font 		= font;
 	ctx.fillStyle 	= fillColor;
 	ctx.strokeStyle = strokeColor;
 	ctx.lineWidth 	= strokeWidth;
 	ctx.lineJoin 	= "round";
-	/*ctx.roundRect(0, 0, canvas.width, canvas.height, 10);
-	ctx.fill();
-	ctx.stroke();*/
+	
 	ctx.strokeRect(strokeWidth, strokeWidth, canvas.width-2*strokeWidth,  canvas.height-2*strokeWidth);
 	ctx.fillRect(strokeWidth, strokeWidth, canvas.width-2*strokeWidth,  canvas.height-2*strokeWidth);
 	
-	ctx.textAlign 		= 'center';
-	ctx.textBaseline 	= 'middle';
-	ctx.fillStyle 			= textColor;
+	// Draw text
+	ctx.textAlign 	 = 'center';
+	ctx.textBaseline = 'middle';
+	
+	if (strokeTextWidth > 0)	{
+		ctx.strokeStyle = strokeTextColor;
+		ctx.lineWidth	= strokeTextWidth;
+		ctx.strokeText (options.label, canvas.width/2, canvas.height/2);
+	}
+	
+	ctx.fillStyle = fillTextColor;
 	ctx.fillText (options.label, canvas.width/2, canvas.height/2);
 	
 	// Set anchor
