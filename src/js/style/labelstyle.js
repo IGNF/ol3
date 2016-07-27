@@ -1,4 +1,3 @@
-var ol = ol || {};
 ol.utils = ol.utils || {};
 
 /* 
@@ -38,24 +37,20 @@ ol.utils.getMeasureText = function(font, text)	{
  */
 ol.style.Label = function(opt_options, rect_options) 
 {	
-	options 			= opt_options || {};
-	rect_options 	= rect_options || {};
+	var options         = opt_options || {};
+	var rect_options 	= rect_options || {};
 	
-	ol.style.RegularShape.call (this, {
-		radius: 2, 
-		points: 4,
-		fill: options.fill
-	});
-	
-	this.render_(options, rect_options);
+	ol.style.RegularShape.call(this,{radius: 2});
+	this.drawLabel_(options, rect_options);
 };
+
 ol.inherits(ol.style.Label, ol.style.RegularShape);
 
 /**
  * Render the rectangle with label
  * @private
  */
-ol.style.Label.prototype.render_ = function(options, rect_options) 
+ol.style.Label.prototype.drawLabel_ = function(options, rect_options) 
 {	
 	var margin  = options.margin || 5;
 	var offsetX = options.offsetX || 0;

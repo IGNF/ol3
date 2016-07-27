@@ -1,5 +1,3 @@
-var ol = ol || {};
-
 /** 
 * @namespace ol.layer.Vector.Webpart.Style
 */

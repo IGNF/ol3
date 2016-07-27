@@ -6,8 +6,6 @@ function generateUid() {
 	return Math.random().toString(36).substr(2, 9);
 }
 
-var ol = ol || {};
-
 /**
  * @classdesc
  * Interaction for measure distance or area depending on geometry type

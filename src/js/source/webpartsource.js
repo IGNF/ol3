@@ -1,5 +1,3 @@
-var ol = ol || {};
-
 /** Need proj4js to load projections
 */
 if (!proj4) throw ("PROJ4 is not defined!");

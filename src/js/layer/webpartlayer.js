@@ -1,5 +1,3 @@
-var ol = ol || {};
-
 /** ol.layer.Vector.Webpart
  * @constructor
  * @extends {ol.source.Vector}
