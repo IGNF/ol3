@@ -14,18 +14,6 @@ ol.utils.getMeasureText = function(font, text)	{
 	return Math.round(w);
 };
 
-/** olx.style.LabelOptions
- * font {string} font in pixel size
- * label {string} label to display
- * stroke {ol.style.Stroke} text border color
- * Fill: {ol.style.Fill} text color
- * offsetX {Number} Horizontal offset in pixels. Default is 0.
- * offsetY {Number} Vertical offset in pixels. Default is 0.
- *
- * Rectangle options
- * stroke {ol.style.Stroke} rectangle stroke color
- * Fill: {ol.style.Fill} rectangle background color
- */
 /**
  * @classdesc
  * Set Label style for vector features.
@@ -33,14 +21,27 @@ ol.utils.getMeasureText = function(font, text)	{
  * @constructor
  * @param {olx.style.LabelOptions=} Options.
  * @extends {ol.style.RegularShape}
- * @api
+ * 
+ * Options
+ * 	- rcStroke {ol.style.Stroke} rectangle stroke color
+ * 	- rcFill: {ol.style.Fill} rectangle background color
+ * 	- font {string} font in pixel size
+ *  - label {string} label to display
+ * 	- stroke {ol.style.Stroke} text border color
+ * 	- Fill: {ol.style.Fill} text color
+ * 	- offsetX {Number} Horizontal offset in pixels. Default is 0.
+ * 	-offsetY {Number} Vertical offset in pixels. Default is 0.
  */
+
 ol.style.Label = function(opt_options, rect_options) 
 {	
 	var options         = opt_options || {};
 	var rect_options 	= rect_options || {};
 	
-	ol.style.RegularShape.call(this,{radius: 2});
+	ol.style.RegularShape.call(this,{
+		radius: 1,
+		rotation: options.rotation || 0
+	});
 	this.drawLabel_(options, rect_options);
 };
 

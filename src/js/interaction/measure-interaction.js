@@ -92,29 +92,17 @@ ol.interaction.Measure = function(options)	{
                         return geometry.getInteriorPoint();
                 }
             },
-            image: new ol.style.Label(
-            {
+            image: new ol.style.Label({
+                rcStroke: new ol.style.Stroke({
+                    color: '#fff',
+                    width: strokeWidth
+                }),
+                rcFill: new ol.style.Fill({color:'#ffcc33'}),
                 font: font,
                 label:feature.get('measure'),
                 offsetX: offsetX,
                 fill: new ol.style.Fill({color:'#000'})
-            },
-            {   /* Rectangle options */
-                stroke: new ol.style.Stroke({
-                    color: '#fff',
-                    width: strokeWidth
-                }),
-				fill: new ol.style.Fill({color:'#ffcc33'})
-			})
-            /*text: new ol.style.Text({
-                font: font,
-                text:feature.get('measure'),
-                offsetX: offsetX,
-                stroke: new ol.style.Stroke({
-                    color: '#fff',
-                    width: strokeWidth
-                })
-            })*/
+            })
         });
     }
 	
