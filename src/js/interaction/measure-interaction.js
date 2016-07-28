@@ -288,6 +288,9 @@ ol.interaction.Measure.prototype.setMap = function (map) {
     }
 
 	map.addLayer(this.layer);
+    if (map instanceof ol.map.Geoportail) {
+        map.getLayerSwitcher().removeLayer(this.layer);
+    }
 	map.addOverlay(this.measureOverlay);
 };
 
