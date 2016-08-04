@@ -52,7 +52,7 @@ ol.control.Bar.prototype.getControls = function ()
 *	@param {top|left|bottom|right}
 */
 ol.control.Bar.prototype.setPosition = function (pos)
-{	$(this.element).removeClass('ol-left ol-top ol-bottom ol-right')
+{	$(this.element).removeClass('ol-left ol-top ol-bottom ol-right');
 	pos=pos.split ('-');
 	for (var i=0; i<pos.length; i++)
 	{	
