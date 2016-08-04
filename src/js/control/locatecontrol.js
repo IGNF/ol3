@@ -1,75 +1,95 @@
-/** 
- *  A simple control to locate your position
- *  @constructor
- * @extends {ol.control.Control}
- * @param {Object} opt_options Control options.
- *  
- */
-
+ol.locateOverlay = function()	{
+	var outer = document.createElement('div');
+	outer.className = 'locate-outer-circle';
+	
+	var inner = document.createElement('div');
+	inner.className = 'locate-inner-circle';
+	outer.appendChild(inner);
+	
+	ol.Overlay.call(this, {
+		element: outer,
+		positioning: 'center-center'
+	});
+};
+ol.inherits(ol.locateOverlay, ol.Overlay);
 
 /**
- * A simple control to locate your position
- * @param {Object} opt_options
- *  - html {String} html to insert in the control
+ * @constructor
  * @extends {ol.control.Control}
- */
+ * @param {Object} opt_options Control options.
+ *		- title {String} title of the control
+ *		- html {String} html to insert in the control
+   */
 ol.control.Locate = function(opt_options) {
-    var options = opt_options || {};
+	var options = opt_options || {};
+	
+	this.toggle_ 	= options.toggle || false;
+	this.location_ 	= null;
+	this.overlay_	= null;
+	
+	this.button = document.createElement('button');
+	this.button.type 			= 'button';
+	this.button.title 			= options.title || 'Locate me';
+	this.button.innerHTML 	= options.html || '';
 
-    this.geolocation_   = null;
-    this.toggle_        = options.toggle || false;
+	var self = this;
+	this.button.addEventListener('click', function(event) {
+		event.preventDefault()
+		if (self.location_) {
+			var tracking = self.location_.getTracking();
+			if (self.toggle_)	{
+				self.location_.setTracking(! tracking);
+				self.button.style = self.location_.getTracking() ? 'color: #f00' : '';
+			} else if (! tracking)	{
+				self.location_.setTracking(true);
+			}
+		}
+	}, false);
 
-    var element = document.createElement('div');
-    element.className = 'ol-control ol-locate ol-unselectable';
-
-    var button = document.createElement('button');
-    button.type         	= 'button';
-    button.title        		= options.title;
-    button.innerHTML   	= options.html;
-    element.appendChild	(button);
-
-    var self = this;
-    button.addEventListener('click',function(evt) {
-        if (! self.geolocation_) { return; }
-        self.geolocation_.setTracking(true)
-    },	false);
-
-    // Call parent constructor
-    ol.control.Control.call(this, {element: element});
+	var element = document.createElement('div');
+	element.className = 'ol-locate ol-unselectable ol-control';
+	element.appendChild(this.button);
+	
+	ol.control.Control.call(this, {element: element});
 };
 
 ol.inherits(ol.control.Locate, ol.control.Control);
 
-/** 
- * @param {type} evt
- */
-/*ol.control.Locate.prototype.handleLocate_ = function(evt) {
-    if (! this.geolocation_) { return; }
-    
-    this.geolocation_.setTracking(true);
-};*/
-
-/**
- * @param {ol.Map} map
- */
 ol.control.Locate.prototype.setMap = function(map) {
-    ol.control.Control.prototype.setMap.call(this, map);
-    if (!map) { return;}
-    
-    this.geolocation_ = new ol.Geolocation({
-        trackingOptions: {
-            maximumAge: 10000,
-            enableHighAccuracy: true,
-            timeout: 600000
-        },
-        projection: map.getView().getProjection()
-    });
-	
-	var self = this;
-	this.geolocation_.on('change:position', function() {
-		var coordinates = self.geolocation_.getPosition();
-		map.getView().setCenter(coordinates);
+	ol.control.Control.prototype.setMap.call(this, map);
+	if (this.getMap()) {
+		if (this.location_) { delete this.location_ ;}
+		if (this.overlay_)	{ this.getMap().removeOverlay(this.overlay_); }
+	}
+	if (map) {
+		this.overlay_ = new ol.locateOverlay();
+		map.addOverlay(this.overlay_);
 		
-		self.geolocation_.setTracking(false);
-	});
+		this.location_ = new ol.Geolocation({
+			projection: map.getView().getProjection(),
+			trackingOptions: {
+				enableHighAccuracy: true,
+				maximumAge: 10000,
+				timeout: 600000
+			}
+		});
+		
+		var self = this;
+		this.location_.on('change:position', function(){
+			var coordinates = self.location_.getPosition();
+			map.getView().setCenter(coordinates);
+			self.overlay_.setPosition(coordinates);
+			
+			if (! self.toggle_)	{
+				self.location_.setTracking(false);
+			}
+		});
+		this.location_.on('error', function(error){
+			console.log(error.message);
+			if (! self.toggle_)	{
+				self.location_.setTracking(false);
+			}
+			self.overlay_.setPosition(null);
+		});
+	}
 };
