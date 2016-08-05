@@ -1,4 +1,6 @@
-div[class^='tooltip-'] {
+// attention : .tooltip-inner et .tooltip-arrow sont utilisées
+// par les tooltips bootstrap et ne doivent pas être sélectionnées
+div[class^='tooltip-']:not(.tooltip-inner):not(.tooltip-arrow) {
     position: relative;
     background: rgba(0, 0, 0, 0.5);
     border-radius: 4px;
