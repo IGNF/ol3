@@ -82,6 +82,19 @@ ol.control.Bar.prototype.addControl = function (c)
 	//$(this.element).append(c.element);
 }
 
+/**
+ * @param {string} name of the control to search
+ */
+ol.control.Bar.prototype.getControlsByName = function(name) {
+    var controls = this.getControls();
+    var result = controls.filter(
+        function(control) {
+            return control.getName() === name;
+        }
+    );
+    return result;
+};
+
 /** Activate a control
 *	@param {ol.event} an object with a target {ol.control} and active {bool}
 */
