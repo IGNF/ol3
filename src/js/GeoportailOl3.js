@@ -34,17 +34,6 @@ ol.Map.Geoportail = function(opt_options) {
     // Valeur de resolution pour un niveau de zoom de valeur 0
     this._resolutionInit    = 156543.03392804097 ;
     this._territory         = 'FXX';
-
-    this.layersOrder_       = [];
-    
-    var self = this;
-    this.getLayers().on('add', function(e) {
-        var layer = e.element;
-        var name = layer.get('name');
-        
-        var index = self.layersOrder_.indexOf(name);
-        layer.setZIndex(index);
-    });
     
     // Ajout du layerSwitcher
     this._layerSwitcher = new ol.control.LayerSwitcher({options: {collapsed:false}});
@@ -69,7 +58,6 @@ ol.Map.Geoportail = function(opt_options) {
 };
 
 ol.inherits(ol.Map.Geoportail, ol.Map);
-
 
 /**
  * 
@@ -142,10 +130,12 @@ ol.Map.Geoportail.prototype.addRipartLayer = function(layer)
     };
     
     if (layer.type === 'geoservice') {
-        this.addGeoservice(layer.geoservice, options);
+        return this.addGeoservice(layer.geoservice, options);
     } else if (layer.type === 'feature-type') {
-        this.addFeatureType(layer.feature_type, options);
+        return this.addFeatureType(layer.feature_type, options);
     }
+    
+    throw 'Must be a ripart layer';
 };
 
 /**
@@ -161,7 +151,6 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
         throw 'geoservice must be defined';
     }
     
-    this.layersOrder_.push(geoservice.title);
     if( !options ){
         var options = {visible: true, opacity: 1};        
     }
@@ -173,9 +162,10 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
     
     var bbox = ol.proj.transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
     
+	var newLayer = null;
     switch(geoservice.type){
         case 'GeoPortail':
-            var GPLayer = new ol.layer.GeoportalWMTS({
+			newLayer = new ol.layer.GeoportalWMTS({
                 layer: geoservice.title,
                 olParams: {
                     name: geoservice.title,
@@ -188,16 +178,16 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                 }
             });
             
-            GPLayer.set('type', 'geoservice');
-            GPLayer.set('geoservice', geoservice);
-            this.addLayer(GPLayer);
-            
-            this.getLayerSwitcher().setRemovable(GPLayer,false);
-            this.updateEyeInLayerSwitcher(GPLayer, options.visible);
+            newLayer.set('type', 'geoservice');
+            newLayer.set('geoservice', geoservice);
+            this.addLayer(newLayer);
+					
+			this.getLayerSwitcher().setRemovable(newLayer,false);
+			this.updateEyeInLayerSwitcher(newLayer, options.visible);
             break;
             
         case 'WMS':
-            var wmsLayer = new ol.layer.Tile({
+            newLayer = new ol.layer.Tile({
                 name: geoservice.title,
                 source: new ol.source.TileWMS({
                     url: geoservice.url,
@@ -206,9 +196,10 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                     })],
                     params: {
                         LAYERS: geoservice.layers,
-                        FORMAT: geoservice.format
-                      },
-                    projection: 'EPSG:4326'
+                        FORMAT: geoservice.format,
+                        VERSION: geoservice.version
+                    }/*,
+                    projection: 'EPSG:4326'*/
                 }),
                 visible: options.visible,
                 opacity: options.opacity,
@@ -217,28 +208,54 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                 extent: bbox
             });
             
-            wmsLayer.set('type', 'geoservice');
-            wmsLayer.set('geoservice', geoservice);
-            this.addLayer(wmsLayer);
+            newLayer.set('type', 'geoservice');
+            newLayer.set('geoservice', geoservice);
+            this.addLayer(newLayer);
               
             // Mise a jour de la couche dans le layer switcher                 
-            this.getLayerSwitcher().addLayer(wmsLayer, {
+            this.getLayerSwitcher().addLayer(newLayer, {
 				title:geoservice.title, 
 				description: geoservice.description,
 				quicklookUrl : null,
 				legends: [],
 				metadata: [{url:geoservice.link}]
 			});        
-            this.getLayerSwitcher().setRemovable(wmsLayer,false);
-            this.updateEyeInLayerSwitcher(wmsLayer, options.visible);    
+            this.getLayerSwitcher().setRemovable(newLayer,false);
+            this.updateEyeInLayerSwitcher(newLayer, options.visible);    
             break;
 			
         case 'WMTS':
-            var parser = new ol.format.WMTSCapabilities();
-            var map = this;
-            
-            var url = this.proxyUrl_ ? this.proxyUrl_ : '';
+			newLayer = new ol.layer.Tile({
+                name: geoservice.title,
+                source:new ol.source.WMTS({}),
+                attribution:[new ol.Attribution({html: 'Some copyright info.'})],
+                visible: options.visible,
+                opacity: options.opacity,
+                minResolution: this.getResolutionFromZoom(geoservice.max_zoom),
+                maxResolution: this.getResolutionFromZoom(geoservice.min_zoom),
+                extent: bbox
+            });  
+				
+			newLayer.set('type', 'geoservice');
+            newLayer.set('geoservice', geoservice);
+            this.addLayer(newLayer);
+			
+			// Mise a jour de la couche dans le layer switcher                 
+			this.getLayerSwitcher().addLayer(newLayer, {
+                title:geoservice.title, 
+                description: geoservice.description,
+                quicklookUrl : null,
+                legends: [],
+                metadata: [{url:geoservice.link}]
+			});        
+			this.getLayerSwitcher().setRemovable(newLayer,false);
+			this.updateEyeInLayerSwitcher(newLayer,options.visible);
+				
+			// GetCapabilities
+			var url = this.proxyUrl_ ? this.proxyUrl_ : '';
             url += encodeURIComponent(geoservice.url + "?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities");
+			
+            var parser = new ol.format.WMTSCapabilities();
             
             $.ajax({
                 url: url,
@@ -262,38 +279,17 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                     matrixSet: 'epsg:3857',
                     title: geoservice.title
                 });
-                var wmtsLayer = new ol.layer.Tile({
-                    name: geoservice.title,
-                    source: new ol.source.WMTS(wmtsOptions),
-                    attribution:[new ol.Attribution({html: 'Some copyright info.'})],
-                    visible: options.visible,
-                    opacity: options.opacity,
-                    minResolution: map.getResolutionFromZoom(geoservice.max_zoom),
-                    maxResolution: map.getResolutionFromZoom(geoservice.min_zoom),
-                    extent: bbox
-                });  
                 
-                wmtsLayer.set('type', 'geoservice');
-                wmtsLayer.set('geoservice', geoservice);
-                map.addLayer(wmtsLayer); 
-                
-                // Mise a jour de la couche dans le layer switcher                 
-                map.getLayerSwitcher().addLayer(wmtsLayer, {
-					title:geoservice.title, 
-					description: geoservice.description,
-					quicklookUrl : null,
-					legends: [],
-					metadata: [{url:geoservice.link}]
-				});        
-                map.getLayerSwitcher().setRemovable(wmtsLayer,false);
-                map.updateEyeInLayerSwitcher(wmtsLayer,options.visible);
+				newLayer.setSource(new ol.source.WMTS(wmtsOptions));
             }).fail(function(error){
                 console.log('erreur getCapabilities wmts');
             });
         break;   
             
         default : break;   
-    }  
+    } 
+
+    return newLayer;
 };
 
 /**
@@ -303,9 +299,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
  * @returns {layer}
  */
 ol.Map.prototype.addFeatureType = function (featureType, opt, source_options)
-{
-    this.layersOrder_.push(featureType.name);
-    
+{    
  	var options     = $.extend({visible:true, opacity: 1}, opt);
 	var src_options = source_options || {};
     src_options = $.extend({featureType: featureType}, src_options);
@@ -329,6 +323,8 @@ ol.Map.prototype.addFeatureType = function (featureType, opt, source_options)
     
     this.getLayerSwitcher().setRemovable(vectorLayer,false);
     this.updateEyeInLayerSwitcher(vectorLayer, options.visible);
+    
+    return vectorLayer;
 };
 
 /**
@@ -417,4 +413,4 @@ function setTerritory(map, zone){
     if(layerGeorem){
         layerGeorem.getSource().getFeatures()[0].setGeometry(new ol.geom.Point(ol.proj.transform([c.lon,c.lat], 'EPSG:4326', 'EPSG:3857')));
     }
-}
+};

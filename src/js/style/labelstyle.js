@@ -22,17 +22,20 @@ ol.utils.getMeasureText = function(font, text)	{
  * @param {olx.style.LabelOptions=} Options.
  * @extends {ol.style.RegularShape}
  * 
- * Options
- * 	- rcStroke {ol.style.Stroke} rectangle stroke color
- * 	- rcFill: {ol.style.Fill} rectangle background color
- * 	- font {string} font in pixel size
- *  - label {string} label to display
- * 	- stroke {ol.style.Stroke} text border color
- * 	- Fill: {ol.style.Fill} text color
- * 	- offsetX {Number} Horizontal offset in pixels. Default is 0.
- * 	-offsetY {Number} Vertical offset in pixels. Default is 0.
+ * opt_options
+ *      - font {string} font in pixel size 
+ *      - label {string} label to display
+ *      - stroke {ol.style.Stroke} text border color
+ *      - fill {ol.style.Fill} text color
+ *      - rotation {Number} Rotation
+ *      - margin
+ *      - offsetX {Number} Horizontal offset in pixels. Default is 0.
+ *      - offsetY {Number} Vertical offset in pixels. Default is 0.
+ * rect_options
+ *      - stroke    {ol.style.Stroke} rectangle stroke color
+ *      - fill      {ol.style.Fill} rectangle background color
+ * 
  */
-
 ol.style.Label = function(opt_options, rect_options) 
 {	
 	var options         = opt_options || {};

@@ -93,15 +93,16 @@ ol.interaction.Measure = function(options)	{
                 }
             },
             image: new ol.style.Label({
-                rcStroke: new ol.style.Stroke({
-                    color: '#fff',
-                    width: strokeWidth
-                }),
-                rcFill: new ol.style.Fill({color:'#ffcc33'}),
-                font: font,
                 label:feature.get('measure'),
                 offsetX: offsetX,
                 fill: new ol.style.Fill({color:'#000'})
+            },
+            {
+                stroke: new ol.style.Stroke({
+                    color: '#fff',
+                    width: strokeWidth
+                }),
+                fill: new ol.style.Fill({color:'#ffcc33'})
             })
         });
     }
@@ -275,8 +276,8 @@ ol.interaction.Measure.prototype.setMap = function (map) {
 		this.getMap().removeOverlay(this.measureOverlay);
     }
 
-	map.addLayer(this.layer);
-    if (map instanceof ol.map.Geoportail) {
+    this.layer.setMap(map);
+	if (typeof map.getLayerSwitcher !== undefined) {
         map.getLayerSwitcher().removeLayer(this.layer);
     }
 	map.addOverlay(this.measureOverlay);
