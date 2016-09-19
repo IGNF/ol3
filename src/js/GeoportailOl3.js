@@ -197,7 +197,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                     params: {
                         LAYERS: geoservice.layers,
                         FORMAT: geoservice.format,
-                        VERSION: geoservice.version
+                        VERSION: geoservice.version || '1.3.0'
                     }/*,
                     projection: 'EPSG:4326'*/
                 }),
