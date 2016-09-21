@@ -62,7 +62,8 @@ ol.interaction.WMSGetFeatureInfo = function(opt_options)
                 document.body.style.cursor = 'auto';
                 var newEvent = {
                     type:'getfeatureinfo',
-                    response: data
+                    response: data,
+                    coordinates: event.coordinate
                 };
                 
                 newEvent['data'] = data; 
