@@ -5,7 +5,7 @@
  * @extends {ol.control.Control}
  * @param {Object=} opt_options Control options.
  *		className {String} class of the control
- *		group {bool} the is a group, default false
+ *		group {bool} is a group, default false
  *		toggleOne {bool} only one toggle control is active at a time, default false
  *		controls {Array<ol.control>} a list of control to add to the bar
  */
@@ -32,7 +32,9 @@ ol.control.Bar = function(options)
 ol.inherits(ol.control.Bar, ol.control.Control);
 
 /**
-*/
+ * Set the map instance the control is associated with.
+ * @param {ol.Map} map The map instance.
+ */
 ol.control.Bar.prototype.setMap = function (map)
 {	ol.control.Control.prototype.setMap.call(this, map);
 
@@ -52,7 +54,7 @@ ol.control.Bar.prototype.getControls = function ()
 *	@param {top|left|bottom|right}
 */
 ol.control.Bar.prototype.setPosition = function (pos)
-{	$(this.element).removeClass('ol-left ol-top ol-bottom ol-right');
+{	$(this.element).removeClass('ol-left ol-top ol-bottom ol-right')
 	pos=pos.split ('-');
 	for (var i=0; i<pos.length; i++)
 	{	
@@ -70,38 +72,33 @@ ol.control.Bar.prototype.setPosition = function (pos)
 }
 
 /** Add a control to the bar
-*	@param {ol.control}
+*	@param {ol.control} c control to add
+*	@param {ol.control.Bar} bar an option bar essociated with the control (drawn when active)
 */
-ol.control.Bar.prototype.addControl = function (c)
+ol.control.Bar.prototype.addControl = function (c, bar)
 {	this.controls_.push(c);
 	c.setTarget(this.element);
+	if (bar)
+	{	this.controls_.push(bar);
+		bar.setTarget(c.element);
+		$(bar.element).addClass("ol-option-bar");
+		c.option_bar = bar;
+	}
 	if (this.getMap()) 
 	{	this.getMap().addControl(c);
+		if (c.option_bar) this.getMap().addControl(c.option_bar);
 		c.on ('change:active', this.onActivateControl_, this);
 	}
 	//$(this.element).append(c.element);
 }
-
-/**
- * @param {string} name of the control to search
- */
-ol.control.Bar.prototype.getControlsByName = function(name) {
-    var controls = this.getControls();
-    var result = controls.filter(
-        function(control) {
-            return control.getName() === name;
-        }
-    );
-    return result;
-};
 
 /** Activate a control
 *	@param {ol.event} an object with a target {ol.control} and active {bool}
 */
 ol.control.Bar.prototype.onActivateControl_ = function (e)
 {	if (!e.active || !this.get('toggleOne')) return;
-	var ctrl = e.target;
 	var n;
+	var ctrl = e.target;
 	for (n=0; n<this.controls_.length; n++) 
 	{	if (this.controls_[n]===ctrl) break;
 	}

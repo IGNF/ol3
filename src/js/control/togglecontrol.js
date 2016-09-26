@@ -1,3 +1,7 @@
+/*	Copyright (c) 2016 Jean-Marc VIGLINO, 
+	released under the CeCILL-B license (French BSD license)
+	(http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
 /** A simple toggle control 
  *
  * @constructor
@@ -21,9 +25,7 @@ ol.control.Toggle = function(options)
 		{	self.setActive(!e.oldValue);
 		});
 	}
-    
-    this.name_ = options.name;
-	//this.title = options.title;
+	this.title = options.title;
 	if (options.toggleFn) options.onToggle = options.toggleFn;
 
 	$("<button>").html(options.html || "")
@@ -42,14 +44,6 @@ ol.control.Toggle = function(options)
 	this.setActive (options.active);
 }
 ol.inherits(ol.control.Toggle, ol.control.Control);
-
-/**
- * 
- * @returns this.name_
- */
-ol.control.Toggle.prototype.getName = function()
-{	return this.name_;
-};
 
 /**
  * Test if the control is active.
