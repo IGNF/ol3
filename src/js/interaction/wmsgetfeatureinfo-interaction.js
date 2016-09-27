@@ -23,8 +23,8 @@ ol.interaction.WMSGetFeatureInfo = function(opt_options)
         'JSON': 'application/json'
     };
     
-    this.proxyUrl_ = options.proxyUrl || '';
-    this.layer_    = options.layer;
+    this.proxyUrl_ 	= options.proxyUrl || '';
+    this.layer_    	= options.layer;
     
     var format = options.infoFormat || 'GML';
     if (! format in formats) {
@@ -37,55 +37,114 @@ ol.interaction.WMSGetFeatureInfo = function(opt_options)
         FEATURE_COUNT: options.maxFeatures || 10
     };
     
-    var self = this;
-    
-    /**
-     * 
-     * @param {ol.MapEvent} event
-     * @returns {undefined}
-     */
-    this.getFeatureInfo_ = function(event) {
-		var map = event.map;
-        
-        // PAS SUR QUE CA MARCHE DANS TOUS LES CAS
-        var url = self.layer_.getSource().getGetFeatureInfoUrl(
-            event.coordinate,
-            map.getView().getResolution(),
-			map.getView().getProjection(),
-            self.params_
-        );
-    
-        document.body.style.cursor = "progress";
-        $.ajax({
-            url: this.proxyUrl_ + encodeURIComponent(url),
-            success: function(data) {
-                document.body.style.cursor = 'auto';
-                var newEvent = {
-                    type:'getfeatureinfo',
-                    response: data,
-                    coordinates: event.coordinate
-                };
-                
-                newEvent['data'] = data; 
-                if (self.format_ === 'GML') {
-                    var format = new ol.format.WMSGetFeatureInfo();
-                    var features = format.readFeatures(data, {
-                        dataProjection: 'EPSG:4326',
-                        featureProjection: self.getMap().getView().getProjection()
-                    });
-                    newEvent['data'] = features;
-                }
-                
-                self.dispatchEvent(newEvent);
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                document.body.style.cursor = 'auto';
-                self.dispatchEvent({ type:'getfeatureinfofailed', msg: jqXHR.responseText });
-            } 
-        });
-    };
-    
-	ol.interaction.Pointer.call(this, {handleDownEvent: this.getFeatureInfo_});
+	this.downPx_ 		= null;
+    this.lastCentroid_  = null;
+
+	ol.interaction.Pointer.call(this, {
+		handleDownEvent: this.handleDownEvent_,
+		handleUpEvent: this.handleUpEvent_,
+		handleDragEvent: this.handleDragEvent_
+	});
 };
 
 ol.inherits(ol.interaction.WMSGetFeatureInfo, ol.interaction.Pointer);
+
+/**
+ * 
+ * @param {type} event
+ * @returns {Boolean}
+ */
+ol.interaction.WMSGetFeatureInfo.prototype.handleDownEvent_ = function(event)
+{
+	this.lastCentroid_ = ol.interaction.Pointer.centroid(this.targetPointers);
+	this.downPx_ = event.pixel;
+	return true;
+};
+
+/**
+ * 
+ * @param {type} event
+ * @returns {undefined}
+ */
+ol.interaction.WMSGetFeatureInfo.prototype.handleDragEvent_ = function(event)
+{
+	var centroid = ol.interaction.Pointer.centroid(this.targetPointers);
+
+	if (this.lastCentroid_) {
+		var deltaX = this.lastCentroid_[0] - centroid[0];
+		var deltaY = centroid[1] - this.lastCentroid_[1];
+		
+		var map = event.map;
+		
+        var view = map.getView();
+		var viewState = view.getState();
+		var center = [deltaX, deltaY];
+		
+        ol.coordinate.scale(center, viewState.resolution);
+		ol.coordinate.rotate(center, viewState.rotation);
+		ol.coordinate.add(center, viewState.center);
+		center = view.constrainCenter(center);
+		view.setCenter(center);
+	}
+	this.lastCentroid_ = centroid;
+};
+
+/**
+ * 
+ * @param {type} event
+ * @returns {undefined}
+ */
+ol.interaction.WMSGetFeatureInfo.prototype.handleUpEvent_ = function(event)
+{
+    this.lastCentroid_ = null;
+
+    var clickPx = event.pixel;
+
+    var dx = this.downPx_[0] - clickPx[0];
+    var dy = this.downPx_[1] - clickPx[1];
+    var squaredDistance = dx * dx + dy * dy;
+    if (squaredDistance > 25) { return; }
+
+    var map = event.map;
+    var elem = map.getTargetElement();
+    
+    // PAS SUR QUE CA MARCHE DANS TOUS LES CAS
+    var url = this.layer_.getSource().getGetFeatureInfoUrl(
+        event.coordinate,
+        map.getView().getResolution(),
+        map.getView().getProjection(),
+        this.params_
+    );
+
+    var self = this;
+    
+    elem.style.cursor = "progress";
+    $.ajax({
+        url: this.proxyUrl_ + encodeURIComponent(url),
+        success: function(data) {
+            elem.style.cursor = 'auto';
+            var newEvent = {
+                type:'getfeatureinfo',
+                map: map,
+                response: data,
+                coordinate: event.coordinate
+            };
+
+            newEvent['data'] = data; 
+            if (self.format_ === 'GML') {
+                var format = new ol.format.WMSGetFeatureInfo();
+                var features = format.readFeatures(data, {
+                    dataProjection: 'EPSG:4326',
+                    featureProjection: self.getMap().getView().getProjection()
+                });
+                newEvent['data'] = features;
+            }
+
+            self.dispatchEvent(newEvent);
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            document.body.style.cursor = 'auto';
+            self.dispatchEvent({ type:'getfeatureinfofailed', msg: jqXHR.responseText });
+        } 
+    });
+};

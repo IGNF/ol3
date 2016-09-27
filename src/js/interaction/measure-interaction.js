@@ -277,9 +277,6 @@ ol.interaction.Measure.prototype.setMap = function (map) {
     }
 
     this.layer.setMap(map);
-	if (typeof map.getLayerSwitcher !== undefined) {
-        map.getLayerSwitcher().removeLayer(this.layer);
-    }
 	map.addOverlay(this.measureOverlay);
 };
 
