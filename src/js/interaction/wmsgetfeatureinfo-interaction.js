@@ -106,7 +106,6 @@ ol.interaction.WMSGetFeatureInfo.prototype.handleUpEvent_ = function(event)
     if (squaredDistance > 25) { return; }
 
     var map = event.map;
-    var elem = map.getTargetElement();
     
     // PAS SUR QUE CA MARCHE DANS TOUS LES CAS
     var url = this.layer_.getSource().getGetFeatureInfoUrl(
@@ -118,11 +117,14 @@ ol.interaction.WMSGetFeatureInfo.prototype.handleUpEvent_ = function(event)
 
     var self = this;
     
-    elem.style.cursor = "progress";
+    // On change le style de cursor
+    var lastCursor = map.getViewport().style.cursor;
+    map.getViewport().style.cursor = 'progress';
+    
     $.ajax({
         url: this.proxyUrl_ + encodeURIComponent(url),
         success: function(data) {
-            elem.style.cursor = 'auto';
+            map.getViewport().style.cursor = lastCursor;
             var newEvent = {
                 type:'getfeatureinfo',
                 map: map,
@@ -143,7 +145,7 @@ ol.interaction.WMSGetFeatureInfo.prototype.handleUpEvent_ = function(event)
             self.dispatchEvent(newEvent);
         },
         error: function(jqXHR, textStatus, errorThrown) {
-            document.body.style.cursor = 'auto';
+            map.getViewport().style.cursor = lastCursor;
             self.dispatchEvent({ type:'getfeatureinfofailed', msg: jqXHR.responseText });
         } 
     });
