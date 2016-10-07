@@ -232,7 +232,7 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType)
                     ];
                     refreshStyle ( feature, fstyle, styleCache[idcache] );
                 };
-                feature.setStyle(style);
+                /*feature.setStyle(style);*/
                 return styleCache[idcache];
             }
             return [];
