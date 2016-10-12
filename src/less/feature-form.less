@@ -1,17 +1,32 @@
 .feature-form  { /* Fiche d'un feature */
+    margin-top: 10px;
+    
+    p.feature-id {
+        text-align: center;
+        font-weight: bold;
+        font-size: 1em;
+        color: #fff;
+        background-color: rgb(0, 60, 136);
+    }
     .table {
         font-size:11px;
-
         td {
             padding: 0;
+            label.control-label {
+                padding: 0 0 0 5px;
+            }
             &.feature-attribute-name {
+                padding: 0 0 0 5px;
                 font-weight: bold;
+            }
+            input.attribute {
+                border: none;
             }
             input.attribute:not([type='checkbox']) {    
                 width:100%;
 
-                &.mask_number, &.mask_int, &.mask_date, &.mask_time {
-                    border: 1px solid #ccc;
+                &.mask_number, &.mask_int, &.mask_datetime, &.mask_date, &.mask_time {
+                    /*border: 1px solid #ccc;*/
                     background-image: url('../img/masks.png');
                     background-repeat: no-repeat;
                 }
@@ -19,8 +34,11 @@
                     padding-right: 20px;
                     background-position: right -4px;
                 }
+                &.mask_datetime {
+                    background-position: right -46px;
+                }
                 &.mask_date {
-                    background-position: right -24px;
+                    background-position: right -26px;
                 }
                 &.mask_time {
                     background-position: right -66px;
