@@ -8,12 +8,19 @@
         color: #fff;
         background-color: rgb(0, 60, 136);
     }
+    button.btn-modify {
+        margin-bottom: 5px;
+    }
     .table {
         font-size:11px;
         td {
             padding: 0;
             label.control-label {
                 padding: 0 0 0 5px;
+                margin-bottom:0;
+                &.has-error {
+                    color: red;
+                }
             }
             &.feature-attribute-name {
                 padding: 0 0 0 5px;
@@ -21,6 +28,9 @@
             }
             input.attribute {
                 border: none;
+                &.has-error {
+                    border: 1px solid red;
+                }
             }
             input.attribute:not([type='checkbox']) {    
                 width:100%;
@@ -46,6 +56,11 @@
             }
             select.attribute {
                 width:100%;
+            }
+            button.document {
+                font-size:10px; 
+                padding-top:0; 
+                padding-bottom:0;
             }
         }
     }
