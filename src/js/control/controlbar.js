@@ -28,7 +28,7 @@ ol.control.Bar = function(options)
 		{	this.addControl(options.controls[i]);
 		}
 	}
-}
+};
 ol.inherits(ol.control.Bar, ol.control.Control);
 
 /**
@@ -41,14 +41,14 @@ ol.control.Bar.prototype.setMap = function (map)
 	for (var i=0; i<this.controls_.length; i++)
 	{	map.addControl(this.controls_[i]);
 	}
-}
+};
 
 /** Get controls in the panel
 *	@param {Array<ol.control>}
 */
 ol.control.Bar.prototype.getControls = function ()
 {	return this.controls_;
-}
+};
 
 /** Set tool bar position
 *	@param {top|left|bottom|right}
@@ -69,7 +69,7 @@ ol.control.Bar.prototype.setPosition = function (pos)
 			default: break;
 		}
 	}
-}
+};
 
 /** Add a control to the bar
 *	@param {ol.control} c control to add
@@ -90,7 +90,20 @@ ol.control.Bar.prototype.addControl = function (c, bar)
 		c.on ('change:active', this.onActivateControl_, this);
 	}
 	//$(this.element).append(c.element);
-}
+};
+
+/**
+ * @param {string} name of the control to search
+ */
+ol.control.Bar.prototype.getControlsByName = function(name) {
+    var controls = this.getControls();
+    var result = controls.filter(
+        function(control) {
+            return control.getName() === name;
+        }
+    );
+    return result;
+};
 
 /** Activate a control
 *	@param {ol.event} an object with a target {ol.control} and active {bool}
@@ -107,4 +120,4 @@ ol.control.Bar.prototype.onActivateControl_ = function (e)
 	for (var i=0; i<this.controls_.length; i++) 
 	{	if (i!=n && this.controls_[i].setActive) this.controls_[i].setActive(false);
 	}
-}
+};
