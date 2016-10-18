@@ -36,96 +36,24 @@ ol.interaction.WMSGetFeatureInfo = function(opt_options)
         INFO_FORMAT: formats[format],
         FEATURE_COUNT: options.maxFeatures || 10
     };
-    
-	this.downPx_ 		= null;
-    this.lastCentroid_  = null;
-
-	/**
-	 * La fonction ol.interaction.Pointer.centroid n'existe apparemment pas en release !!!
-	 * @param {Array.<ol.pointer.PointerEvent>} pointerEvents List of events.
-     * @return {ol.Pixel} Centroid pixel.
-	 */
-	this.getCentroid = function(pointerEvents) {
-		var length = pointerEvents.length;
-		var clientX = 0;
-		var clientY = 0;
-		for (var i = 0; i < length; i++) {
-			clientX += pointerEvents[i].clientX;
-			clientY += pointerEvents[i].clientY;
-		}
-		return [clientX / length, clientY / length];
-	};
-	
-	ol.interaction.Pointer.call(this, {
-		handleDownEvent: this.handleDownEvent_,
-		handleUpEvent: this.handleUpEvent_,
-		handleDragEvent: this.handleDragEvent_
-	});
+	ol.interaction.Interaction .call(this, {handleEvent: this.handleEvent_});
 };
-
-ol.inherits(ol.interaction.WMSGetFeatureInfo, ol.interaction.Pointer);
+ol.inherits(ol.interaction.WMSGetFeatureInfo, ol.interaction.Interaction);
 
 /**
  * 
- * @param {type} event
+ * @param {ol.MapBrowserPointerEvent} mapBrowserEvent Event
  * @returns {Boolean}
  */
-ol.interaction.WMSGetFeatureInfo.prototype.handleDownEvent_ = function(event)
+ol.interaction.WMSGetFeatureInfo.prototype.handleEvent_ = function(mapBrowserEvent)
 {
-	this.lastCentroid_ = this.getCentroid(this.targetPointers);
-	this.downPx_ = event.pixel;
-	return true;
-};
-
-/**
- * 
- * @param {type} event
- * @returns {undefined}
- */
-ol.interaction.WMSGetFeatureInfo.prototype.handleDragEvent_ = function(event)
-{
-	var centroid = this.getCentroid(this.targetPointers);
-
-	if (this.lastCentroid_) {
-		var deltaX = this.lastCentroid_[0] - centroid[0];
-		var deltaY = centroid[1] - this.lastCentroid_[1];
-		
-		var map = event.map;
-		
-        var view = map.getView();
-		var viewState = view.getState();
-		var center = [deltaX, deltaY];
-		
-        ol.coordinate.scale(center, viewState.resolution);
-		ol.coordinate.rotate(center, viewState.rotation);
-		ol.coordinate.add(center, viewState.center);
-		center = view.constrainCenter(center);
-		view.setCenter(center);
-	}
-	this.lastCentroid_ = centroid;
-};
-
-/**
- * 
- * @param {type} event
- * @returns {undefined}
- */
-ol.interaction.WMSGetFeatureInfo.prototype.handleUpEvent_ = function(event)
-{
-    this.lastCentroid_ = null;
-
-    var clickPx = event.pixel;
-
-    var dx = this.downPx_[0] - clickPx[0];
-    var dy = this.downPx_[1] - clickPx[1];
-    var squaredDistance = dx * dx + dy * dy;
-    if (squaredDistance > 25) { return; }
-
-    var map = event.map;
-    
-    // PAS SUR QUE CA MARCHE DANS TOUS LES CAS
-    var url = this.layer_.getSource().getGetFeatureInfoUrl(
-        event.coordinate,
+	if (! ol.events.condition.singleClick(mapBrowserEvent)) { return true; }
+	
+	var map = mapBrowserEvent.map;
+	var coordinate = mapBrowserEvent.coordinate;
+	
+	var url = this.layer_.getSource().getGetFeatureInfoUrl(
+        coordinate,
         map.getView().getResolution(),
         map.getView().getProjection(),
         this.params_
@@ -145,7 +73,7 @@ ol.interaction.WMSGetFeatureInfo.prototype.handleUpEvent_ = function(event)
                 type:'getfeatureinfo',
                 map: map,
                 response: data,
-                coordinate: event.coordinate
+                coordinate: coordinate
             };
 
             newEvent['data'] = data; 
@@ -165,4 +93,6 @@ ol.interaction.WMSGetFeatureInfo.prototype.handleUpEvent_ = function(event)
             self.dispatchEvent({ type:'getfeatureinfofailed', msg: jqXHR.responseText });
         } 
     });
+	
+	return false;
 };
