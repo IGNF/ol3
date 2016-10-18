@@ -40,6 +40,22 @@ ol.interaction.WMSGetFeatureInfo = function(opt_options)
 	this.downPx_ 		= null;
     this.lastCentroid_  = null;
 
+	/**
+	 * La fonction ol.interaction.Pointer.centroid n'existe apparemment pas en release !!!
+	 * @param {Array.<ol.pointer.PointerEvent>} pointerEvents List of events.
+     * @return {ol.Pixel} Centroid pixel.
+	 */
+	this.getCentroid = function(pointerEvents) {
+		var length = pointerEvents.length;
+		var clientX = 0;
+		var clientY = 0;
+		for (var i = 0; i < length; i++) {
+			clientX += pointerEvents[i].clientX;
+			clientY += pointerEvents[i].clientY;
+		}
+		return [clientX / length, clientY / length];
+	};
+	
 	ol.interaction.Pointer.call(this, {
 		handleDownEvent: this.handleDownEvent_,
 		handleUpEvent: this.handleUpEvent_,
@@ -56,7 +72,7 @@ ol.inherits(ol.interaction.WMSGetFeatureInfo, ol.interaction.Pointer);
  */
 ol.interaction.WMSGetFeatureInfo.prototype.handleDownEvent_ = function(event)
 {
-	this.lastCentroid_ = ol.interaction.Pointer.centroid(this.targetPointers);
+	this.lastCentroid_ = this.getCentroid(this.targetPointers);
 	this.downPx_ = event.pixel;
 	return true;
 };
@@ -68,7 +84,7 @@ ol.interaction.WMSGetFeatureInfo.prototype.handleDownEvent_ = function(event)
  */
 ol.interaction.WMSGetFeatureInfo.prototype.handleDragEvent_ = function(event)
 {
-	var centroid = ol.interaction.Pointer.centroid(this.targetPointers);
+	var centroid = this.getCentroid(this.targetPointers);
 
 	if (this.lastCentroid_) {
 		var deltaX = this.lastCentroid_[0] - centroid[0];
