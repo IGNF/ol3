@@ -36,7 +36,7 @@ ol.interaction.WMSGetFeatureInfo = function(opt_options)
         INFO_FORMAT: formats[format],
         FEATURE_COUNT: options.maxFeatures || 10
     };
-	ol.interaction.Interaction .call(this, {handleEvent: this.handleEvent_});
+	ol.interaction.Interaction.call(this, {handleEvent: this.handleEvent_});
 };
 ol.inherits(ol.interaction.WMSGetFeatureInfo, ol.interaction.Interaction);
 
