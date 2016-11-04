@@ -14,8 +14,12 @@ ol.layer.Vector.Webpart.Style.formatProperties = function (format, featureType, 
 {	if (!format || !format.replace || !feature) return format;
 	var i = format.replace(/\$\{([^\}]*)\}.*/, "$1");
 	if (i === format) return format;
-	else 
-	{   return ol.layer.Vector.Webpart.Style.formatProperties(format.replace("${"+i+"}", feature.get(featureType.symbo_attribute.name)) , feature);
+	else {
+            if (i === "externalGraphic") {
+                return ol.layer.Vector.Webpart.Style.formatProperties(format.replace("${"+i+"}", feature.get(featureType.symbo_attribute.name)) , feature);
+            } else {
+                return ol.layer.Vector.Webpart.Style.formatProperties(format.replace("${"+i+"}", feature.get(i)) , feature);
+            }
 	}
 };
 
