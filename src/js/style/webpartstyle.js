@@ -15,15 +15,15 @@ var styleCache = {};
  */
 ol.layer.Vector.Webpart.Style.formatProperties = function (format, feature)
 {
-    if (!format || !format.replace || !feature)
+    if (!format || !format.replace || !feature) {
         return format;
-    var i = format.replace(/\$\{([^\}]*)\}.*/, "$1");
-    if (i === format)
-        return format;
-    else {
-        // repete l'opération s'il y a plusieurs pattern à remplacer
-        return ol.layer.Vector.Webpart.Style.formatProperties(format.replace("${" + i + "}", feature.get(i)), feature);
     }
+    var reg = new RegExp(/\$\{([^\}]*)\}/);
+    var result = null;
+    while ((result = reg.exec(format)) !== null) {
+        format = format.replace("${" + result[1] + "}", feature.get(result[1]))
+    }
+    return format;
 };
 
 /**
@@ -36,12 +36,7 @@ ol.layer.Vector.Webpart.Style.formatProperties = function (format, feature)
 ol.layer.Vector.Webpart.Style.formatExternalGraphic = function (format, featureType, feature) {
     if (!format || !format.replace || !feature)
         return format;
-    var i = format.replace(/\$\{([^\}]*)\}.*/, "$1");
-    if (i === format)
-        return format;
-    else {
-        return ol.layer.Vector.Webpart.Style.formatProperties(format.replace("${" + i + "}", feature.get(featureType.symbo_attribute.name)), feature);
-    }
+    return format.replace("${externalGraphic}", feature.get(featureType.symbo_attribute.name));
 }
 
 /** Format Style with pattern ${attr}
