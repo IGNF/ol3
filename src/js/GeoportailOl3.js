@@ -251,16 +251,18 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
 			this.getLayerSwitcher().setRemovable(newLayer,false);
 			this.updateEyeInLayerSwitcher(newLayer,options.visible);
 				
-			// GetCapabilities
-			var url = this.proxyUrl_ ? this.proxyUrl_ : '';
-            url += encodeURIComponent(geoservice.url + "?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities");
-			
+            // GetCapabilities
+            var url = geoservice.url + "?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities";
+            if (this.proxyUrl_) {
+                url = this.proxyUrl_ + encodeURIComponent(url);
+            }
+
             var parser = new ol.format.WMTSCapabilities();
-            
+
             $.ajax({
                 url: url,
                 type: "GET"
-			}).done(function(response){
+            }).done(function(response){
                 // Ajout de la couche a la carte
                 var wmtsCap = parser.read(response);
                 
@@ -280,13 +282,13 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                     title: geoservice.title
                 });
                 
-				newLayer.setSource(new ol.source.WMTS(wmtsOptions));
+                newLayer.setSource(new ol.source.WMTS(wmtsOptions));
             }).fail(function(error){
                 console.log('erreur getCapabilities wmts');
             });
-        break;   
+        break;
             
-        default : break;   
+        default : break;
     } 
 
     return newLayer;
