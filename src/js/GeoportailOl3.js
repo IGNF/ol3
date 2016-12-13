@@ -131,7 +131,7 @@ ol.Map.Geoportail.prototype.addRipartLayer = function(layer)
     
     if (layer.type === 'geoservice') {
         return this.addGeoservice(layer.geoservice, options);
-    } else if (layer.type === 'feature-type') {
+    } else if (layer.type === 'feature-type') {        
         return this.addFeatureType(layer.feature_type, options);
     }
     
@@ -306,7 +306,6 @@ ol.Map.prototype.addFeatureType = function (featureType, opt, source_options)
 	var src_options = source_options || {};
     src_options = $.extend({featureType: featureType}, src_options);
   
-    // VERIFIER QUE CA MARCHE ...
     var vectorLayer = new ol.layer.Vector.Webpart({  
         name: featureType.name,
         visible: options.visible,
@@ -325,7 +324,7 @@ ol.Map.prototype.addFeatureType = function (featureType, opt, source_options)
     
     this.getLayerSwitcher().setRemovable(vectorLayer,false);
     this.updateEyeInLayerSwitcher(vectorLayer, options.visible);
-    
+     
     return vectorLayer;
 };
 
