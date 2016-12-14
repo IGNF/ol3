@@ -21,7 +21,11 @@ ol.layer.Vector.Webpart.Style.formatProperties = function (format, feature)
     var reg = new RegExp(/\$\{([^\}]*)\}/);
     var result = null;
     while ((result = reg.exec(format)) !== null) {
-        format = format.replace("${" + result[1] + "}", feature.get(result[1]))
+        if(feature.get(result[1])===null){
+            format = format.replace("${" + result[1] + "}", '');            
+        }else{
+            format = format.replace("${" + result[1] + "}", feature.get(result[1]));
+        };       
     }
     return format;
 };
@@ -187,8 +191,10 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
                         + (fstyle.fontFamily || 'Sans-serif'),
                 text: fstyle.label, // TODO si ${attr}
                 rotation: (fstyle.labelRotation || 0),
-                textAlign: "center",
+                textAlign: "start",
                 textBaseline: "middle",
+                offsetX: Number(fstyle.labelXOffset) || 0,
+                offsetY: -Number(fstyle.labelYOffset) || 0,
                 stroke: new ol.style.Stroke(
                         {color: fstyle.labelOutlineColor || "#fff",
                             width: Number(fstyle.labelOutlineWidth) || 2

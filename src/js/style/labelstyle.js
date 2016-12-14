@@ -55,7 +55,7 @@ ol.inherits(ol.style.Label, ol.style.RegularShape);
  * @private
  */
 ol.style.Label.prototype.drawLabel_ = function(options, rect_options) 
-{	
+{
 	var margin  = options.margin || 5;
 	var offsetX = options.offsetX || 0;
 	var offsetY = options.offsetY || 0;
