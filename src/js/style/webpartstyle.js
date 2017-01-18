@@ -40,7 +40,7 @@ ol.layer.Vector.Webpart.Style.formatProperties = function (format, feature)
 ol.layer.Vector.Webpart.Style.formatExternalGraphic = function (format, featureType, feature) {
     if (!format || !format.replace || !feature)
         return format;
-    return format.replace("${externalGraphic}", feature.get(featureType.symbo_attribute.name));
+    return format.replace("${externalGraphic}", feature.get(featureType.symbo_attribute.name)).toLowerCase();
 }
 
 /** Format Style with pattern ${attr}
