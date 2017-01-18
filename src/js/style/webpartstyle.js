@@ -166,6 +166,7 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle, bool)
             scale: 1,
             src: src,
             opacity: fstyle.graphicOpacity,
+            rotation:Number(fstyle.rotation)* (2 * Math.PI  / 180) || 0,
             //permet de centrer le picto
             offset: [0.5, 0.5],
             anchor: [0.5, 0.5],
