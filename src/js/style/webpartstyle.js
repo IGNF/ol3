@@ -55,7 +55,7 @@ ol.layer.Vector.Webpart.Style.formatFeatureStyle = function (featureType, featur
     var fs = {};
     for (var i in fstyle)
     {
-        if (i === "externalGraphic") {
+        if (i === "externalGraphic" && fstyle[i] === "${externalGraphic}") {
             fs[i] = ol.layer.Vector.Webpart.Style.formatExternalGraphic(fstyle[i], featureType, feature);
         } else {
             fs[i] = ol.layer.Vector.Webpart.Style.formatProperties(fstyle[i], feature);
@@ -156,15 +156,16 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle, bool)
         if (bool) {
             src = urlLibraryImg + "./../../" + fstyle.name + "/" + fstyle.externalGraphic;
         } else {
-            src = urlImgAlone + "./../" + fstyle.externalGraphic;
+            src = urlImgAlone + "./../" + fstyle.externalGraphic ;
         }
+        if(fstyle.graphicWidth && fstyle.graphicHeight){
+            src += "?width="+fstyle.graphicWidth+"&height="+fstyle.graphicHeight;
+        }
+        
         image = new ol.style.Icon({
-//                size: [fstyle.graphicWidth, fstyle.graphicHeight],
-            //TODO le seul moyen de redimensionner une icone est de mettre une echelle
-            //il faudrait calculer le facteur d'echelle en fonction de la taille souhaitée [fstyle.graphicWidth, fstyle.graphicHeight] et 
-            //et de la taille de l'image originale
-            scale: 0.3,
+            scale: 1,
             src: src,
+            opacity: fstyle.graphicOpacity,
             //permet de centrer le picto
             offset: [0.5, 0.5],
             anchor: [0.5, 0.5],
@@ -172,9 +173,8 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle, bool)
             anchorYUnits: 'fraction'
         });
         image.load();
-
-    }
-    return image;
+    };
+    return image;    
 };
 
 /** Get Text style from featureType.style
@@ -253,7 +253,7 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
             if (feature) {
                 var idcache = featureType.name;
                 if (featureType.style && featureType.style.externalGraphic) {
-                    if (feature.getProperties()[featureType.symbo_attribute.name]) {
+                    if (featureType.symbo_attribute && feature.getProperties()[featureType.symbo_attribute.name]) {
                         idcache += " " + feature.getProperties()[featureType.symbo_attribute.name];
                     } else {
                         idcache += " " + featureType.style.externalGraphic;
@@ -271,7 +271,7 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
                 if (!style) {
                     //le style n'a pas encore ete defini
                     var fstyle = ol.layer.Vector.Webpart.Style.formatFeatureStyle(featureType, feature);
-                    if (featureType.symbo_attribute) {
+                    if (featureType.symbo_attribute && featureType.symbo_attribute.name!=="") {
                         bool = true;
                     } else {
                         bool = false;
