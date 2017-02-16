@@ -302,11 +302,32 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
  */
 ol.Map.prototype.addFeatureType = function (featureType, opt, source_options)
 {    
- 	var options     = $.extend({visible:true, opacity: 1}, opt);
-	var src_options = source_options || {};
-    src_options = $.extend({featureType: featureType}, src_options);
-  
+    var options     = $.extend({visible:true, opacity: 1}, opt);
+    var src_options = source_options || {};
+    src_options = $.extend({featureType: featureType}, src_options);  
+    var style=null;
+    if(featureType.style){
+      var hexColor = featureType.style.fillColor;
+      var color = ol.color.asArray(hexColor);
+      color = color.slice();
+      color[3] = 0.2;
+      style = new ol.style.Style({
+            fill: new ol.style.Fill({
+              color:color
+            }),
+            stroke: new ol.style.Stroke({
+              color:featureType.style.strokeColor,
+              width:featureType.style.strokeWidth
+            })        
+          });
+    }else{
+      style = new ol.style.Style({
+            fill: new ol.style.Fill({color:[238,153,0,0.5]}),
+            stroke: new ol.style.Stroke({color:[238,153,0,1],width:2})        
+          });
+    }
     var vectorLayer = new ol.layer.Vector.Webpart({  
+        style: style,
         name: featureType.name,
         visible: options.visible,
         opacity: options.opacity,
