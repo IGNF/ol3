@@ -307,19 +307,24 @@ ol.Map.prototype.addFeatureType = function (featureType, opt, source_options)
     src_options = $.extend({featureType: featureType}, src_options);  
     var style=null;
     if(featureType.style){
-      var hexColor = featureType.style.fillColor;
-      var color = ol.color.asArray(hexColor);
-      color = color.slice();
-      color[3] = 0.2;
-      style = new ol.style.Style({
-            fill: new ol.style.Fill({
-              color:color
-            }),
-            stroke: new ol.style.Stroke({
-              color:featureType.style.strokeColor,
-              width:featureType.style.strokeWidth
-            })        
-          });
+      if(ol.layer.Vector.Webpart.Style !== "undefined"){      
+        var style = new ol.layer.Vector.Webpart.Style.getFeatureStyleFn(featureType);
+      }else{      
+        var hexColor = featureType.style.fillColor;
+        if(!hexColor){hexColor="#ee9900";}
+        var color = ol.color.asArray(hexColor);
+        color = color.slice();
+        color[3] = 0.2;
+        style = new ol.style.Style({
+              fill: new ol.style.Fill({
+                color:color
+              }),
+              stroke: new ol.style.Stroke({
+                color:featureType.style.strokeColor,
+                width:featureType.style.strokeWidth
+              })        
+            });
+      }     
     }else{
       style = new ol.style.Style({
             fill: new ol.style.Fill({color:[238,153,0,0.5]}),
