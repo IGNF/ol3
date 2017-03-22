@@ -165,19 +165,28 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
 	var newLayer = null;
     switch(geoservice.type){
         case 'GeoPortail':
-			newLayer = new ol.layer.GeoportalWMTS({
-                layer: geoservice.title,
-                olParams: {
-                    name: geoservice.title,
-                    visible: options.visible,
-                    opacity: options.opacity,
-                    minResolution: this.getResolutionFromZoom(geoservice.max_zoom),
-                    maxResolution: this.getResolutionFromZoom(geoservice.min_zoom),
-                    extent: bbox,
-                    useInterimTilesOnError: false
-                }
-            });
-            
+        case 'GeoPortail-WMS':
+            var olParams = {
+                name: geoservice.title,
+                visible: options.visible,
+                opacity: options.opacity,
+                minResolution: this.getResolutionFromZoom(geoservice.max_zoom),
+                maxResolution: this.getResolutionFromZoom(geoservice.min_zoom),
+                extent: bbox,
+                useInterimTilesOnError: false
+            };
+            if (geoservice.type === 'GeoPortail') {
+                newLayer = new ol.layer.GeoportalWMTS({
+                    layer: geoservice.title,
+                    olParams: olParams
+                });
+            } else {    // GeoPortail-WMS
+                newLayer = new ol.layer.GeoportalWMS({
+                    layer: geoservice.title,
+                    olParams: olParams
+                });
+            }
+			
             newLayer.set('type', 'geoservice');
             newLayer.set('geoservice', geoservice);
             this.addLayer(newLayer);
