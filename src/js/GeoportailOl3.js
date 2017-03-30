@@ -331,13 +331,23 @@ ol.Map.prototype.addFeatureType = function (featureType, opt, source_options)
               stroke: new ol.style.Stroke({
                 color:featureType.style.strokeColor,
                 width:featureType.style.strokeWidth
-              })        
+              }),
+              image: new ol.style.Circle({
+                radius: 5,
+                fill: new ol.style.Fill({color:[238,153,0,0.5]}),
+                stroke: new ol.style.Stroke({color:[238,153,0,1],width:2})
+              })
             });
       }     
     }else{
       style = new ol.style.Style({
             fill: new ol.style.Fill({color:[238,153,0,0.5]}),
-            stroke: new ol.style.Stroke({color:[238,153,0,1],width:2})        
+            stroke: new ol.style.Stroke({color:[238,153,0,1],width:2}),
+            image: new ol.style.Circle({
+              radius: 5,
+              fill: new ol.style.Fill({color:[238,153,0,0.5]}),
+              stroke: new ol.style.Stroke({color:[238,153,0,1],width:2})
+            })
           });
     }
     var vectorLayer = new ol.layer.Vector.Webpart({  
