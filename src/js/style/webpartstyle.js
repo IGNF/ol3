@@ -138,7 +138,7 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle, bool)
                     {points: g[0],
                         radius: g[1],
                         radius2: g[2],
-                        rotation: g[3],
+                        rotation: g[3]+ (Number(fstyle.rotation) * Math.PI / 180),
                         stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle),
                         fill: ol.layer.Vector.Webpart.Style.Fill(fstyle)
                     });
