@@ -113,12 +113,15 @@ ol.interaction.SelectCluster.prototype.setMap = function(map)
 };
 
 /**
- * Clear the selection, close the cluster and remove revealed features
+ * Clear the selection, close the cluster and remove revealed features (if any features are selected)
  * @api stable
  */
 ol.interaction.SelectCluster.prototype.clear = function() 
-{	this.getFeatures().clear();
-	this.overlayLayer_.getSource().clear();
+{
+  if(this.getFeatures().getArray().length === 0){
+    this.getFeatures().clear();
+    this.overlayLayer_.getSource().clear();
+  }	
 }
 
 /**

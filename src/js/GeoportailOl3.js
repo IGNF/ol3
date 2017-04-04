@@ -234,7 +234,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             break;
 			
         case 'WMTS':
-			newLayer = new ol.layer.Tile({
+            newLayer = new ol.layer.Tile({
                 name: geoservice.title,
                 source:new ol.source.WMTS({}),
                 attribution:[new ol.Attribution({html: 'Some copyright info.'})],
@@ -245,20 +245,20 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                 extent: bbox
             });  
 				
-			newLayer.set('type', 'geoservice');
+            newLayer.set('type', 'geoservice');
             newLayer.set('geoservice', geoservice);
             this.addLayer(newLayer);
 			
-			// Mise a jour de la couche dans le layer switcher                 
-			this.getLayerSwitcher().addLayer(newLayer, {
+            // Mise a jour de la couche dans le layer switcher                 
+            this.getLayerSwitcher().addLayer(newLayer, {
                 title:geoservice.title, 
                 description: geoservice.description,
                 quicklookUrl : null,
                 legends: [],
                 metadata: [{url:geoservice.link}]
-			});        
-			this.getLayerSwitcher().setRemovable(newLayer,false);
-			this.updateEyeInLayerSwitcher(newLayer,options.visible);
+            });        
+            this.getLayerSwitcher().setRemovable(newLayer,false);
+            this.updateEyeInLayerSwitcher(newLayer,options.visible);
 				
             // GetCapabilities
             var url = geoservice.url + "?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities";
@@ -299,7 +299,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             
         default : break;
     } 
-
+    
     return newLayer;
 };
 
