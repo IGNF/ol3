@@ -99,7 +99,7 @@ ol.control.Bar.prototype.getControlsByName = function(name) {
     var controls = this.getControls();
     var result = controls.filter(
         function(control) {
-            return control.getName() === name;
+            return (typeof control.getName === 'function' && control.getName() === name);
         }
     );
     return result;
