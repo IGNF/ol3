@@ -13,6 +13,14 @@ ol.locateOverlay = function()	{
 };
 ol.inherits(ol.locateOverlay, ol.Overlay);
 
+ol.locateOverlay.prototype.show = function() {
+	this.getElement().style.display = 'block';
+};
+
+ol.locateOverlay.prototype.hide = function() {
+	this.getElement().style.display = 'none';
+};
+
 /**
  * @constructor
  * @extends {ol.control.Control}
@@ -35,15 +43,17 @@ ol.control.Locate = function(opt_options) {
 	var self = this;
 	this.button.addEventListener('click', function(event) {
 		event.preventDefault()
-		if (self.location_) {
-			var tracking = self.location_.getTracking();
-			if (self.toggle_)	{
-				self.location_.setTracking(! tracking);
-				self.button.style = self.location_.getTracking() ? 'color: #f00' : '';
-			} else if (! tracking)	{
-				self.location_.setTracking(true);
-			}
+		if (! self.location_) { return; }
+		
+		var tracking = self.location_.getTracking();
+		if (! self.toggle_)	{
+			self.location_.setTracking(true);
+			return;
 		}
+		
+		self.location_.setTracking(! tracking);
+		self.button.style = self.location_.getTracking() ? 'color: #f00' : '';
+		tracking ? 	self.overlay_.hide() : self.overlay_.show();
 	}, false);
 
 	var element = document.createElement('div');
@@ -89,7 +99,7 @@ ol.control.Locate.prototype.setMap = function(map) {
 			if (! self.toggle_)	{
 				self.location_.setTracking(false);
 			}
-			self.overlay_.setPosition(null);
+			self.overlay_.setPosition([null,null]);
 		});
 	}
 };

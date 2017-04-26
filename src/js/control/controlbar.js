@@ -11,7 +11,9 @@
  */
 ol.control.Bar = function(options) 
 {	if (!options) options={};
-	var element = $("<div>").addClass('ol-unselectable ol-control ol-bar');
+	
+    this.name_ = options.name;
+    var element = $("<div>").addClass('ol-unselectable ol-control ol-bar');
 	if (options.className) element.addClass(options.className);
 	if (options.group) element.addClass('ol-group');
 	
@@ -30,6 +32,14 @@ ol.control.Bar = function(options)
 	}
 };
 ol.inherits(ol.control.Bar, ol.control.Control);
+
+/**
+ * 
+ * @returns this.name_
+ */
+ol.control.Bar.prototype.getName = function()
+{	return this.name_;
+};
 
 /**
  * Set the map instance the control is associated with.

@@ -241,7 +241,7 @@ ol.source.Vector.Webpart.prototype.save = function()
 				else self.dispatchEvent({ type:"saveend", error: data });
 			},
 			error: function(jqXHR, status, error)
-			{	console.log(error)
+			{	console.log(error);
 				self.dispatchEvent({ type:"saveend", status:status, error:error });
 			}
 		});
