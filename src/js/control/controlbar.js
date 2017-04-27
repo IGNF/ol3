@@ -33,6 +33,22 @@ ol.control.Bar = function(options)
 };
 ol.inherits(ol.control.Bar, ol.control.Control);
 
+
+/** Set the control visibility
+* @param {boolean} b 
+*/
+ol.control.Bar.prototype.setVisible = function (val) {
+	if (val) $(this.element).show();
+	else $(this.element).hide();
+}
+
+/** Get the control visibility
+* @return {boolean} b 
+*/
+ol.control.Bar.prototype.getVisible = function () 
+{	return ($(this.element).css('display') !== 'none');
+}
+
 /**
  * 
  * @returns this.name_
@@ -99,7 +115,17 @@ ol.control.Bar.prototype.addControl = function (c, bar)
 		if (c.option_bar) this.getMap().addControl(c.option_bar);
 		c.on ('change:active', this.onActivateControl_, this);
 	}
-	//$(this.element).append(c.element);
+};
+
+/** Deactivate all controls in a bar
+* @param {ol.control} except a control
+*/
+ol.control.Bar.prototype.deactivateControls = function (except)
+{	for (var i=0; i<this.controls_.length; i++) 
+	{	if (this.controls_[i] !== except && this.controls_[i].setActive) 
+		{	this.controls_[i].setActive(false);
+		}
+	}
 };
 
 /**

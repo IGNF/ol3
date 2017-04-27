@@ -28,14 +28,15 @@ ol.control.Toggle = function(options)
 	this.name_ = options.name;
 	if (options.toggleFn) options.onToggle = options.toggleFn;
 
-	$("<button>").html(options.html || "")
-				.attr('title', options.title)
-				.on("touchstart click", function(e)
-				{	if (e && e.preventDefault) e.preventDefault();
-					self.toggle();
-					if (options.onToggle) options.onToggle.call(self, self.getActive());
-				})
-				.appendTo(element);
+    this.button_ = $("<button>");
+	this.button_.html(options.html || "")
+        .attr('title', options.title)
+        .on("touchstart click", function(e)
+        {	if (e && e.preventDefault) e.preventDefault();
+            self.toggle();
+            if (options.onToggle) options.onToggle.call(self, self.getActive());
+        })
+        .appendTo(element);
 	
 	ol.control.Control.call(this, 
 	{	element: element.get(0)
@@ -51,6 +52,26 @@ ol.inherits(ol.control.Toggle, ol.control.Control);
  */
 ol.control.Toggle.prototype.getName = function()
 {	return this.name_;
+};
+
+/**
+ * Changer le title du bouton
+ * @param {string} title
+ * @returns {undefined}
+ */
+ol.control.Toggle.prototype.setTitle = function(title)
+{
+    this.button_.attr('title', title);
+};
+
+/**
+ * Changer l'html du bouton
+ * @param {string} html
+ * @returns {undefined}
+ */
+ol.control.Toggle.prototype.setHtml = function(html)
+{
+    this.button_.html(html);
 };
 
 /**
