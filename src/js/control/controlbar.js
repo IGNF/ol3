@@ -1,5 +1,10 @@
-/** A simple toggle control with a callback function
- * OpenLayers 3 Layer Switcher Control.
+/*	Copyright (c) 2016 Jean-Marc VIGLINO, 
+	released under the CeCILL-B license (French BSD license)
+	(http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/** Control bar for OL3
+ * The control bar is a container for other controls. It can be used to create toolbars.
+ * Control bars can be nested and combined with ol.control.Toggle to handle activate/deactivate.
  *
  * @constructor
  * @extends {ol.control.Control}
@@ -7,13 +12,12 @@
  *		className {String} class of the control
  *		group {bool} is a group, default false
  *		toggleOne {bool} only one toggle control is active at a time, default false
+ *		autoDeactivate {bool} used with subbar to deactivate all control when top level control deactivate, default false
  *		controls {Array<ol.control>} a list of control to add to the bar
  */
 ol.control.Bar = function(options) 
 {	if (!options) options={};
-	
-    this.name_ = options.name;
-    var element = $("<div>").addClass('ol-unselectable ol-control ol-bar');
+	var element = $("<div>").addClass('ol-unselectable ol-control ol-bar');
 	if (options.className) element.addClass(options.className);
 	if (options.group) element.addClass('ol-group');
 	
@@ -23,6 +27,7 @@ ol.control.Bar = function(options)
 	});
 
 	this.set('toggleOne', options.toggleOne);
+	this.set('autoDeactivate', options.autoDeactivate);
 
 	this.controls_ = [];
 	if (options.controls instanceof Array) 
@@ -32,7 +37,6 @@ ol.control.Bar = function(options)
 	}
 };
 ol.inherits(ol.control.Bar, ol.control.Control);
-
 
 /** Set the control visibility
 * @param {boolean} b 
@@ -50,22 +54,16 @@ ol.control.Bar.prototype.getVisible = function ()
 }
 
 /**
- * 
- * @returns this.name_
- */
-ol.control.Bar.prototype.getName = function()
-{	return this.name_;
-};
-
-/**
- * Set the map instance the control is associated with.
+ * Set the map instance the control is associated with
+ * and add its controls associated to this map.
  * @param {ol.Map} map The map instance.
  */
 ol.control.Bar.prototype.setMap = function (map)
 {	ol.control.Control.prototype.setMap.call(this, map);
 
 	for (var i=0; i<this.controls_.length; i++)
-	{	map.addControl(this.controls_[i]);
+	{	var c = this.controls_[i];
+		c.setMap(map);
 	}
 };
 
@@ -80,12 +78,10 @@ ol.control.Bar.prototype.getControls = function ()
 *	@param {top|left|bottom|right}
 */
 ol.control.Bar.prototype.setPosition = function (pos)
-{	$(this.element).removeClass('ol-left ol-top ol-bottom ol-right')
+{	$(this.element).removeClass('ol-left ol-top ol-bottom ol-right');
 	pos=pos.split ('-');
 	for (var i=0; i<pos.length; i++)
-	{	
-		console.log(pos[i]);
-		switch (pos[i])
+	{	switch (pos[i])
 		{	case 'top':
 			case 'left':
 			case 'bottom':
@@ -99,25 +95,21 @@ ol.control.Bar.prototype.setPosition = function (pos)
 
 /** Add a control to the bar
 *	@param {ol.control} c control to add
-*	@param {ol.control.Bar} bar an option bar essociated with the control (drawn when active)
 */
-ol.control.Bar.prototype.addControl = function (c, bar)
+ol.control.Bar.prototype.addControl = function (c)
 {	this.controls_.push(c);
 	c.setTarget(this.element);
-	if (bar)
-	{	this.controls_.push(bar);
-		bar.setTarget(c.element);
-		$(bar.element).addClass("ol-option-bar");
-		c.option_bar = bar;
-	}
 	if (this.getMap()) 
 	{	this.getMap().addControl(c);
-		if (c.option_bar) this.getMap().addControl(c.option_bar);
-		c.on ('change:active', this.onActivateControl_, this);
+	}
+	// Activate and toogleOne
+	c.on ('change:active', this.onActivateControl_, this);
+	if (c.getActive && c.getActive())
+	{	c.dispatchEvent({ type:'change:active', key:'active', oldValue:false, active:true });
 	}
 };
 
-/** Deactivate all controls in a bar
+/** Deativate all controls in a bar
 * @param {ol.control} except a control
 */
 ol.control.Bar.prototype.deactivateControls = function (except)
@@ -128,21 +120,23 @@ ol.control.Bar.prototype.deactivateControls = function (except)
 	}
 };
 
-/**
- * @param {string} name of the control to search
- */
-ol.control.Bar.prototype.getControlsByName = function(name) {
-    var controls = this.getControls();
-    var result = controls.filter(
-        function(control) {
-            return (typeof control.getName === 'function' && control.getName() === name);
-        }
-    );
-    return result;
-};
+/** Auto activate/deactivate controls in the bar
+* @param {boolean} b activate/deactivate
+*/
+ol.control.Bar.prototype.setActive = function (b)
+{	if (!b && this.get("autoDeactivate"))
+	{	this.deactivateControls();
+	}
+	if (b)
+	{	var ctrls = this.getControls();
+		for (var i=0, sb; (sb = ctrls[i]); i++)
+		{	if (sb.get("autoActivate")) sb.setActive(true);
+		}
+	}
+}
 
-/** Activate a control
-*	@param {ol.event} an object with a target {ol.control} and active {bool}
+/** Post-process an activated/deactivated control
+*	@param {ol.event} an object with a target {ol.control} and active flag {bool}
 */
 ol.control.Bar.prototype.onActivateControl_ = function (e)
 {	if (!e.active || !this.get('toggleOne')) return;
@@ -153,7 +147,17 @@ ol.control.Bar.prototype.onActivateControl_ = function (e)
 	}
 	// Not here!
 	if (n==this.controls_.length) return;
-	for (var i=0; i<this.controls_.length; i++) 
-	{	if (i!=n && this.controls_[i].setActive) this.controls_[i].setActive(false);
-	}
+	this.deactivateControls (this.controls_[n]);
+};
+
+/**
+ * @param {string} name of the control to search
+ */
+ol.control.Bar.prototype.getControlsByName = function(name) {
+    var controls = this.getControls();
+    return controls.filter(
+        function(control) {
+            return (control.get('name') === name);
+        }
+    );
 };
