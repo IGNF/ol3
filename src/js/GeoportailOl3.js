@@ -309,7 +309,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
  * @param {Object} opt (visible, opacity, filter ...)
  * @returns {layer}
  */
-ol.Map.prototype.addFeatureType = function (featureType, opt, source_options)
+ol.Map.Geoportail.prototype.addFeatureType = function (featureType, opt, source_options)
 {    
     var options     = $.extend({visible:true, opacity: 1}, opt);
     var src_options = source_options || {};
