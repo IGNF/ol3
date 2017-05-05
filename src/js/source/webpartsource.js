@@ -214,37 +214,41 @@ ol.source.Vector.Webpart.prototype.save = function()
 	var actions = this.getSaveActions().actions;
 	
 	self.dispatchEvent({ type:"savestart" });
-	// Noting to save
-	if (!actions.length) 
-	{	self.dispatchEvent({ type:"saveend" });
+	
+    // Noting to save
+	if (! actions.length) {	
 		return;
 	}
 
+    var databases = {};
+    databases[this.featureType_.database] = [this.featureType_.name];
+                
 	// Post changes
-	var param = 
-	{	"actions": JSON.stringify(actions), 
+	var param = {
+        actions: JSON.stringify(actions), 
 		typeName: this.featureType_.name,
-		// ? databases: '{"'+this.featureType_.fullName+'":"'+this.featureType_.name+'"}'
+		databases: JSON.stringify(databases)
 	};
 	
-	if (this.proxy_) param.url = this.featureType_.wfs + "transaction/";
-	$.ajax(
-		{	url: this.proxy_ || this.featureType_.wfs + "transaction/",
-			method: 'POST',
-			data: param,
-			success: function(data) 
-			{	if (data === "success")
-				{	// Clear history
-					self.reset();
-					self.dispatchEvent({ type:"saveend" });
-				}
-				else self.dispatchEvent({ type:"saveend", error: data });
-			},
-			error: function(jqXHR, status, error)
-			{	console.log(error);
-				self.dispatchEvent({ type:"saveend", status:status, error:error });
+	//if (this.proxy_) param.url = this.featureType_.wfs + "transaction/";
+	$.ajax({
+		url: this.proxy_ || this.featureType_.wfs_transactions,
+		method: 'POST',
+		data: param,
+		success: function(data) {
+			var x = data.getElementsByTagName('wfs:TransactionResult')[0];
+			
+			var status = x.getElementsByTagName('wfs:Status')[0].childNodes[0].tagName;
+			var message = x.getElementsByTagName('wfs:Message')[0].childNodes[0].nodeValue;
+			if (status === 'wfs:SUCCESS') {
+				self.reset();
 			}
-		});
+			self.dispatchEvent({ type:"saveend", status:status, message:message });
+		},
+		error: function(jqXHR, status, error) {
+			self.dispatchEvent({ type:"saveend", status:jqXHR.status, message:jqXHR.responseText });
+		}
+	});
 };
 
 /**
@@ -253,8 +257,10 @@ ol.source.Vector.Webpart.prototype.save = function()
  */
 ol.source.Vector.Webpart.prototype.onAddFeature_ = function(e)
 {   if (this.isloading_) return;
+    
     e.feature.setState(ol.Feature.State.INSERT);
     this.insert_.push(e.feature);
+    this.dispatchEvent({type:"updated"});
 };
 
 /*
@@ -284,6 +290,7 @@ ol.source.Vector.Webpart.prototype.onDeleteFeature_ = function(e)
 			break;
 	}
     e.feature.setState(ol.Feature.State.DELETE);
+    this.dispatchEvent({type:"updated"});
 };
 
 /**
@@ -299,6 +306,7 @@ ol.source.Vector.Webpart.prototype.onUpdateFeature_ = function(e)
     
     e.feature.setState(ol.Feature.State.UPDATE);
     this.update_.push(e.feature);
+    this.dispatchEvent({type:"updated"});
 };
 
 /** Find preserved feature (updated, deleted or preserved)
