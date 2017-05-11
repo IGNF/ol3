@@ -129,10 +129,11 @@ ol.Map.Geoportail.prototype.addRipartLayer = function(layer)
         opacity: layer.opacity
     };
     
+    var service = layer[layer.type];
     if (layer.type === 'geoservice') {
-        return this.addGeoservice(layer.geoservice, options);
+        return this.addGeoservice(service, options);
     } else if (layer.type === 'feature-type') {        
-        return this.addFeatureType(layer.feature_type, options);
+        return this.addFeatureType(service, options);
     }
     
     throw 'Must be a ripart layer';
