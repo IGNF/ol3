@@ -208,8 +208,8 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
 
 (function () {
 
-//rafraichit le style si l'image d'un ponctuel n'existe pas 
-//(remplace image par un symbole par defaut -> cercle )    
+    //rafraichit le style si l'image d'un ponctuel n'existe pas 
+    //(remplace image par un symbole par defaut -> cercle )    
     function refreshStyle(feature, fstyle, st)
     {
         var symb = st[0].getImage();
@@ -238,8 +238,7 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
             }
             feature.changed();
         };
-    }
-    ;
+    };
 
     /** Get ol.style.function as defined in featureType
      * @param {featureType}
@@ -247,52 +246,102 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
      */
     ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function (featureType)
     {
-        if (!featureType)
-            featureType = {};
+        if (! featureType) { featureType = {}; }
+        
+        /**
+         * Remplace les valeurs de proprietes de style ${xxxx} par leur valeur
+         * @param {ol.feature} feature
+         * @param {string} property
+         * @returns {ol.layer.Vector.Webpart.Style.getFeatureStyleFn.format.webpartstyleAnonym$13}
+         */
+        function format(feature, property) {
+			var reg = new RegExp(/\$\{([^\}]*)\}/);
+			
+			var result = reg.exec(property);
+			if (result !== null) {
+				var value = feature.get(result[1]);
+				if (value === null) {
+					property = property.replace("${" + result[1] + "}", ''); 
+				} else {
+					property = property.replace("${" + result[1] + "}", value); 
+				}		
+				return { value: property, computed: true };
+			}
+			return { value: property, computed: false };
+		}
+        
+        /**
+         *  Retourne l'identifiant du style. celui-ci est composé de :
+         *      - featureType.name
+         *      - si featureType.style.externalGraphic est defini, le nom du symbole.
+         *      - Les proprietes du style sont de type ${champ}
+         * @param {featureType} featureType
+         * @param {ol.feature} feature
+         */
+        function getCacheId(featureType, feature) {
+            var cacheids = [featureType.name];
+            
+            var fstyle  = featureType.style;
+            if (! fstyle) { return cacheids[0]; }
+            
+            if (fstyle.externalGraphic) {
+                if (featureType.symbo_attribute && feature.getProperties()[featureType.symbo_attribute.name]) {
+                    cacheids.push(feature.getProperties()[featureType.symbo_attribute.name]);
+                } else {
+                    cacheids.push(featureType.style.externalGraphic);
+                }
+            }
+
+            for (var property in fstyle) {
+                if (property === 'externalGraphic' || 
+                    property === 'label' ) { continue; }
+     
+				var frmt = format(feature, fstyle[property]);
+				if (frmt.computed) {
+					if (! frmt.value) cacheids.push('null');
+					else cacheids.push(frmt.value);
+				}
+            }
+
+            return cacheids.join('-');   
+        }
+        
         return function (feature, res)
         {
-            if (feature) {
-                var idcache = featureType.name;
-                if (featureType.style && featureType.style.externalGraphic) {
-                    if (featureType.symbo_attribute && feature.getProperties()[featureType.symbo_attribute.name]) {
-                        idcache += " " + feature.getProperties()[featureType.symbo_attribute.name];
-                    } else {
-                        idcache += " " + featureType.style.externalGraphic;
-                    }
-                    ;
-                }
-                
-                if (featureType.style && featureType.style.label) {
-                    // on ne peut pas garder en cache un style avec un label
-                    // il est différent pour tous les objets
-                    style = false;
+            if (! feature) { return []; }
+
+            // l'identifiant du cache
+            var idcache = getCacheId(featureType, feature);
+            
+            if (featureType.style && featureType.style.label) {
+                // on ne peut pas garder en cache un style avec un label
+                // il est différent pour tous les objets
+                style = false;
+            } else {
+                var style = styleCache[idcache];
+            }
+            if (!style) {
+                //le style n'a pas encore ete defini
+                var fstyle = ol.layer.Vector.Webpart.Style.formatFeatureStyle(featureType, feature);
+                if (featureType.symbo_attribute && featureType.symbo_attribute.name!=="") {
+                    bool = true;
                 } else {
-                    var style = styleCache[idcache];
-                }
-                if (!style) {
-                    //le style n'a pas encore ete defini
-                    var fstyle = ol.layer.Vector.Webpart.Style.formatFeatureStyle(featureType, feature);
-                    if (featureType.symbo_attribute && featureType.symbo_attribute.name!=="") {
-                        bool = true;
-                    } else {
-                        bool = false;
-                    }
-                    ;
-                    styleCache[idcache] = [
-                        new ol.style.Style(
-                                {text: ol.layer.Vector.Webpart.Style.Text(fstyle),
-                                    image: ol.layer.Vector.Webpart.Style.Image(fstyle, bool),
-                                    fill: ol.layer.Vector.Webpart.Style.Fill(fstyle),
-                                    stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle)
-                                })
-                    ];
-                    refreshStyle(feature, fstyle, styleCache[idcache]);
+                    bool = false;
                 }
                 ;
-                /*feature.setStyle(style);*/
-                return styleCache[idcache];
+                styleCache[idcache] = [
+                    new ol.style.Style(
+                            {text: ol.layer.Vector.Webpart.Style.Text(fstyle),
+                                image: ol.layer.Vector.Webpart.Style.Image(fstyle, bool),
+                                fill: ol.layer.Vector.Webpart.Style.Fill(fstyle),
+                                stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle)
+                            })
+                ];
+                refreshStyle(feature, fstyle, styleCache[idcache]);
             }
-            return [];
+            ;
+            /*feature.setStyle(style);*/
+            return styleCache[idcache];
         };
     };
 
