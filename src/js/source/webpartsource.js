@@ -231,24 +231,47 @@ ol.source.Vector.Webpart.prototype.save = function()
 	};
 	
 	//if (this.proxy_) param.url = this.featureType_.wfs + "transaction/";
-	$.ajax({
-		url: this.proxy_ || this.featureType_.wfs_transactions,
-		method: 'POST',
-		data: param,
-		success: function(data) {
-			var x = data.getElementsByTagName('wfs:TransactionResult')[0];
-			
-			var status = x.getElementsByTagName('wfs:Status')[0].childNodes[0].tagName;
-			var message = x.getElementsByTagName('wfs:Message')[0].childNodes[0].nodeValue;
-			if (status === 'wfs:SUCCESS') {
-				self.reset();
-			}
-			self.dispatchEvent({ type:"saveend", status:status, message:message });
-		},
-		error: function(jqXHR, status, error) {
-			self.dispatchEvent({ type:"saveend", status:jqXHR.status, message:jqXHR.responseText });
-		}
-	});
+    $.ajax({
+        url: this.proxy_ || this.featureType_.wfs_transactions,
+        method: 'POST',
+        data: param,
+        success: function (data) {
+            var x = data.getElementsByTagName('wfs:TransactionResult')[0];
+            if (!x || x == null) {
+                x = data.getElementsByTagName('TransactionResult')[0];
+            }
+            if (!x || x == null) {
+                x = data.getElementsByTagNameNS('http://www.opengis.net/wfs', 'TransactionResult')[0];
+            }
+            
+            var statusTag = x.getElementsByTagName('wfs:Status')[0];
+            if (!statusTag || statusTag == null) {
+                statusTag = data.getElementsByTagName('Status')[0];
+            }
+            if (!statusTag || statusTag == null) {
+                statusTag = data.getElementsByTagNameNS('http://www.opengis.net/wfs', 'Status')[0];
+            }
+            var status = statusTag.childNodes[0].tagName
+            
+            var messageTag = x.getElementsByTagName('wfs:Message')[0];
+            if (!messageTag || messageTag == null) {
+                messageTag = data.getElementsByTagName('Message')[0];
+            }
+            if (!messageTag || messageTag == null) {
+                messageTag = data.getElementsByTagNameNS('http://www.opengis.net/wfs', 'Message')[0];
+            }
+            var message = messageTag.childNodes[0].nodeValue;
+            
+            if (status === 'wfs:SUCCESS') {
+                self.reset();
+            }
+            
+            self.dispatchEvent({type: "saveend", status: status, message: message});
+        },
+        error: function (jqXHR, status, error) {
+            self.dispatchEvent({type: "saveend", status: jqXHR.status, message: jqXHR.responseText});
+        }
+    });
 };
 
 /**
