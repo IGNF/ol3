@@ -184,26 +184,26 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle, bool)
  */
 ol.layer.Vector.Webpart.Style.Text = function (fstyle)
 {
-    return new ol.style.Text(
-            {font: (fstyle.fontWeight || '')
-                        + " "
-                        + (fstyle.fontSize || "12px")
-                        + " "
-                        + (fstyle.fontFamily || 'Sans-serif'),
-                text: fstyle.label, // TODO si ${attr}
-                rotation: (fstyle.labelRotation || 0),
-                textAlign: "start",
-                textBaseline: "middle",
-                offsetX: Number(fstyle.labelXOffset) || 0,
-                offsetY: -Number(fstyle.labelYOffset) || 0,
-                stroke: new ol.style.Stroke(
-                        {color: fstyle.labelOutlineColor || "#fff",
-                            width: Number(fstyle.labelOutlineWidth) || 2
-                        }),
-                fill: new ol.style.Fill(
-                        {color: fstyle.fontColor
-                        })
-            });
+    return new ol.style.Text({
+        font: (fstyle.fontWeight || '')
+            + " "
+            + (fstyle.fontSize || "12") + "px"
+            + " "
+            + (fstyle.fontFamily || 'Sans-serif'),
+        text: fstyle.label, // TODO si ${attr}
+        rotation: (fstyle.labelRotation || 0),
+        textAlign: "start",
+        textBaseline: "middle",
+        offsetX: Number(fstyle.labelXOffset) || 0,
+        offsetY: -Number(fstyle.labelYOffset) || 0,
+        stroke: new ol.style.Stroke({
+            color: fstyle.labelOutlineColor || "#fff",
+            width: Number(fstyle.labelOutlineWidth) || 2
+        }),
+        fill: new ol.style.Fill({
+            color: fstyle.fontColor
+        })
+    });
 };
 
 (function () {
