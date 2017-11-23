@@ -113,6 +113,20 @@ ol.Feature.prototype.setState = function(state)
 {	this.state_ = state;
 };
 
+/**
+ * listen/unlisten for changefeature event
+ * @param {boolean} b
+ * @returns {undefined}
+ */
+ol.source.Vector.Webpart.prototype.listenChanges = function(b)
+{
+    if (b) {
+        this.on('changefeature', this.onUpdateFeature_, this);
+    } else {
+        this.un('changefeature', this.onUpdateFeature_, this);
+    }
+};
+
 /** Get the layer featureType
 * @return { featureType }
 */
