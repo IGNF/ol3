@@ -607,7 +607,7 @@ ol.layer.Vector.Webpart.Style.sens = function (options)
         options =
                 {attribute: 'sens_de_circulation',
                     glyph: '\u203A', // '>',
-                    size: "20px",
+                    size: "20",
                     direct: 'Sens direct',
                     inverse: 'Sens inverse'
                 };
