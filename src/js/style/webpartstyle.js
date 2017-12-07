@@ -21,10 +21,11 @@ ol.layer.Vector.Webpart.Style.formatProperties = function (format, feature)
     var reg = new RegExp(/\$\{([^\}]*)\}/);
     var result = null;
     while ((result = reg.exec(format)) !== null) {
-        if(feature.get(result[1])===null){
+        var value = feature.get(result[1]);
+        if(value===null || (typeof(value) === 'undefined') ){
             format = format.replace("${" + result[1] + "}", '');            
         }else{
-            format = format.replace("${" + result[1] + "}", feature.get(result[1]));
+            format = format.replace("${" + result[1] + "}", value);
         };       
     }
     return format;
