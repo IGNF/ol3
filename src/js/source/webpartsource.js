@@ -413,7 +413,12 @@ ol.source.Vector.Webpart.prototype.loaderFn_ = function (extent, resolution, pro
 		version: '1.1.0'
 	};
 	if (this.proxy_) parameters.url = this.featureType_.wfs;
-
+    
+    var date = this.get('date');
+    if (date) {
+        parameters.date = date;
+    }
+    
 	// Abort existing request
     if (this.request_ && !this.tiled_) this.request_.abort();
 	
