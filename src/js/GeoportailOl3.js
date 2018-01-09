@@ -344,9 +344,20 @@ ol.Map.Geoportail.prototype.addFeatureType = function (featureType, opt, source_
     vectorLayer.set('feature-type', featureType);
     this.addLayer(vectorLayer);
     
-    this.getLayerSwitcher().addLayer(vectorLayer, {
+    var lsOptions = {
         title:featureType.name
-    });
+    };
+    if (featureType.description) {
+        lsOptions.description = featureType.description;
+    } else {
+        lsOptions.description = 'Pas de description';
+    }
+    if (typeof(Routing) !== 'undefined') {
+        lsOptions.metadata = [{
+            url: Routing.generate('gcms_feature_type_view', {databaseName: featureType.database, typeName: featureType.name })
+        }];
+    }
+    this.getLayerSwitcher().addLayer(vectorLayer, lsOptions);
     
     this.getLayerSwitcher().setRemovable(vectorLayer,false);
     this.updateEyeInLayerSwitcher(vectorLayer, options.visible);
