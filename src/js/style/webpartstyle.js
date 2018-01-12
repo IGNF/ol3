@@ -1,4 +1,4 @@
-/** 
+/**
  * @namespace ol.layer.Vector.Webpart.Style
  */
 ol.layer.Vector.Webpart.Style = {};
@@ -21,12 +21,11 @@ ol.layer.Vector.Webpart.Style.formatProperties = function (format, feature)
     var reg = new RegExp(/\$\{([^\}]*)\}/);
     var result = null;
     while ((result = reg.exec(format)) !== null) {
-        var value = feature.get(result[1]);
-        if(value===null || (typeof(value) === 'undefined') ){
-            format = format.replace("${" + result[1] + "}", '');            
+        if(feature.get(result[1])===null){
+            format = format.replace("${" + result[1] + "}", '');
         }else{
-            format = format.replace("${" + result[1] + "}", value);
-        };       
+            format = format.replace("${" + result[1] + "}", feature.get(result[1]));
+        };
     }
     return format;
 };
@@ -45,21 +44,59 @@ ol.layer.Vector.Webpart.Style.formatExternalGraphic = function (format, featureT
 }
 
 /** Format Style with pattern ${attr}
- * @param {style} 
+ * @param {style}
  * @param {ol.Feature} feature width properties
  */
 ol.layer.Vector.Webpart.Style.formatFeatureStyle = function (featureType, feature)
 {
+    function escape(value) {
+        return '\"' + value + '\"';
+    }
+
+    function match(condition) {
+        var property = feature.get(condition.field);
+        if (property === 'undefined') { return false; }
+
+        var e = escape(property) + ' ' + condition.operator + ' ' + escape(condition.value);
+        return eval(e);
+    }
+
     if (!featureType.style)
         return {};
+
     var fstyle = featureType.style;
+    var style = fstyle;
+    if (fstyle.hasOwnProperty('children')) {
+        if (Array.isArray(fstyle['children'])) {
+            var children = fstyle['children'];
+            for (var i=0; i<children.length; ++i) {
+                // les enfants
+                if (! children[i].hasOwnProperty('condition')) { continue; }
+                var conditions = JSON.parse(children[i]['condition']);
+
+                var ok = true;
+                for (var j=0; j<conditions.length; ++j) {
+                  ok &= match(conditions[j]);
+                  if (! ok) { break; }
+                }
+
+                if (ok) {
+                    // applique le style children[i]
+                    style = children[i];
+                }
+            }
+        }
+    };
+
+    if (!featureType.style)
+        return {};
     var fs = {};
-    for (var i in fstyle)
+    for (var i in style)
     {
-        if (i === "externalGraphic" && fstyle[i] === "${externalGraphic}") {
-            fs[i] = ol.layer.Vector.Webpart.Style.formatExternalGraphic(fstyle[i], featureType, feature);
+        if (i === "externalGraphic" && style[i] === "${externalGraphic}") {
+            fs[i] = ol.layer.Vector.Webpart.Style.formatExternalGraphic(style[i], featureType, feature);
         } else {
-            fs[i] = ol.layer.Vector.Webpart.Style.formatProperties(fstyle[i], feature);
+            fs[i] = ol.layer.Vector.Webpart.Style.formatProperties(style[i], feature);
         }
     }
     return fs;
@@ -120,7 +157,7 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle, bool)
                 x: [4, radius, 0, Math.PI / 4]
             };
 
-    //graphicName        
+    //graphicName
     switch (fstyle.graphicName)
     {
         case "cross":
@@ -162,7 +199,7 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle, bool)
         if(fstyle.graphicWidth && fstyle.graphicHeight){
             src += "?width="+fstyle.graphicWidth+"&height="+fstyle.graphicHeight;
         }
-        
+
         image = new ol.style.Icon({
             scale: 1,
             src: src,
@@ -176,7 +213,7 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle, bool)
         });
         image.load();
     };
-    return image;    
+    return image;
 };
 
 /** Get Text style from featureType.style
@@ -209,8 +246,8 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
 
 (function () {
 
-    //rafraichit le style si l'image d'un ponctuel n'existe pas 
-    //(remplace image par un symbole par defaut -> cercle )    
+    //rafraichit le style si l'image d'un ponctuel n'existe pas
+    //(remplace image par un symbole par defaut -> cercle )
     function refreshStyle(feature, fstyle, st)
     {
         var symb = st[0].getImage();
@@ -248,7 +285,7 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
     ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function (featureType)
     {
         if (! featureType) { featureType = {}; }
-        
+
         /**
          * Remplace les valeurs de proprietes de style ${xxxx} par leur valeur
          * @param {ol.feature} feature
@@ -257,20 +294,20 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
          */
         function format(feature, property) {
 			var reg = new RegExp(/\$\{([^\}]*)\}/);
-			
+
 			var result = reg.exec(property);
 			if (result !== null) {
 				var value = feature.get(result[1]);
 				if (value === null) {
-					property = property.replace("${" + result[1] + "}", ''); 
+					property = property.replace("${" + result[1] + "}", '');
 				} else {
-					property = property.replace("${" + result[1] + "}", value); 
-				}		
+					property = property.replace("${" + result[1] + "}", value);
+				}
 				return { value: property, computed: true };
 			}
 			return { value: property, computed: false };
 		}
-        
+
         /**
          *  Retourne l'identifiant du style. celui-ci est composé de :
          *      - featureType.name
@@ -281,39 +318,41 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
          */
         function getCacheId(featureType, feature) {
             var cacheids = [featureType.name];
-            
-            var fstyle  = featureType.style;
-            if (! fstyle) { return cacheids[0]; }
-            
-            if (fstyle.externalGraphic) {
-                if (featureType.symbo_attribute && feature.getProperties()[featureType.symbo_attribute.name]) {
-                    cacheids.push(feature.getProperties()[featureType.symbo_attribute.name]);
-                } else {
-                    cacheids.push(featureType.style.externalGraphic);
-                }
-            }
 
-            for (var property in fstyle) {
-                if (property === 'externalGraphic' || 
-                    property === 'label' ) { continue; }
-     
-				var frmt = format(feature, fstyle[property]);
-				if (frmt.computed) {
-					if (! frmt.value) cacheids.push('null');
-					else cacheids.push(frmt.value);
-				}
-            }
+            var fstyle = ol.layer.Vector.Webpart.Style.formatFeatureStyle(featureType, feature);
+            cacheids.push(fstyle.id);
+            // var fstyle  = featureType.style;
+            // if (! fstyle) { return cacheids[0]; }
+            //
+            // if (fstyle.externalGraphic) {
+            //     if (featureType.symbo_attribute && feature.getProperties()[featureType.symbo_attribute.name]) {
+            //         cacheids.push(feature.getProperties()[featureType.symbo_attribute.name]);
+            //     } else {
+            //         cacheids.push(featureType.style.externalGraphic);
+            //     }
+            // }
+            //
+            // for (var property in fstyle) {
+            //     if (property === 'externalGraphic' ||
+            //         property === 'label' ) { continue; }
+            //
+			// 	var frmt = format(feature, fstyle[property]);
+			// 	if (frmt.computed) {
+			// 		if (! frmt.value) cacheids.push('null');
+			// 		else cacheids.push(frmt.value);
+			// 	}
+            // }
 
-            return cacheids.join('-');   
+            return cacheids.join('-');
         }
-        
+
         return function (feature, res)
         {
             if (! feature) { return []; }
 
             // l'identifiant du cache
             var idcache = getCacheId(featureType, feature);
-            
+
             if (featureType.style && featureType.style.label) {
                 // on ne peut pas garder en cache un style avec un label
                 // il est différent pour tous les objets
@@ -688,7 +727,7 @@ ol.layer.Vector.Webpart.Style.toponyme = function (options) {
 };
 
 /** Affichage de la couche batiment
- *	@param {Object} symbol (affiche un symbole Fontawesome), color (couleur du symbol) 
+ *	@param {Object} symbol (affiche un symbole Fontawesome), color (couleur du symbol)
  */
 ol.layer.Vector.Webpart.Style.batiment = function (options)
 {
