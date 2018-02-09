@@ -1,4 +1,4 @@
-/*var listTerritories = {   
+/*var listTerritories = {
     "FXX": { lon:1.7, lat:46.95, ech:5, bbox: [-16.82294921875, 37.19502456685295, 20.222949218750003, 55.203734032646594] },
     "GLP": { lon:-61.42, lat:16.17, ech:9, bbox: [-62.57768432617188, 15.377060580206361, -60.26231567382814, 16.95977023145332] },
     "GUF": { lon:-53, lat:4.8, ech:8, bbox: [-55.31536865234374, 3.156078098640947, -50.68463134765625, 6.439970953751896] },
@@ -17,7 +17,7 @@
     "ANF": { lon:-64.34, lat:15.78, ech:6, bbox: [-64.40, 15.70, -64.30, 15.80] },
     "EUE": { lon:9.4, lat:48.94, ech:2, bbox: [9.3, 48.9, 9.5, 49.0] }
 };*/
-    
+
 /**
  * @constructor IGN's Geoportail Map definition
  * @extends {ol.Map}
@@ -26,14 +26,14 @@
  */
 ol.Map.Geoportail = function(opt_options) {
     var options = opt_options ? opt_options : {};
-    
+
     ol.Map.call(this, options);
-    
+
     this.proxyUrl_ = null;
-    
+
     // Valeur de resolution pour un niveau de zoom de valeur 0
     this._resolutionInit    = 156543.03392804097 ;
-    
+
     // Ajout du layerSwitcher
     this._layerSwitcher = new ol.control.LayerSwitcher({options: {collapsed:false}});
     this.addControl(this._layerSwitcher);
@@ -59,7 +59,7 @@ ol.Map.Geoportail = function(opt_options) {
 ol.inherits(ol.Map.Geoportail, ol.Map);
 
 /**
- * 
+ *
  * @param {string} url
  * @returns {undefined}
  */
@@ -92,7 +92,7 @@ ol.Map.Geoportail.prototype.getLayersByName = function(name)
             return layer.get('name') === name;
         }, {name: name}
     );
-    
+
     return layers;
 };
 
@@ -105,17 +105,17 @@ ol.Map.Geoportail.prototype.getLayersByName = function(name)
 ol.Map.Geoportail.prototype.addRipartLayer = function(layer)
 {
 	var options = {
-        visible: layer.visibility, 
+        visible: layer.visibility,
         opacity: layer.opacity
     };
-    
+
     var service = layer[layer.type];
     if (layer.type === 'geoservice') {
         return this.addGeoservice(service, options);
-    } else if (layer.type === 'feature-type') {        
+    } else if (layer.type === 'feature-type') {
         return this.addFeatureType(service, options);
     }
-    
+
     throw 'Must be a ripart layer';
 };
 
@@ -131,18 +131,18 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
     if ( ! geoservice) {
         throw 'geoservice must be defined';
     }
-    
+
     if( !options ){
         var options = {visible: true, opacity: 1};
     }
-    
+
     var extent = geoservice.map_extent.split(",");
-    extent = extent.map(function (x) { 
-        return parseInt(x, 10); 
+    extent = extent.map(function (x) {
+        return parseInt(x, 10);
     });
-    
+
     var bbox = ol.proj.transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
-    
+
 	var newLayer = null;
     switch(geoservice.type){
         case 'GeoPortail':
@@ -175,7 +175,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             this.getLayerSwitcher().setRemovable(newLayer, false);
             this.updateEyeInLayerSwitcher(newLayer, options.visible);
             break;
-            
+
         case 'WMS':
             newLayer = new ol.layer.Tile({
                 name: geoservice.title,
@@ -197,11 +197,11 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                 maxResolution: this.getResolutionFromZoom(geoservice.min_zoom),
                 extent: bbox
             });
-            
+
             newLayer.set('type', 'geoservice');
             newLayer.set('geoservice', geoservice);
             this.addLayer(newLayer);
-              
+
             // Mise a jour de la couche dans le layer switcher
             this.getLayerSwitcher().addLayer(newLayer, {
                 title: geoservice.title,
@@ -224,7 +224,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                 minResolution: this.getResolutionFromZoom(geoservice.max_zoom),
                 maxResolution: this.getResolutionFromZoom(geoservice.min_zoom),
                 extent: bbox
-            });  
+            });
 
             newLayer.set('type', 'geoservice');
             newLayer.set('geoservice', geoservice);
@@ -232,7 +232,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
 
             // Mise a jour de la couche dans le layer switcher
             this.getLayerSwitcher().addLayer(newLayer, {
-                title:geoservice.title, 
+                title:geoservice.title,
                 description: geoservice.description,
                 quicklookUrl : null,
                 legends: [],
@@ -255,7 +255,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             }).done(function(response){
                 // Ajout de la couche a la carte
                 var wmtsCap = parser.read(response);
-                
+
                 // ol3 veut les epsg en uppercase !!!!
                 // TODO SUPPRIMER APRES LA CORRECTION DANS L'EAS
                 var matrixSets = [];
@@ -265,13 +265,13 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                     matrixSets.push(ms);
                 });
                 wmtsCap['Contents']['TileMatrixSet'] = matrixSets;
-                
+
                 var wmtsOptions = ol.source.WMTS.optionsFromCapabilities(wmtsCap, {
-                    layer: geoservice.layers, 
+                    layer: geoservice.layers,
                     matrixSet: 'epsg:3857',
                     title: geoservice.title
                 });
-                
+
                 newLayer.setSource(new ol.source.WMTS(wmtsOptions));
             }).fail(function(error){
                 console.log('erreur getCapabilities wmts');
@@ -283,8 +283,9 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             var vectorSource = new ol.source.Vector({
                 format: new ol.format.GeoJSON(),
                 url: function(extent) {
-                    return geoservice.url + '?service=WFS&version=1.1.0&request=GetFeature&typeName=' +
-                            geoservice.layers + '&outputFormat=JSON' +
+                    return geoservice.url + '?service=WFS&version=' + geoservice.version +
+                            '&request=GetFeature&typeName=' + geoservice.layers +
+                            '&outputFormat=application/json&srsname=EPSG:3857' +
                             '&bbox=' + extent.join(',')+',EPSG:3857';
                 },
                 crossOriginKeyword: 'anonymous',
@@ -308,7 +309,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             newLayer.set('geoservice', geoservice);
             this.addLayer(newLayer);
             this.getLayerSwitcher().addLayer(newLayer, {
-                title:geoservice.title, 
+                title:geoservice.title,
                 description: geoservice.description,
                 quicklookUrl : null,
                 legends: [],
@@ -318,8 +319,8 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             this.updateEyeInLayerSwitcher(newLayer,options.visible);
             break;
         default : break;
-    } 
-    
+    }
+
     return newLayer;
 };
 
@@ -330,15 +331,15 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
  * @returns {layer}
  */
 ol.Map.Geoportail.prototype.addFeatureType = function (featureType, opt, source_options)
-{    
+{
     var options     = $.extend({visible:true, opacity: 1}, opt);
     var src_options = source_options || {};
-    src_options = $.extend({featureType: featureType}, src_options);  
+    src_options = $.extend({featureType: featureType}, src_options);
     var style=null;
     if(featureType.style){
-      if(ol.layer.Vector.Webpart.Style !== "undefined"){      
+      if(ol.layer.Vector.Webpart.Style !== "undefined"){
         var style = new ol.layer.Vector.Webpart.Style.getFeatureStyleFn(featureType);
-      }else{      
+      }else{
         var hexColor = featureType.style.fillColor;
         if(!hexColor){hexColor="#ee9900";}
         var color = ol.color.asArray(hexColor);
@@ -358,7 +359,7 @@ ol.Map.Geoportail.prototype.addFeatureType = function (featureType, opt, source_
                 stroke: new ol.style.Stroke({color:[238,153,0,1],width:2})
               })
             });
-      }     
+      }
     }else{
       style = new ol.style.Style({
             fill: new ol.style.Fill({color:[238,153,0,0.5]}),
@@ -370,19 +371,19 @@ ol.Map.Geoportail.prototype.addFeatureType = function (featureType, opt, source_
             })
           });
     }
-    var vectorLayer = new ol.layer.Vector.Webpart({  
+    var vectorLayer = new ol.layer.Vector.Webpart({
         style: style,
         name: featureType.name,
         visible: options.visible,
         opacity: options.opacity,
         minResolution: this.getResolutionFromZoom(featureType.maxZoomLevel),
         maxResolution: this.getResolutionFromZoom(featureType.minZoomLevel)
-    },src_options);            
-    
+    },src_options);
+
     vectorLayer.set('type', 'feature-type');
     vectorLayer.set('feature-type', featureType);
     this.addLayer(vectorLayer);
-    
+
     var lsOptions = {
         title:featureType.name
     };
@@ -397,10 +398,10 @@ ol.Map.Geoportail.prototype.addFeatureType = function (featureType, opt, source_
         }];
     }
     this.getLayerSwitcher().addLayer(vectorLayer, lsOptions);
-    
+
     this.getLayerSwitcher().setRemovable(vectorLayer,false);
     this.updateEyeInLayerSwitcher(vectorLayer, options.visible);
-     
+
     return vectorLayer;
 };
 
@@ -413,7 +414,7 @@ ol.Map.Geoportail.prototype.removeGeoservice = function (layername)
 	var layers = this.getLayersByName(layername);
 	$.each(layers, function(index, layer) {
 		this.removeLayer(layer);
-	});  
+	});
 };
 
 /**
@@ -424,7 +425,7 @@ ol.Map.Geoportail.prototype.removeGeoservice = function (layername)
  */
 ol.Map.Geoportail.prototype.updateEyeInLayerSwitcher = function (olLayer, visibility){
     var idlayer = this.getLayerSwitcher().getLayerDOMId(olLayer);
-   
+
     var n = idlayer.indexOf('_');
     var id = idlayer.substr(n+1);
     document.getElementById("GPvisibility_"+id).checked = visibility;
