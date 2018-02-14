@@ -332,16 +332,16 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
             //     }
             // }
             //
-            // for (var property in fstyle) {
-            //     if (property === 'externalGraphic' ||
-            //         property === 'label' ) { continue; }
-            //
-			// 	var frmt = format(feature, fstyle[property]);
-			// 	if (frmt.computed) {
-			// 		if (! frmt.value) cacheids.push('null');
-			// 		else cacheids.push(frmt.value);
-			// 	}
-            // }
+            for (var property in fstyle) {
+                if (property === 'externalGraphic' ||
+                    property === 'label' ) { continue; }
+
+				var frmt = format(feature, fstyle[property]);
+				if (frmt.computed) {
+					if (! frmt.value) cacheids.push('null');
+					else cacheids.push(frmt.value);
+				}
+            }
 
             return cacheids.join('-');
         }
