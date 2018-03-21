@@ -282,11 +282,40 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             // Ajout Redmine #7753 (en cours, pourrait nécessiter l'usage du proxy)
             var vectorSource = new ol.source.Vector({
                 format: new ol.format.GeoJSON(),
-                url: function(extent) {
-                    return geoservice.url + '?service=WFS&version=' + geoservice.version +
-                            '&request=GetFeature&typeName=' + geoservice.layers +
-                            '&outputFormat=application/json&srsname=EPSG:3857' +
-                            '&bbox=' + extent.join(',')+',EPSG:3857';
+                loader: function(extent) {
+                    // var proj = projection.getCode();
+                    var url = "";
+                    if (geoservice.version == '1.0.0') {
+                        // BBOX avec 4 paramètres : coordonnées
+                        // pas de SRSNAME car prend le Default SRS/CRS
+                        // TODO utiliser le proxy 
+                        url =  geoservice.url + '?service=WFS&version=' + geoservice.version +
+                                '&request=GetFeature&typeName=' + geoservice.layers +
+                                '&outputFormat=application/json' +
+                                '&bbox=' + ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',');
+                    } else {
+                        // BBOX avec 4 paramètres : coordonnées et SRS
+                        // SRSNAME si possible en 3857
+                        // TODO
+                        // Trouver les projections disponibles
+                        // Prendre 3857 si elle existe sinon 432
+                        url = geoservice.url + '?service=WFS&version=' + geoservice.version +
+                                '&request=GetFeature&typeName=' + geoservice.layers +
+                                '&outputFormat=application/json&srsname=EPSG:3857' +
+                                '&bbox=' + ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',')+
+                                        ',EPSG:4326';
+                    }
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('GET', url);
+                    xhr.onload = function() {
+                        if (xhr.status == 200) {
+                            vectorSource.addFeatures(
+                                vectorSource.getFormat().readFeatures(xhr.responseText,{
+                                    featureProjection: 'EPSG:3857'
+                                }));
+                        }
+                    }
+                    xhr.send();
                 },
                 crossOriginKeyword: 'anonymous',
                 strategy: ol.loadingstrategy.bbox
