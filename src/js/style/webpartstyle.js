@@ -161,6 +161,7 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle, bool)
     switch (fstyle.graphicName)
     {
         case "cross":
+        case "x":
         case "star":
         case "square":
         case "triangle":
