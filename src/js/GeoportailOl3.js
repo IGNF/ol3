@@ -288,7 +288,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                     if (geoservice.version == '1.0.0') {
                         // BBOX avec 4 paramètres : coordonnées
                         // pas de SRSNAME car prend le Default SRS/CRS
-                        // TODO utiliser le proxy 
+                        // TODO utiliser le proxy
                         url =  geoservice.url + '?service=WFS&version=' + geoservice.version +
                                 '&request=GetFeature&typeName=' + geoservice.layers +
                                 '&outputFormat=application/json' +
@@ -320,12 +320,18 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                 crossOriginKeyword: 'anonymous',
                 strategy: ol.loadingstrategy.bbox
             });
+
+            var style = JSON.parse('{"strokeColor" : "rgba(0, 0, 255, 1)","strokeWidth" : 2}');
+            if (geoservice.json_style) {
+                $.extend(style, style, JSON.parse(geoservice.json_style));
+            }
             var vectorStyle = new ol.style.Style({
                 stroke: new ol.style.Stroke({
-                    color: 'rgba(0, 0, 255, 1.0)',
-                    width: 2
+                    color: style.strokeColor,
+                    width: Number(style.strokeWidth)
                 })
             });
+
             newLayer = new ol.layer.Vector({
                 source: vectorSource,
                 style: vectorStyle,
