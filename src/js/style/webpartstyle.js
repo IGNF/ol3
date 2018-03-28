@@ -376,7 +376,7 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
                                 image: ol.layer.Vector.Webpart.Style.Image(fstyle, bool),
                                 fill: ol.layer.Vector.Webpart.Style.Fill(fstyle),
                                 stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle)
-                            });
+                            })
                 ];
                 refreshStyle(feature, fstyle, styleCache[idcache]);
             }
