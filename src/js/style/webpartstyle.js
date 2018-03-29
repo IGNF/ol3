@@ -369,7 +369,9 @@ ol.layer.Vector.Webpart.Style.Text = function (fstyle)
                 } else {
                     bool = false;
                 }
-                ;
+                if (!fstyle.label) {
+                    fstyle.label = undefined;
+                }
                 styleCache[idcache] = [
                     new ol.style.Style(
                             {text: ol.layer.Vector.Webpart.Style.Text(fstyle),
