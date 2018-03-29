@@ -102,14 +102,38 @@ ol.layer.Vector.Webpart.Style.formatFeatureStyle = function (featureType, featur
     return fs;
 };
 
+/** Get stroke LineDash style from featureType.style
+ * @param {style}
+ * @return Array
+ */
+ol.layer.Vector.Webpart.Style.StrokeLineDash = function (style) {
+
+    var width = Number(style.strokeWidth) || 2;
+    if (style.strokeDashstyle == 'dot') {
+        return [1,2*width];
+    } else if (style.strokeDashstyle == 'dash') {
+        return [2*width,2*width];
+    } else if (style.strokeDashstyle == 'dashdot') {
+        return [2*width, 4*width, 1, 4*width];
+    }  else if (style.strokeDashstyle == 'longdash') {
+        return [4*width,2*width];
+    } else if (style.strokeDashstyle == 'longdashdot') {
+        return [4*width, 4*width, 1, 4*width];
+    } else {
+        return undefined;
+    }
+};
+
 /** Get stroke style from featureType.style
- * @param {featureType.style | {color,width} | undefined}
+ * @param {featureType.style}
  * @return ol.style.Stroke
  */
 ol.layer.Vector.Webpart.Style.Stroke = function (fstyle) {
     var stroke = new ol.style.Stroke({
         color: fstyle.strokeColor || "#00f",
-        width: Number(fstyle.strokeWidth) || 1
+        width: Number(fstyle.strokeWidth) || 2,
+        lineDash: ol.layer.Vector.Webpart.Style.StrokeLineDash(fstyle),
+        lineCap: fstyle.strokeLinecap || "round"
     });
     if (fstyle.strokeOpacity) {
         var a = ol.color.asArray(stroke.getColor());
