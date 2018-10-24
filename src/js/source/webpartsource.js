@@ -146,8 +146,8 @@ ol.source.Vector.Webpart.prototype.setFeatureFilter = function(filter, options)
 ol.source.Vector.Webpart.prototype.addFeatureFilter = function(filter, options)
 {
     switch (filter) {
-        case 'detruit':	filter = { "detruit": true }; break;
-        case 'vivant':	filter = { "detruit": false }; break;
+        case 'detruit':	filter = { "gcms_detruit": true }; break;
+        case 'vivant':	filter = { "gcms_detruit": false }; break;
         case 'depuis':	filter = { "daterec": {"$gt" : String(options) } }; break;
         case 'jusqua':	filter = { "daterec": {"$lt" : String(options) } }; break;
         default: break;
@@ -209,20 +209,20 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
     }
 
     /**
-     * 
+     *
      * @param {ol.Feature} feature
      * @returns {undefined}
      */
     function getPropertiesToUpdate(feature) {
         var properties = feature.getProperties();
-        
+
         var property = getChangesProperty(feature);
         if (property === undefined) {
             throw "Update with no changes !!";
         }
-        
+
         var changes = feature.get(property);
-        
+
         var changedProperties = {};
         changedProperties[idName] = properties[idName];
         for (var i=0; i<changes.length; ++i) {
@@ -231,8 +231,8 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
                 changedProperties[field] = properties[field];
             }
         }
-       
-        
+
+
         if (changedProperties.hasOwnProperty('geometry')) {
             var g = properties.geometry.clone();
             g.transform (self.projection_, self.srsName_);
@@ -240,12 +240,12 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
             delete changedProperties.geometry;
             changedProperties[geometryAttribute] = wkt.writeGeometry(g);
         }
-        
+
         return changedProperties;
     }
-    
+
     /**
-     * 
+     *
      * @param {Array} t
      * @param {ol.Feature.State} state
      * @returns {Number|nb}
@@ -262,16 +262,16 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
                 } else {
                     var g = properties.geometry.clone();
                     g.transform (self.projection_, self.srsName_);
-                    
+
                     delete properties.geometry;
                     properties[geometryAttribute] = wkt.writeGeometry(g);
                 }
-				
+
 				// delete a.feature._id;
-				actions.push({ 
-                    feature: properties, 
-                    state: f.getState(), 
-                    typeName: typeName 
+				actions.push({
+                    feature: properties,
+                    state: f.getState(),
+                    typeName: typeName
                 });
 				nb++;
 			}
@@ -292,7 +292,7 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
 };
 
 /**
- * 
+ *
  * @returns {unresolved}
  */
 ol.source.Vector.Webpart.prototype.countActions = function()

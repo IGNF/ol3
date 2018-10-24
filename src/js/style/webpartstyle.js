@@ -425,7 +425,7 @@ ol.layer.Vector.Webpart.Style.zombie = function (options)
 {
     function getColor(feature, opacity)
     {
-        return (feature.get('detruit') ? [255, 0, 0, opacity] : [0, 0, 255, opacity]);
+        return (feature.get('gcms_detruit') ? [255, 0, 0, opacity] : [0, 0, 255, opacity]);
     }
     ;
 
@@ -451,7 +451,7 @@ ol.layer.Vector.Webpart.Style.zombie = function (options)
  */
 ol.layer.Vector.Webpart.Style.detruit = function (options) {
     return function (feature, res) {
-        if (!feature.get('detruit'))
+        if (!feature.get('gcms_detruit'))
             return [];
         var fstyle = {
             strokeColor: [0, 0, 255, 1],
@@ -472,7 +472,7 @@ ol.layer.Vector.Webpart.Style.detruit = function (options) {
  */
 ol.layer.Vector.Webpart.Style.vivant = function (options) {
     return function (feature, res) {
-        if (feature.get('detruit'))
+        if (feature.get('gcms_detruit'))
             return [];
         var fstyle = {
             strokeColor: [0, 0, 255, 1],
@@ -495,7 +495,7 @@ ol.layer.Vector.Webpart.Style.vivant = function (options) {
  */
 ol.layer.Vector.Webpart.Style.interval = function (options) {
     function getColor(feature, interval) {
-        var d = feature.get('daterec');
+        var d = feature.get('daterec') ? feature.get('daterec') : new Date(Math.max(new Date(feature.get('gcms_date_creation')), new Date(feature.get('gcms_date_modification')))).toISOString().slice(0,10);
 
         var color = "#369";
         for (var i = 0; i < interval.length; i++) {
