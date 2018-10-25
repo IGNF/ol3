@@ -113,6 +113,17 @@ ol.Feature.prototype.setState = function(state)
 {	this.state_ = state;
 };
 
+/** Get feature detruit field
+* @return string
+*/
+ol.Feature.prototype.getDetruitField = function()
+{
+    if (this.get("detruit")) {
+        return "detruit";
+    }
+    return "gcms_detruit";
+};
+
 /**
  * listen/unlisten for changefeature event
  * @param {boolean} b
@@ -146,14 +157,22 @@ ol.source.Vector.Webpart.prototype.setFeatureFilter = function(filter, options)
 ol.source.Vector.Webpart.prototype.addFeatureFilter = function(filter, options)
 {
     switch (filter) {
-        case 'detruit':	filter = { "gcms_detruit": true }; break;
-        case 'vivant':	filter = { "gcms_detruit": false }; break;
+        case 'detruit':	filter = { [this.getDetruitField()] : true }; break;
+        case 'vivant':	filter = { [this.getDetruitField()] : false }; break;
         case 'depuis':	filter = { "daterec": {"$gt" : String(options) } }; break;
         case 'jusqua':	filter = { "daterec": {"$lt" : String(options) } }; break;
         default: break;
     }
     $.extend(this.featureFilter_, filter);
     this.reload();
+};
+
+ol.source.Vector.Webpart.prototype.getDetruitField = function()
+{
+    if (this.featureType_.database_type == "replication_bduni") {
+        return "detruit";
+    }
+    return "gcms_detruit";
 };
 
 /** Reset edition

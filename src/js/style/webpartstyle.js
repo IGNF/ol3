@@ -425,7 +425,7 @@ ol.layer.Vector.Webpart.Style.zombie = function (options)
 {
     function getColor(feature, opacity)
     {
-        return (feature.get('gcms_detruit') ? [255, 0, 0, opacity] : [0, 0, 255, opacity]);
+        return (feature.get([feature.getDetruitField()])) ? [255, 0, 0, opacity] : [0, 0, 255, opacity]);
     }
     ;
 
@@ -451,7 +451,7 @@ ol.layer.Vector.Webpart.Style.zombie = function (options)
  */
 ol.layer.Vector.Webpart.Style.detruit = function (options) {
     return function (feature, res) {
-        if (!feature.get('gcms_detruit'))
+        if (!feature.get([feature.getDetruitField()]))
             return [];
         var fstyle = {
             strokeColor: [0, 0, 255, 1],
@@ -472,7 +472,7 @@ ol.layer.Vector.Webpart.Style.detruit = function (options) {
  */
 ol.layer.Vector.Webpart.Style.vivant = function (options) {
     return function (feature, res) {
-        if (feature.get('gcms_detruit'))
+        if (feature.get([feature.getDetruitField()]))
             return [];
         var fstyle = {
             strokeColor: [0, 0, 255, 1],
