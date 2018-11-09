@@ -495,7 +495,7 @@ ol.layer.Vector.Webpart.Style.vivant = function (options) {
  */
 ol.layer.Vector.Webpart.Style.interval = function (options) {
     function getColor(feature, interval) {
-        var d = feature.get('daterec') ? feature.get('daterec') : new Date(Math.max(new Date(feature.get('gcms_date_creation')), new Date(feature.get('gcms_date_modification')))).toISOString().slice(0,10);
+        var d = feature.get('daterec') ? feature.get('daterec') : new Date(Math.max(new Date(feature.get('date_creation')), new Date(feature.get('date_modification')))).toISOString().slice(0,10);
 
         var color = "#369";
         for (var i = 0; i < interval.length; i++) {
