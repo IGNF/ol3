@@ -169,7 +169,7 @@ ol.source.Vector.Webpart.prototype.addFeatureFilter = function(filter, options)
 
 ol.source.Vector.Webpart.prototype.getDetruitField = function()
 {
-    if (this.featureType_.database_type == "replication_bduni") {
+    if (this.featureType_.database_type == "replication_bduni" || this.featureType_.database_type == "production_bduni") {
         return "detruit";
     }
     return "gcms_detruit";
