@@ -157,8 +157,14 @@ ol.source.Vector.Webpart.prototype.setFeatureFilter = function(filter, options)
 ol.source.Vector.Webpart.prototype.addFeatureFilter = function(filter, options)
 {
     switch (filter) {
-        case 'detruit':	filter = { [this.getDetruitField()] : true }; break;
-        case 'vivant':	filter = { [this.getDetruitField()] : false }; break;
+        case 'detruit':	case 'detruit':
+            filter = {};
+            filter[this.getDetruitField()] = true;
+            break;
+        case 'vivant':
+            filter = {};
+            filter[this.getDetruitField()] = false;
+            break;
         case 'depuis':	filter = { "daterec": {"$gt" : String(options) } }; break;
         case 'jusqua':	filter = { "daterec": {"$lt" : String(options) } }; break;
         default: break;
