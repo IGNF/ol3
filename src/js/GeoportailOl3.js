@@ -291,7 +291,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                         // TODO utiliser le proxy
                         url =  geoservice.url + '?service=WFS&version=' + geoservice.version +
                                 '&request=GetFeature&typeName=' + geoservice.layers +
-                                '&outputFormat=application/json' +
+                                '&outputFormat=' + geoservice.format +
                                 '&bbox=' + ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',');
                     } else {
                         // BBOX avec 4 paramètres : coordonnées et SRS
@@ -301,7 +301,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                         // Prendre 3857 si elle existe sinon 432
                         url = geoservice.url + '?service=WFS&version=' + geoservice.version +
                                 '&request=GetFeature&typeName=' + geoservice.layers +
-                                '&outputFormat=application/json&srsname=EPSG:3857' +
+                                '&outputFormat=' + geoservice.format + '&srsname=EPSG:3857' +
                                 '&bbox=' + ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',')+
                                         ',EPSG:4326';
                     }
