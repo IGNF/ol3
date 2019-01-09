@@ -405,6 +405,9 @@ ol.Map.Geoportail.prototype.addFeatureType = function (featureType, opt, source_
 {
     var options     = $.extend({visible:true, opacity: 1}, opt);
     var src_options = source_options || {};
+    if (featureType.tileZoomLevel) {
+        src_options.tileZoom = featureType.tileZoomLevel;
+    }
     src_options = $.extend({featureType: featureType}, src_options);
     var style=null;
     if(featureType.style){
