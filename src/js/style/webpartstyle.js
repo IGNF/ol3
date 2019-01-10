@@ -29,6 +29,22 @@ ol.layer.Vector.Webpart.Style.formatFeatureStyle = function (fstyle, feature)
 	return fs;
 };
 
+/** Get stroke LineDash style from featureType.style
+ * @param {style}
+ * @return Array
+ */
+ol.layer.Vector.Webpart.Style.StrokeLineDash = function (style) {
+	var width = Number(style.strokeWidth) || 2;
+	switch (style.strokeDashstyle) {
+		case 'dot': return [1,2*width];
+		case 'dash': return [2*width,2*width];
+		case 'dashdot': return [2*width, 4*width, 1, 4*width];
+		case 'longdash': return [4*width,2*width];
+		case 'longdashdot': return [4*width, 4*width, 1, 4*width];
+		default: return undefined;
+	}
+};
+
 /** Get stroke style from featureType.style
 *	@param {featureType.style | {color,width} | undefined}
 *	@return ol.style.Stroke
@@ -38,12 +54,35 @@ ol.layer.Vector.Webpart.Style.Stroke = function (fstyle)
 	var stroke = new ol.style.Stroke(
 					{	color: fstyle.strokeColor || "#00f",
 						width: Number(fstyle.strokeWidth) || 1,
-						lineDash: fstyle.dash ? [5,5] : undefined
+						lineDash: ol.layer.Vector.Webpart.Style.StrokeLineDash(fstyle),
+						lineCap: fstyle.strokeLinecap || "round"
 					});
 	if (fstyle.strokeOpacity<1)
 	{	var a = ol.color.asArray(stroke.getColor());
 		if (a.length)
 		{	a[4] = fstyle.strokeOpacity;
+			stroke.setColor(a);
+		}
+	}
+	return stroke;
+}
+
+/** Get stroke border style from featureType.style
+*	@param {featureType.style | {color,width} | undefined}
+*	@return ol.style.Stroke
+*/
+ol.layer.Vector.Webpart.Style.StrokeBorder = function (fstyle)
+{	if (fstyle.strokeOpacity===0) return;
+	var stroke = new ol.style.Stroke({
+		color: fstyle.strokeBorderColor || "#000",
+		width: (Number(fstyle.strokeWidth) || 1) + 3,
+		lineDash: ol.layer.Vector.Webpart.Style.StrokeLineDash(fstyle),
+		lineCap: fstyle.strokeLinecap || "round"
+	});
+	if (fstyle.strokeOpacity<1){
+		var a = ol.color.asArray(stroke.getColor());
+		if (a.length){
+			a[4] = fstyle.strokeOpacity;
 			stroke.setColor(a);
 		}
 	}
@@ -56,9 +95,9 @@ ol.layer.Vector.Webpart.Style.Stroke = function (fstyle)
 */
 ol.layer.Vector.Webpart.Style.Fill = function (fstyle)
 {	if (fstyle.fillOpacity===0) return;
-	var fill = new ol.style.Fill(
-					{	color: fstyle.fillColor || "rgba(255,255,255,0.5)",
-					});
+	var fill = new ol.style.Fill({
+		color: fstyle.fillColor || "rgba(255,255,255,0.5)",
+	});
 	if (fstyle.fillOpacity < 1)
 	{	var a = ol.color.asArray(fill.getColor());
 		if (a.length)
@@ -121,7 +160,32 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle)
 				break;
 		}
 	}
-	return image;
+    //externalGraphic
+    if (fstyle.externalGraphic) {
+        if (bool) {
+            src = urlLibraryImg + "./../../" + fstyle.name + "/" + fstyle.externalGraphic;
+        } else {
+            src = urlImgAlone + "./../" + fstyle.externalGraphic ;
+        }
+        if(fstyle.graphicWidth && fstyle.graphicHeight){
+            src += "?width="+fstyle.graphicWidth+"&height="+fstyle.graphicHeight;
+        }
+
+        image = new ol.style.Icon({
+            scale: 1,
+            src: src,
+            opacity: fstyle.graphicOpacity,
+            rotation:Number(fstyle.rotation)* (2 * Math.PI  / 180) || 0,
+            //permet de centrer le picto
+            offset: [0.5, 0.5],
+            anchor: [0.5, 0.5],
+            anchorXUnits: 'fraction',
+            anchorYUnits: 'fraction'
+        });
+        image.load();
+    };
+
+    return image;
 };
 
 /** Get Text style from featureType.style
@@ -186,11 +250,16 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType, cache) {
 	{	return ol.layer.Vector.Webpart.Style[featureType.name](featureType);
 	}
 	else return function(feature, res)
-    {	var style = featureType.style;
+	{	var style = featureType.style;
 		// Conditionnal style
 		if (featureType.style && featureType.style.children) {
 			for (var i=0, fi; fi=featureType.style.children[i]; i++) {
 				var test = true;
+				if (typeof (fi.condition) ==='string') {
+					try {
+						fi.condition = JSON.parse(fi.condition);
+					} catch(e) {}
+				}
 				for (var k=0, cond; cond = fi.condition[k]; k++) {
 					var val = feature.get(cond.field);
 					switch (cond.operator) {
@@ -235,7 +304,7 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType, cache) {
 				cache
 			)
 		}
-		return [	
+		var st = [	
 			new ol.style.Style (
 			{	text: ol.layer.Vector.Webpart.Style.Text (fstyle),
 				image: ol.layer.Vector.Webpart.Style.Image (fstyle),
@@ -243,6 +312,13 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType, cache) {
 				stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle)
 			})
 		];
+		if (fstyle.strokeBorderColor) {
+			st.unshift( new ol.style.Style ({
+				stroke: ol.layer.Vector.Webpart.Style.StrokeBorder(fstyle),
+				zIndex: -1
+			}));
+		}
+		return st;
 	}
 };
 
