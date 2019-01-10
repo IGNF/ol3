@@ -27,7 +27,7 @@ if (!proj4.defs["IGNF:LAMB93"]) proj4.defs("IGNF:LAMB93","+proj=lcc +lat_1=49 +l
  */
 ol.source.Vector.Webpart = function(opt_options)
 {   var options = opt_options || {};
-
+console.log(this)
 	// Proxy to load features
 	this.proxy_ = options.proxy;
 
@@ -576,16 +576,19 @@ ol.source.Vector.Webpart.prototype.loaderFn_ = function (extent, resolution, pro
                 if (feature) features.push( feature );
             }
 
-            // Add new inserted features
-            var l = self.insert_.length;
-            for (var i=0; i<l; i++)
-			{   if (self.insert_[i].getState()===ol.Feature.State.INSERT) features.push( self.insert_[i] );
-            }
-
             // Start replacing features
             self.isloading_ = true;
-				if (!self.tiled_) self.getFeaturesCollection().clear();
-				self.addFeatures(features);
+                if (!self.tiled_) self.getFeaturesCollection().clear();
+                self.addFeatures(features);
+                // Add new inserted features
+                var l = self.insert_.length;
+                for (var i=0; i<l; i++) {
+                    if (self.insert_[i].getState()===ol.Feature.State.INSERT) {
+                        try {
+                            self.addFeature( self.insert_[i] );
+                        } catch(e) {}
+                    }
+                }
             self.isloading_ = false;
             self.dispatchEvent({ type:"loadend", remains:--self.tileloading_ });
 			if (data.length === self.maxFeatures_) self.dispatchEvent({ type:"overload" });
