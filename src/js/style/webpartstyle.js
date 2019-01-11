@@ -110,24 +110,37 @@ ol.layer.Vector.Webpart.Style.Fill = function (fstyle)
 
 /** Get Image style from featureType.style
 *	@param {featureType.style |  undefined}
+*	@param {boolean} libImage
 *	@return ol.style.Image
 */
-ol.layer.Vector.Webpart.Style.Image = function (fstyle)
+ol.layer.Vector.Webpart.Style.Image = function (fstyle, libImage)
 {	var image;
-	if (fstyle.img)
-	{	image = new ol.style.Icon ({
-			src: fstyle.img
-		});
-	}
-	else
-	{	var radius = Number(fstyle.pointRadius) || 5;
-		var graphic = 
-			{	cross: [ 4, radius, 0, 0 ],
-				square: [ 4, radius, undefined, Math.PI/4 ],
-				triangle: [ 3, radius, undefined, 0 ],
-				star: [ 5, radius, radius/2, 0 ],
-				x: [ 4, radius, 0, Math.PI/4 ]
-			}
+    //externalGraphic
+    if (fstyle.externalGraphic) {
+		// Gestion d'une bibliotheque de symboles
+        if (libImage) {
+            src = urlLibraryImg + "./../../" + fstyle.name + "/" + fstyle.externalGraphic;
+        } else {
+            src = urlImgAlone + "./../" + fstyle.externalGraphic ;
+        }
+        if (fstyle.graphicWidth && fstyle.graphicHeight) {
+            src += "?width="+fstyle.graphicWidth+"&height="+fstyle.graphicHeight;
+        }
+
+        image = new ol.style.Icon({
+            scale: 1,
+            src: src,
+            opacity: fstyle.graphicOpacity,
+            rotation:Number(fstyle.rotation)* (2 * Math.PI  / 180) || 0,
+            //permet de centrer le picto
+            offset: [0.5, 0.5],
+            anchor: [0.5, 0.5],
+            anchorXUnits: 'fraction',
+            anchorYUnits: 'fraction'
+        });
+        image.load();
+	} else {
+		var radius = Number(fstyle.pointRadius) || 5;
 		switch (fstyle.graphicName)
 		{	case "cross": 
 			case "star":
@@ -160,30 +173,6 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle)
 				break;
 		}
 	}
-    //externalGraphic
-    if (fstyle.externalGraphic) {
-        if (bool) {
-            src = urlLibraryImg + "./../../" + fstyle.name + "/" + fstyle.externalGraphic;
-        } else {
-            src = urlImgAlone + "./../" + fstyle.externalGraphic ;
-        }
-        if(fstyle.graphicWidth && fstyle.graphicHeight){
-            src += "?width="+fstyle.graphicWidth+"&height="+fstyle.graphicHeight;
-        }
-
-        image = new ol.style.Icon({
-            scale: 1,
-            src: src,
-            opacity: fstyle.graphicOpacity,
-            rotation:Number(fstyle.rotation)* (2 * Math.PI  / 180) || 0,
-            //permet de centrer le picto
-            offset: [0.5, 0.5],
-            anchor: [0.5, 0.5],
-            anchorXUnits: 'fraction',
-            anchorYUnits: 'fraction'
-        });
-        image.load();
-    };
 
     return image;
 };
@@ -294,20 +283,11 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType, cache) {
 		}
 
 		var fstyle = ol.layer.Vector.Webpart.Style.formatFeatureStyle (style, feature);
-		// Gestion d'une bibliotheque de symboles
-		if (style && style.name && featureType.symbo_attribute) {
-			fstyle.radius = 5;
-			fstyle.graphicName = "x";
-			fstyle.img = ol.layer.Vector.Webpart.Style.getSymbolURI(
-				featureType,
-				feature.get(featureType.symbo_attribute.name),
-				cache
-			)
-		}
+		var libImage = (style && style.name && featureType.symbo_attribute);
 		var st = [	
 			new ol.style.Style (
 			{	text: ol.layer.Vector.Webpart.Style.Text (fstyle),
-				image: ol.layer.Vector.Webpart.Style.Image (fstyle),
+				image: ol.layer.Vector.Webpart.Style.Image (fstyle, libImage),
 				fill: ol.layer.Vector.Webpart.Style.Fill (fstyle),
 				stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle)
 			})
@@ -321,39 +301,6 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType, cache) {
 		return st;
 	}
 };
-
-/** Get image uri and save it if not allready saved 
- * 
- */
-ol.layer.Vector.Webpart.Style.getSymbolURI = function (featureType, name, cache) {
-	var img;
-	var style= featureType.style;
-	var cacheName = style.name+'_'+name+'_'+style.graphicWidth+'x'+style.graphicHeight;
-	if (cache) {
-		img = this.symbolCache[cacheName];
-	} else {
-		img = featureType.uri.replace(/gcms\/.*/,"")
-			+ "gcms/style/image/"
-			+ featureType.style.name
-			+ "/" + name
-			+"?width="+style.graphicWidth
-			+"&height="+style.graphicHeight;
-		// Save symbol if exist
-		if (wapp.isCordova && !this.symbolCache[cacheName]) {
-			CordovApp.File.dowloadFile(
-				img,
-				'FILE/cache/symbols/'+cacheName,
-				function (e){
-					// Update symbol cache
-					ol.layer.Vector.Webpart.Style.symbolCache[e.name] = e.nativeURL;
-				},
-				function(){}
-			);
-		}
-	}
-	return img;
-};
-
 
 /** Default style
  *	@return {ol.style.Style}
