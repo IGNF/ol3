@@ -214,6 +214,14 @@ ol.layer.Vector.Webpart.Style.cacheStyle = {};
 * @return { ol.style.function | undefined }
 */
 ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
+    // Sens de circulation
+    var directionStyle = new ol.style.Style ({
+        text: ol.layer.Vector.Webpart.Style.Text ({
+            label: '\u203A', 
+            fontWeight: "bold", 
+            fontSize: '25'
+        })
+    });
     // Fonction de style
     if (!featureType) featureType = {};
     if (featureType.name && ol.layer.Vector.Webpart.Style[featureType.name])
@@ -269,13 +277,12 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
         for (var i in style) if (i!=='label') {
             if (style[i] !== fstyle[i]) cacheId += '-'+i+':'+fstyle[i];
         }
-        if (ol.layer.Vector.Webpart.Style.cacheStyle[cacheId]) {
+        var style = ol.layer.Vector.Webpart.Style.cacheStyle[cacheId];
+        if (style) {
             var style = ol.layer.Vector.Webpart.Style.cacheStyle[cacheId];
             var txt = style[style.length-1].getText();
             if (txt) txt.setText(fstyle.label||'');
-            return style;
-        }
-        else {
+        } else {
             var libImage = (style && style.name && featureType.symbo_attribute);
             var st = [	
                 new ol.style.Style (
@@ -298,9 +305,36 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
                     zIndex: -1
                 }));
             }
-            ol.layer.Vector.Webpart.Style.cacheStyle[cacheId] = st;
-            return st;
+            style = ol.layer.Vector.Webpart.Style.cacheStyle[cacheId] = st;
         }
+        // Ajouter le sens de circulation
+        if (res < 2 && feature && featureType.attributes.sens && featureType.attributes.sens.type==='Choice') {
+            var direct = featureType.attributes.sens.listOfValues[1];
+            var inverse = featureType.attributes.sens.listOfValues[0]
+            function lrot(sens, geom) 
+            {	if (sens != direct && sens != inverse) return 0;
+                if (geom.getType()==='MultiLineString') geom = geom.getLineString(0);
+                var geo = geom.getCoordinates();
+                var x, y, dl=0, l = geom.getLength();
+                for (var i=0; i<geo.length-1; i++){
+                    x = geo[i+1][0]-geo[i][0];
+                    y = geo[i+1][1]-geo[i][1];
+                    dl += Math.sqrt(x*x+y*y);
+                    if (dl>=l/2) break;
+                }
+                if (sens == direct) return -Math.atan2(y,x);
+                else return Math.PI-Math.atan2(y,x);
+            };
+        
+            var sens = feature.get('sens');
+            if (sens===direct || sens===inverse) {
+                directionStyle.getText().setRotation(lrot(sens, feature.getGeometry()));
+                style = style.concat([	
+                    directionStyle
+                ]);
+            }
+        }
+        return style;
     }
 };
 
@@ -527,13 +561,13 @@ ol.layer.Vector.Webpart.Style.sens = function(options)
         direct:'Sens direct', 
         inverse:'Sens inverse' 
     };
-
     function fleche(sens)
     {	if (sens == options.direct || sens == options.inverse) return options.glyph;
         return '';
     };
     function lrot(sens, geom) 
     {	if (sens != options.direct && sens != options.inverse) return 0;
+        if (geom.getType()==='MultiLineString') geom = geom.getLineString(0);
         var geo = geom.getCoordinates();
         var x, y, dl=0, l = geom.getLength();
         for (var i=0; i<geo.length-1; i++)
