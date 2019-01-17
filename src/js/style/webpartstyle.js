@@ -308,9 +308,13 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
             style = ol.layer.Vector.Webpart.Style.cacheStyle[cacheId] = st;
         }
         // Ajouter le sens de circulation
-        if (res < 2 && feature && featureType.attributes.sens && featureType.attributes.sens.type==='Choice') {
-            var direct = featureType.attributes.sens.listOfValues[1];
-            var inverse = featureType.attributes.sens.listOfValues[0]
+        var directionField = featureType.attributes[featureType.style.directionField];
+        if (res < 2 
+            && feature 
+            && directionField 
+            && directionField.type==='Choice') {
+            var direct = directionField.listOfValues[1];
+            var inverse = directionField.listOfValues[0]
             function lrot(sens, geom) 
             {	if (sens != direct && sens != inverse) return 0;
                 if (geom.getType()==='MultiLineString') geom = geom.getLineString(0);
