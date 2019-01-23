@@ -124,6 +124,31 @@ ol.Feature.prototype.getDetruitField = function()
     return "gcms_detruit";
 };
 
+/** Get modified attributes 
+ * @return {Object} key object where keys are the modified fields names
+ */
+ol.Feature.prototype.getModifiedFields = function() {
+    if (!this.__modifiedFields__) this.__modifiedFields__ = {};
+    return this.__modifiedFields__;
+};
+
+/** Clear modified attributes 
+ */
+ol.Feature.prototype.clearModifiedFields = function() {
+    this.__modifiedFields__ = {};
+};
+
+/** Set modified attribute
+ * @param {string|Array<string>} name attribute name or array of attr name
+ */
+ol.Feature.prototype.setModifiedFields = function(name) {
+    var fields = this.getModifiedFields();
+    if (typeof name === 'string') name = [name];
+    for (var i=0; i<name.length; i++) {
+        fields[name[i]] = true;
+    }
+};
+
 /**
  * listen/unlisten for changefeature event
  * @param {boolean} b
@@ -216,23 +241,6 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
 	var actions = [];
 	var wkt = new ol.format.WKT();
 
-	/**
-     * @param {ol.Feature} feature
-     * @returns {string|undefined}
-     */
-    function getChangesProperty(feature) {
-        var regex = new RegExp(/^changes_\d+$/);
-
-        var properties = feature.getProperties();
-        for (var key in properties) {
-            if (regex.exec(key)) {
-                return key;
-            }
-        }
-
-        return undefined;
-    }
-
     /**
      *
      * @param {ol.Feature} feature
@@ -241,13 +249,12 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
     function getPropertiesToUpdate(feature) {
         var properties = feature.getProperties();
 
-        var property = getChangesProperty(feature);
-        if (property === undefined) {
+        var changes = Object.keys(feature.getModifiedFields());
+        if (!changes.length) {
             throw "Update with no changes !!";
         }
 
-        var changes = feature.get(property);
-
+        // Get changes
         var changedProperties = {};
         changedProperties[idName] = properties[idName];
         for (var i=0; i<changes.length; ++i) {
@@ -257,7 +264,7 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
             }
         }
 
-
+        // Get geometry changes
         if (changedProperties.hasOwnProperty('geometry')) {
             var g = properties.geometry.clone();
             g.transform (self.projection_, self.srsName_);
