@@ -485,11 +485,9 @@ ol.source.Vector.Webpart.prototype.findFeature_ = function(f)
 	// Already loaded (features on tile edges)
 	if (this.tiled_)
 	{	var g = f.getGeometry();
-		if (g.getType() !== "Point")
-		{	var p = g.getFirstCoordinate();
-			if (find(this.getFeaturesInExtent([p[0]-1, p[1]-1, p[0]+1, p[1]+1])))
-			{	return null;
-			}
+		var p = g.getFirstCoordinate();
+        if (find(this.getFeaturesInExtent([p[0]-1, p[1]-1, p[0]+1, p[1]+1]))) {
+            return null;
 		}
 	}
 	// Search deleted feature
