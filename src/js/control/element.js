@@ -3,7 +3,8 @@
  * @see https://plainjs.com/javascript/
  * @see http://youmightnotneedjquery.com/
  */
- ol.ext.element = {};
+if (!ol.ext) ol.ext = {};
+ol.ext.element = {};
 /**
  * Create an element
  * @param {string} tagName The element tag, use 'TEXT' to create a text node
