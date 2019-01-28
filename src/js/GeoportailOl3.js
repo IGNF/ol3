@@ -153,6 +153,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                 opacity: options.opacity,
                 minResolution: this.getResolutionFromZoom(geoservice.max_zoom),
                 maxResolution: this.getResolutionFromZoom(geoservice.min_zoom),
+                sourceParams: {crossOrigin: 'anonymous'},
                 extent: bbox,
                 useInterimTilesOnError: false
             };
