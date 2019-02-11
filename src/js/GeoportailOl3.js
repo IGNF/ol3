@@ -143,7 +143,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
 
     var bbox = ol.proj.transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
 
-	var newLayer = null;
+    var newLayer = null;
     switch(geoservice.type){
         case 'GeoPortail':
         case 'GeoPortail-WMS':
@@ -284,27 +284,27 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                 format: new ol.format.GeoJSON(),
                 loader: function(extent) {
                     // var proj = projection.getCode();
-                    var url = "";
+                    var url = '';
+                    var bbox = '';
                     if (geoservice.version == '1.0.0') {
                         // BBOX avec 4 paramètres : coordonnées
                         // pas de SRSNAME car prend le Default SRS/CRS
                         // TODO utiliser le proxy
+                        bbox = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',');
                         url =  geoservice.url + '?service=WFS&version=' + geoservice.version +
-                                '&request=GetFeature&typeName=' + geoservice.layers +
-                                '&outputFormat=' + geoservice.format +
-                                '&bbox=' + ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',');
+                        '&request=GetFeature&typeName=' + geoservice.layers +
+                        '&outputFormat=' + geoservice.format + '&bbox=' + bbox;
                     } else {
-                        // BBOX avec 4 paramètres : coordonnées et SRS
-                        // SRSNAME si possible en 3857
-                        // TODO
-                        // Trouver les projections disponibles
-                        // Prendre 3857 si elle existe sinon 432
-                        url = geoservice.url + '?service=WFS&version=' + geoservice.version +
-                                '&request=GetFeature&typeName=' + geoservice.layers +
-                                '&outputFormat=' + geoservice.format + '&srsname=EPSG:3857' +
-                                '&bbox=' + ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',')+
-                                        ',EPSG:4326';
+                        // BBOX avec 5 paramètres : coordonnées et SRS
+                        if (geoservice.box_srid !== 'EPSG:3857') {
+                            bbox = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',');
+                        }
+                        bbox += ',' + geoservice.box_srid;
+                        url =  geoservice.url + '?service=WFS&version=' + geoservice.version +
+                            '&request=GetFeature&typeName=' + geoservice.layers +
+                            '&outputFormat=' + geoservice.format + '&srsname=EPSG:3857&bbox=' + bbox;
                     }
+                    
                     var xhr = new XMLHttpRequest();
                     xhr.open('GET', url);
                     xhr.onload = function() {
