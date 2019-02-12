@@ -281,11 +281,11 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
         case 'WFS':
             // Ajout Redmine #7753 (en cours, pourrait nécessiter l'usage du proxy)
             var vectorSource = new ol.source.Vector({
-                format: new ol.format.GeoJSON(),
+                format: new ol.format.GeoJSON({defaultDataProjection: geoservice.box_srid}),
                 loader: function(extent) {
                     // var proj = projection.getCode();
                     var url = '';
-                    var bbox = '';
+                    var bbox = extent;
                     if (geoservice.version == '1.0.0') {
                         // BBOX avec 4 paramètres : coordonnées
                         // pas de SRSNAME car prend le Default SRS/CRS
@@ -304,7 +304,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                             '&request=GetFeature&typeName=' + geoservice.layers +
                             '&outputFormat=' + geoservice.format + '&srsname=EPSG:3857&bbox=' + bbox;
                     }
-                    
+
                     var xhr = new XMLHttpRequest();
                     xhr.open('GET', url);
                     xhr.onload = function() {
