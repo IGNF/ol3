@@ -323,7 +323,7 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
 	return res;
 };
 
-/**
+/** Count action by states
  *
  * @returns {unresolved}
  */
@@ -335,6 +335,14 @@ ol.source.Vector.Webpart.prototype.countActions = function()
     res[ol.Feature.State.DELETE] = this.delete_.length;
     res[ol.Feature.State.UPDATE] = this.update_.length;
     return res;
+};
+
+/** test if something to save
+ *
+ * @returns {number}
+ */
+ol.source.Vector.Webpart.prototype.hasActions = function() {
+    return  this.insert_.length + this.delete_.length + this.update_.length;
 };
 
 
