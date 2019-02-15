@@ -350,8 +350,14 @@ ol.source.Vector.Webpart.prototype.hasActions = function() {
 */
 ol.source.Vector.Webpart.prototype.save = function()
 {	var self = this;
-	var actions = this.getSaveActions().actions;
 
+	var actions =[];
+    try{
+	  actions = this.getSaveActions().actions;
+    }catch (e){
+    	console.log("ol.source.Vector.Webpart.prototype.save " + e);
+    	return;
+    }
 	self.dispatchEvent({ type:"savestart" });
 
     // Noting to save
