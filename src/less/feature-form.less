@@ -18,19 +18,18 @@
         font-size:11px;
         td {
             padding: 0;
+            // Label nom de l'attribut du feature
             label.control-label {
                 padding: 0 0 0 5px;
                 margin-bottom:0;
-                width: 120px;
+                min-width: 120px;
                 white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
                 &.has-error {
                     color: red;
                 }
             }
             &.feature-attribute-name {
-                padding: 0 0 0 5px;
+                padding: 0 5px 0 5px;
                 font-weight: bold;
             }
             input.attribute {
@@ -41,11 +40,13 @@
             }
             input.attribute:not([type='checkbox']) {    
                 width:100%;
-
+                // Picto à droite des inputs selon le type de champ
                 &.mask_number, &.mask_int, &.mask_datetime, &.mask_date, &.mask_time {
-                    /*border: 1px solid #ccc;*/
                     background-image: url('../img/masks.png');
                     background-repeat: no-repeat;
+                }
+                &.mask_datetime, &.mask_date, &.mask_time {
+                    min-width: 265px; // assez large pour datetimepicker
                 }
                 &.mask_number, &.mask_int {
                     padding-right: 20px;

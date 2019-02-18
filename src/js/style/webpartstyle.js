@@ -106,6 +106,15 @@ ol.layer.Vector.Webpart.Style.Fill = function (fstyle)
             fill.setColor(a);
         }
     }
+    if (fstyle.fillPattern) {
+        var fill = new ol.style.FillPattern({
+            fill: fill,
+            pattern: fstyle.fillPattern,
+            color: fstyle.patternColor,
+            angle: 45
+        });
+
+    }
     return fill;
 }
 
