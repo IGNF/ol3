@@ -279,19 +279,20 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             break;
 
         case 'WFS':
+            var self = this;
+            
             // Ajout Redmine #7753 (en cours, pourrait nécessiter l'usage du proxy)
             var vectorSource = new ol.source.Vector({
-                format: new ol.format.GeoJSON({defaultDataProjection: geoservice.box_srid}),
+                format: new ol.format.GeoJSON(),
                 loader: function(extent) {
-                    // var proj = projection.getCode();
-                    var url = '';
+                    var url = geoservice.url + '?service=WFS';
                     var bbox = extent;
                     if (geoservice.version == '1.0.0') {
                         // BBOX avec 4 paramètres : coordonnées
                         // pas de SRSNAME car prend le Default SRS/CRS
                         // TODO utiliser le proxy
                         bbox = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',');
-                        url =  geoservice.url + '?service=WFS&version=' + geoservice.version +
+                        url += '&version=' + geoservice.version +
                         '&request=GetFeature&typeName=' + geoservice.layers +
                         '&outputFormat=' + geoservice.format + '&bbox=' + bbox;
                     } else {
@@ -300,11 +301,15 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                             bbox = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',');
                         }
                         bbox += ',' + geoservice.box_srid;
-                        url =  geoservice.url + '?service=WFS&version=' + geoservice.version +
+                        url += '&version=' + geoservice.version +
                             '&request=GetFeature&typeName=' + geoservice.layers +
                             '&outputFormat=' + geoservice.format + '&srsname=EPSG:3857&bbox=' + bbox;
                     }
-
+                    
+                    if (self.proxyUrl_) {
+                        url = self.proxyUrl_ + encodeURIComponent(url);
+                    }
+                    
                     var xhr = new XMLHttpRequest();
                     xhr.open('GET', url);
                     xhr.onload = function() {
