@@ -2319,13 +2319,16 @@ ol.control.CanvasScaleLine.prototype.drawScale_ = function(e)
 	ctx.save();
 	ctx.scale(ratio,ratio);
 	// Position if transform:scale()
-	var container = this.getMap().getTargetElement();
+  /*
+  var container = this.getMap().getTargetElement();
 	var scx = container.offsetWidth / container.getBoundingClientRect().width;
 	var scy = container.offsetHeight / container.getBoundingClientRect().height;
 	position.left *= scx;
-	position.top *= scy;
+  position.top *= scy;
+  */
 	// On top
-	position.top += this.element.clientHeight - this.scaleHeight_;
+  position.top += this.element.clientHeight - this.scaleHeight_;
+  console.log (position)
 	// Draw scale text
 	ctx.beginPath();
     ctx.strokeStyle = this.fontStrokeStyle_;
