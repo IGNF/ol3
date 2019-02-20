@@ -153,6 +153,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                 opacity: options.opacity,
                 minResolution: this.getResolutionFromZoom(geoservice.max_zoom),
                 maxResolution: this.getResolutionFromZoom(geoservice.min_zoom),
+                sourceParams: {crossOrigin: 'anonymous'},
                 extent: bbox,
                 useInterimTilesOnError: false
             };
@@ -410,6 +411,9 @@ ol.Map.Geoportail.prototype.addFeatureType = function (featureType, opt, source_
 {
     var options     = $.extend({visible:true, opacity: 1}, opt);
     var src_options = source_options || {};
+    if (featureType.tileZoomLevel) {
+        src_options.tileZoom = featureType.tileZoomLevel;
+    }
     src_options = $.extend({featureType: featureType}, src_options);
     var style=null;
     if(featureType.style){

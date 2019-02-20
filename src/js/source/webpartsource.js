@@ -1,4 +1,4 @@
-/** Need proj4js to load projections
+﻿/** Need proj4js to load projections
 */
 if (!proj4) throw ("PROJ4 is not defined!");
 
@@ -27,7 +27,7 @@ if (!proj4.defs["IGNF:LAMB93"]) proj4.defs("IGNF:LAMB93","+proj=lcc +lat_1=49 +l
  */
 ol.source.Vector.Webpart = function(opt_options)
 {   var options = opt_options || {};
-
+console.log(this)
 	// Proxy to load features
 	this.proxy_ = options.proxy;
 
@@ -38,7 +38,7 @@ ol.source.Vector.Webpart = function(opt_options)
 		throw 'featureType must be defined.';
 	}
 	this.featureType_ 	= options.featureType;
-	this.maxFeatures_	= options.maxFeatures || 1000;
+	this.maxFeatures_	= options.maxFeatures || 5000;
         if(this.featureType_.attributes[this.featureType_.geometryName]){
             var crs = this.featureType_.attributes[this.featureType_.geometryName].crs;
         }else{crs=null;};
@@ -60,7 +60,7 @@ ol.source.Vector.Webpart = function(opt_options)
 		strategy = ol.loadingstrategy.tile (tileGrid);
 	}
 
-	if (this.tiled_) this.maxReload_ = options.maxReload;
+	if (this.tiled_) this.maxReload_ = options.maxReload || 50000;
 
 	ol.source.Vector.call(this, {// Loader function
 		loader: this.loaderFn_,
@@ -122,6 +122,31 @@ ol.Feature.prototype.getDetruitField = function()
         return "detruit";
     }
     return "gcms_detruit";
+};
+
+/** Get modified attributes 
+ * @return {Object} key object where keys are the modified fields names
+ */
+ol.Feature.prototype.getModifiedFields = function() {
+    if (!this.__modifiedFields__) this.__modifiedFields__ = {};
+    return this.__modifiedFields__;
+};
+
+/** Clear modified attributes 
+ */
+ol.Feature.prototype.clearModifiedFields = function() {
+    this.__modifiedFields__ = {};
+};
+
+/** Set modified attribute
+ * @param {string|Array<string>} name attribute name or array of attr name
+ */
+ol.Feature.prototype.setModifiedFields = function(name) {
+    var fields = this.getModifiedFields();
+    if (typeof name === 'string') name = [name];
+    for (var i=0; i<name.length; i++) {
+        fields[name[i]] = true;
+    }
 };
 
 /**
@@ -216,23 +241,6 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
 	var actions = [];
 	var wkt = new ol.format.WKT();
 
-	/**
-     * @param {ol.Feature} feature
-     * @returns {string|undefined}
-     */
-    function getChangesProperty(feature) {
-        var regex = new RegExp(/^changes_\d+$/);
-
-        var properties = feature.getProperties();
-        for (var key in properties) {
-            if (regex.exec(key)) {
-                return key;
-            }
-        }
-
-        return undefined;
-    }
-
     /**
      *
      * @param {ol.Feature} feature
@@ -241,13 +249,12 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
     function getPropertiesToUpdate(feature) {
         var properties = feature.getProperties();
 
-        var property = getChangesProperty(feature);
-        if (property === undefined) {
+        var changes = Object.keys(feature.getModifiedFields());
+        if (!changes.length) {
             throw "Update with no changes !!";
         }
 
-        var changes = feature.get(property);
-
+        // Get changes
         var changedProperties = {};
         changedProperties[idName] = properties[idName];
         for (var i=0; i<changes.length; ++i) {
@@ -257,7 +264,7 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
             }
         }
 
-
+        // Get geometry changes
         if (changedProperties.hasOwnProperty('geometry')) {
             var g = properties.geometry.clone();
             g.transform (self.projection_, self.srsName_);
@@ -316,7 +323,7 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
 	return res;
 };
 
-/**
+/** Count action by states
  *
  * @returns {unresolved}
  */
@@ -330,13 +337,27 @@ ol.source.Vector.Webpart.prototype.countActions = function()
     return res;
 };
 
+/** test if something to save
+ *
+ * @returns {number}
+ */
+ol.source.Vector.Webpart.prototype.hasActions = function() {
+    return  this.insert_.length + this.delete_.length + this.update_.length;
+};
+
 
 /** Save changes
 */
 ol.source.Vector.Webpart.prototype.save = function()
 {	var self = this;
-	var actions = this.getSaveActions().actions;
 
+	var actions =[];
+    try{
+	  actions = this.getSaveActions().actions;
+    }catch (e){
+    	console.log("ol.source.Vector.Webpart.prototype.save " + e);
+    	return;
+    }
 	self.dispatchEvent({ type:"savestart" });
 
     // Noting to save
@@ -478,13 +499,10 @@ ol.source.Vector.Webpart.prototype.findFeature_ = function(f)
 	// Already loaded (features on tile edges)
 	if (this.tiled_)
 	{	var g = f.getGeometry();
-		if (g.getType() !== "Point")
-		{	var p = g.getFirstCoordinate();
-			if (find(this.getFeaturesInExtent([p[0]-1, p[1]-1, p[0]+1, p[1]+1])))
-			{	return null;
-			}
+		var p = g.getFirstCoordinate();
+        if (find(this.getFeaturesInExtent([p[0]-1, p[1]-1, p[0]+1, p[1]+1]))) {
+            return null;
 		}
-		return f;
 	}
 	// Search deleted feature
 	if (find(this.delete_)) return null;
@@ -577,16 +595,19 @@ ol.source.Vector.Webpart.prototype.loaderFn_ = function (extent, resolution, pro
                 if (feature) features.push( feature );
             }
 
-            // Add new inserted features
-            var l = self.insert_.length;
-            for (var i=0; i<l; i++)
-			{   if (self.insert_[i].getState()===ol.Feature.State.INSERT) features.push( self.insert_[i] );
-            }
-
             // Start replacing features
             self.isloading_ = true;
-				if (!self.tiled_) self.getFeaturesCollection().clear();
-				self.addFeatures(features);
+                if (!self.tiled_) self.getFeaturesCollection().clear();
+                self.addFeatures(features);
+                // Add new inserted features
+                var l = self.insert_.length;
+                for (var i=0; i<l; i++) {
+                    if (self.insert_[i].getState()===ol.Feature.State.INSERT) {
+                        try {
+                            self.addFeature( self.insert_[i] );
+                        } catch(e) {}
+                    }
+                }
             self.isloading_ = false;
             self.dispatchEvent({ type:"loadend", remains:--self.tileloading_ });
 			if (data.length === self.maxFeatures_) self.dispatchEvent({ type:"overload" });

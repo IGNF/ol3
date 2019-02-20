@@ -1,0 +1,36 @@
+@media print { 
+	
+	body.ol-print-preview 
+	{	position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom:0;
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+		background-color: #f7f8f4; 
+		margin:0;
+	}
+
+	.ol-print-preview .ol-print-bar
+	{	display:none!important;
+	}
+
+	.ol-extended.ol-print-preview .olmap-print-preview
+	{	left:0;
+		top:0!important;
+	}
+	.ol-print-preview .olmap-print-preview
+	{	padding: 0!important;
+		margin: 0;
+		left:0!important;
+		top:0!important;
+		box-shadow:0 0 0 #000 !important;
+		-ms-transform: none; /* IE 9 */
+		-webkit-transform: none; /* Chrome, Safari, Opera */
+		transform: none ;
+		position: initial!important;
+	}
+
+}
