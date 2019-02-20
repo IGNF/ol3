@@ -2328,7 +2328,6 @@ ol.control.CanvasScaleLine.prototype.drawScale_ = function(e)
   */
 	// On top
   position.top += this.element.clientHeight - this.scaleHeight_;
-  console.log (position)
 	// Draw scale text
 	ctx.beginPath();
     ctx.strokeStyle = this.fontStrokeStyle_;
