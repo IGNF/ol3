@@ -27,7 +27,6 @@ if (!proj4.defs["IGNF:LAMB93"]) proj4.defs("IGNF:LAMB93","+proj=lcc +lat_1=49 +l
  */
 ol.source.Vector.Webpart = function(opt_options)
 {   var options = opt_options || {};
-console.log(this)
 	// Proxy to load features
 	this.proxy_ = options.proxy;
 
@@ -124,7 +123,7 @@ ol.Feature.prototype.getDetruitField = function()
     return "gcms_detruit";
 };
 
-/** Get modified attributes 
+/** Get modified attributes
  * @return {Object} key object where keys are the modified fields names
  */
 ol.Feature.prototype.getModifiedFields = function() {
@@ -132,7 +131,7 @@ ol.Feature.prototype.getModifiedFields = function() {
     return this.__modifiedFields__;
 };
 
-/** Clear modified attributes 
+/** Clear modified attributes
  */
 ol.Feature.prototype.clearModifiedFields = function() {
     this.__modifiedFields__ = {};
