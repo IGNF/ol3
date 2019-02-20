@@ -375,7 +375,7 @@ ol.source.Vector.Webpart.prototype.save = function()
             if (!statusTag || statusTag == null) {
                 statusTag = data.getElementsByTagNameNS('http://www.opengis.net/wfs', 'Status')[0];
             }
-            var status = statusTag.childNodes[0].tagName
+            var status = statusTag.childNodes[0].tagName;
 
             var messageTag = x.getElementsByTagName('wfs:Message')[0];
             if (!messageTag || messageTag == null) {
