@@ -9,7 +9,9 @@
 /** @namespace  ol.ext
  */
 /*global ol*/
-if (window.ol && !ol.ext)  ol.ext = {};
+if (window.ol && !ol.ext) {
+  ol.ext = {};
+}
 /** Inherit the prototype methods from one constructor into another.
  * replace deprecated ol method
  *
@@ -19,9 +21,13 @@ if (window.ol && !ol.ext)  ol.ext = {};
  * @api
  */
 ol.ext.inherits = function(child,parent) {
-    child.prototype = Object.create(parent.prototype);
-    child.prototype.constructor = child;
+  child.prototype = Object.create(parent.prototype);
+  child.prototype.constructor = child;
 };
+// Compatibilty with ol > 5
+if (window.ol) {
+  if (!ol.inherits) ol.inherits = ol.ext.inherits;
+}
 
 /** Ajax request
  * @fires success
@@ -2063,6 +2069,7 @@ ol.control.Bar.prototype.getControlsByName = function(name) {
 * @param {Object=} options Control options.
 *	@param {String} options.className class of the control
 *	@param {String} options.title title of the control
+*	@param {String} options.name an optional name, default none
 *	@param {String} options.html html to insert in the control
 *	@param {function} options.handleClick callback when control is clicked (or use change:active event)
 */
@@ -2318,16 +2325,16 @@ ol.control.CanvasScaleLine.prototype.drawScale_ = function(e)
 	var ratio = e.frameState.pixelRatio;
 	ctx.save();
 	ctx.scale(ratio,ratio);
+/*
 	// Position if transform:scale()
-  /*
-  var container = this.getMap().getTargetElement();
+	var container = this.getMap().getTargetElement();
 	var scx = container.offsetWidth / container.getBoundingClientRect().width;
 	var scy = container.offsetHeight / container.getBoundingClientRect().height;
 	position.left *= scx;
-  position.top *= scy;
-  */
+	position.top *= scy;
+*/
 	// On top
-  position.top += this.element.clientHeight - this.scaleHeight_;
+	position.top += this.element.clientHeight - this.scaleHeight_;
 	// Draw scale text
 	ctx.beginPath();
     ctx.strokeStyle = this.fontStrokeStyle_;
@@ -7344,7 +7351,7 @@ ol.control.SearchGeoportailParcelle.prototype._handleParcelle = function(parc) {
  *	@param {integer | undefined} options.minLength minimum length to start searching, default 3
  *	@param {integer | undefined} options.maxItems maximum number of items to display in the autocomplete list, default 10
  *
- *	@param {string|undefined} options.url Url to BAN api, default "https://api-adresse.data.gouv.fr/search/"
+ *	@param {string|undefined} options.url Url to Nominatim api, default "https://nominatim.openstreetmap.org/search"
  * @see {@link https://wiki.openstreetmap.org/wiki/Nominatim}
  */
 ol.control.SearchNominatim = function(options)
@@ -13657,6 +13664,8 @@ ol.interaction.SelectCluster.prototype.selectCluster = function (e)
 	var r = pix * this.pointRadius * (0.5 + cluster.length / 4);
 	var a, i, max;
 	var p, cf, lk;
+	// The features
+	var features = [];
 	// Draw on a circle
 	if (!this.spiral || cluster.length <= this.circleMaxObjects)
 	{	max = Math.min(cluster.length, this.circleMaxObjects);
@@ -13666,9 +13675,9 @@ ol.interaction.SelectCluster.prototype.selectCluster = function (e)
 			p = [ center[0]+r*Math.sin(a), center[1]+r*Math.cos(a) ];
 			cf = new ol.Feature({ 'selectclusterfeature':true, 'features':[cluster[i]], geometry: new ol.geom.Point(p) });
 			cf.setStyle(cluster[i].getStyle());
-			source.addFeature(cf);
+			features.push(cf);
 			lk = new ol.Feature({ 'selectclusterlink':true, geometry: new ol.geom.LineString([center,p]) });
-			source.addFeature(lk);
+			features.push(lk);
 		}
 	}
 	// Draw on a spiral
@@ -13689,37 +13698,40 @@ ol.interaction.SelectCluster.prototype.selectCluster = function (e)
 			p = [ center[0]+dx, center[1]+dy ];
 			cf = new ol.Feature({ 'selectclusterfeature':true, 'features':[cluster[i]], geometry: new ol.geom.Point(p) });
 			cf.setStyle(cluster[i].getStyle()); 
-			source.addFeature(cf);
+			features.push(cf);
 			lk = new ol.Feature({ 'selectclusterlink':true, geometry: new ol.geom.LineString([center,p]) });
-			source.addFeature(lk);
+			features.push(lk);
 		}
 	}
-	if (this.animate) this.animateCluster_(center);
+	source.clear();
+	if (this.animate) {
+		this.animateCluster_(center, features);
+	} else {
+		source.addFeatures(features);
+	}
 };
 /**
  * Animate the cluster and spread out the features
  * @param {ol.Coordinates} the center of the cluster
  */
-ol.interaction.SelectCluster.prototype.animateCluster_ = function(center)
+ol.interaction.SelectCluster.prototype.animateCluster_ = function(center, features)
 {	// Stop animation (if one is running)
-	if (this.listenerKey_)
-	{	this.overlayLayer_.setVisible(true);
+	if (this.listenerKey_) {
 		ol.Observable.unByKey(this.listenerKey_);
 	}
 	// Features to animate
-	var features = this.overlayLayer_.getSource().getFeatures();
+	// var features = this.overlayLayer_.getSource().getFeatures();
 	if (!features.length) return;
-	this.overlayLayer_.setVisible(false);
 	var style = this.overlayLayer_.getStyle();
 	var stylefn = (typeof(style) == 'function') ? style : style.length ? function(){ return style; } : function(){ return [style]; } ;
 	var duration = this.animationDuration || 500;
 	var start = new Date().getTime();
 	// Animate function
-	function animate(event) 
-	{	var vectorContext = event.vectorContext;
+	function animate(event) {
+		var vectorContext = event.vectorContext || ol.render.getVectorContext(event);
 		// Retina device
 		var ratio = event.frameState.pixelRatio;
-		var res = event.target.getView().getResolution();
+		var res = this.getMap().getView().getResolution();
 		var e = ol.easing.easeOut((event.frameState.time - start) / duration);
 		for (var i=0, feature; feature = features[i]; i++) if (feature.get('features'))
 		{	var pt = feature.getGeometry().getCoordinates();
@@ -13750,9 +13762,9 @@ ol.interaction.SelectCluster.prototype.animateCluster_ = function(center)
 			}
 		}
 		// Stop animation and restore cluster visibility
-		if (e > 1.0) 
-		{	ol.Observable.unByKey(this.listenerKey_);
-			this.overlayLayer_.setVisible(true);
+		if (e > 1.0) {
+			ol.Observable.unByKey(this.listenerKey_);
+			this.overlayLayer_.getSource().addFeatures(features);
 			this.overlayLayer_.changed();
 			return;
 		}
@@ -13760,8 +13772,11 @@ ol.interaction.SelectCluster.prototype.animateCluster_ = function(center)
 		event.frameState.animate = true;
 	}
 	// Start a new postcompose animation
-	this.listenerKey_ = this.getMap().on('postcompose', animate.bind(this));
-	//select.getMap().renderSync();
+	this.listenerKey_ = this.overlayLayer_.on(['postcompose','postrender'], animate.bind(this));
+	// Start animation with a ghost feature
+	var feature = new ol.Feature(new ol.geom.Point(this.getMap().getView().getCenter()));
+	feature.setStyle(new ol.style.Style({ image: new ol.style.Circle({}) }));
+	this.overlayLayer_.getSource().addFeature(feature);
 };
 
 /*	Copyright (c) 2016 Jean-Marc VIGLINO, 
@@ -15468,8 +15483,32 @@ ol.interaction.UndoRedo = function(options) {
   this._block = 0;
   // Start recording
   this._record = true;
+  // Custom definitions
+  this._defs = {};
 };
 ol.inherits(ol.interaction.UndoRedo, ol.interaction.Interaction);
+/** Add a custom undo/redo
+ * @param {string} action the action key name
+ * @param {function} undoFn function called when undoing
+ * @param {function} redoFn function called when redoing
+ * @api
+ */
+ol.interaction.UndoRedo.prototype.define = function(action, undoFn, redoFn) {
+  this._defs['_'+action] = { undo: undoFn, redo: redoFn };
+};
+/** Set a custom undo/redo
+ * @param {string} action the action key name
+ * @param {any} prop an object that will be passed in the undo/redo fucntions of the action
+ * @return {boolean} true if the action is defined
+ */
+ol.interaction.UndoRedo.prototype.push = function(action, prop) {
+  if (this._defs['_'+action]) {
+    this._undoStack.push({type: '_'+action, prop: prop });
+    return true;
+  } else {
+    return false;
+  }
+};
 /** Activate or deactivate the interaction, ie. records or not events on the map.
  * @param {boolean} active
  * @api stable
@@ -15512,16 +15551,18 @@ ol.interaction.UndoRedo.prototype._watchSources = function() {
     });
     return init;
   }
-  // Watch the vector sources in the map 
-  var vectors = getVectorLayers(map.getLayers());
-  vectors.forEach((function(l) {
-    var s = l.getSource();
-    this._sourceListener.push( s.on(['addfeature', 'removefeature'], this._onAddRemove.bind(this)) );
-    this._sourceListener.push( s.on('clearstart', this.blockStart.bind(this)) );
-    this._sourceListener.push( s.on('clearend', this.blockEnd.bind(this)) );
-  }).bind(this));
-  // Watch new inserted/removed
-  this._sourceListener.push( map.getLayers().on(['add', 'remove'], this._watchSources.bind(this) ) );
+  if (map) {
+    // Watch the vector sources in the map 
+    var vectors = getVectorLayers(map.getLayers());
+    vectors.forEach((function(l) {
+      var s = l.getSource();
+      this._sourceListener.push( s.on(['addfeature', 'removefeature'], this._onAddRemove.bind(this)) );
+      this._sourceListener.push( s.on('clearstart', this.blockStart.bind(this)) );
+      this._sourceListener.push( s.on('clearend', this.blockEnd.bind(this)) );
+    }).bind(this));
+    // Watch new inserted/removed
+    this._sourceListener.push( map.getLayers().on(['add', 'remove'], this._watchSources.bind(this) ) );
+  }
 };
 /** Watch for interactions
  * @private
@@ -15533,18 +15574,20 @@ ol.interaction.UndoRedo.prototype._watchInteractions = function() {
     this._interactionListener.forEach(function(l) { ol.Observable.unByKey(l); })
   }
   this._interactionListener = [];
-  // Watch the interactions in the map 
-  map.getInteractions().forEach((function(i) {
-    this._interactionListener.push(i.on(
-      ['setattributestart', 'modifystart', 'rotatestart', 'translatestart', 'scalestart', 'deletestart', 'deleteend', 'beforesplit', 'aftersplit'], 
-      this._onInteraction.bind(this)
+  if (map) {
+    // Watch the interactions in the map 
+    map.getInteractions().forEach((function(i) {
+      this._interactionListener.push(i.on(
+        ['setattributestart', 'modifystart', 'rotatestart', 'translatestart', 'scalestart', 'deletestart', 'deleteend', 'beforesplit', 'aftersplit'], 
+        this._onInteraction.bind(this)
+      ));
+    }).bind(this));
+    // Watch new inserted / unwatch removed
+    this._interactionListener.push( map.getInteractions().on(
+      ['add', 'remove'], 
+      this._watchInteractions.bind(this)
     ));
-  }).bind(this));
-  // Watch new inserted / unwatch removed
-  this._interactionListener.push( map.getInteractions().on(
-    ['add', 'remove'], 
-    this._watchInteractions.bind(this)
-  ));
+  }
 };
 /** A feature is added / removed
  */
@@ -15655,6 +15698,14 @@ ol.interaction.UndoRedo.prototype._handleDo = function(e, undo) {
       this._block += undo ? 1 : -1;
       break;
     }
+    default: {
+      if (this._defs[e.type]) {
+        if (undo) this._defs[e.type].undo(e.prop);
+        else this._defs[e.type].redo(e.prop);
+      } else {
+        console.warn('[UndoRedoInteraction]: "'+e.type.substr(1)+'" is not defined.');
+      }
+    }
   }
   // Handle block
   if (this._block<0) this._block = 0;
@@ -15695,18 +15746,202 @@ ol.interaction.UndoRedo.prototype.clear = function() {
   this._redoStack = [];
 };
 /** Check if undo is avaliable
- * @return {boolean}
+ * @return {number} the number of undo 
  * @api
  */
 ol.interaction.UndoRedo.prototype.hasUndo = function() {
-  return (this._undoStack.length > 0);
+  return this._undoStack.length;
 };
 /** Check if redo is avaliable
- * @return {boolean}
+ * @return {number} the number of redo
  * @api
  */
 ol.interaction.UndoRedo.prototype.hasRedo = function() {
-  return (this._redoStack.length > 0);
+  return this._redoStack.length;
+};
+
+/*	Copyright (c) 2019 Jean-Marc VIGLINO,
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/** Abstract base class; normally only used for creating subclasses. Bin collector for data
+ * @constructor
+ * @extends {ol.source.Vector}
+ * @param {Object} options ol.source.VectorOptions + grid option
+ *  @param {ol.source.Vector} options.source Source
+ *  @param {(f: ol.Feature) => ol.geom.Point} [options.geometryFunction] Function that takes an ol.Feature as argument and returns an ol.geom.Point as feature's center.
+ *  @param {(bin: ol.Feature, features: Array<ol.Feature>)} [options.flatAttributes] Function takes a bin and the features it contains and aggragate the features in the bin attributes when saving
+ */
+ol.source.BinBase = function (options) {
+  options = options || {};
+  this._bindModify = this._onModifyFeature.bind(this);
+  this._watch === true;
+  ol.source.Vector.call(this, options);
+  this._origin = options.source;
+  // Geometry function
+  this._geomFn = options.geometryFunction || ol.coordinate.getFeatureCenter || function (f) { return f.getGeometry().getFirstCoordinate(); };
+  // Existing features
+  this.reset();
+  // Future features
+  this._origin.on("addfeature", this._onAddFeature.bind(this));
+  this._origin.on("removefeature", this._onRemoveFeature.bind(this));
+  this._origin.on("clearstart", this._onClearFeature.bind(this));
+  this._origin.on("clearend", this._onClearFeature.bind(this));
+  if (typeof (options.flatAttributes) === 'function') this._flatAttributes = options.flatAttributes;
+};
+ol.ext.inherits(ol.source.BinBase, ol.source.Vector);
+/**
+ * On add feature
+ * @param {ol.events.Event} e
+ * @param {ol.Feature} bin
+ * @private
+ */
+ol.source.BinBase.prototype._onAddFeature = function (e, bin, listen) {
+  var f = e.feature || e.target;
+  bin = bin || this.getBinAt(this._geomFn(f), true);
+  if (bin) bin.get('features').push(f);
+  if (listen!==false) f.on("change", this._bindModify);
+};
+/**
+ *  On remove feature
+ *  @param {ol.events.Event} e
+ *  @param {ol.Feature} bin
+ *  @private
+ */
+ol.source.BinBase.prototype._onRemoveFeature = function (e, bin, listen) {
+  if (!this._watch) return;
+  var f = e.feature || e.target;
+  bin = bin || this.getBinAt(this._geomFn(f));
+  if (bin) {
+    // Remove feature from bin
+    var features = bin.get('features');
+    for (var i=0, fi; fi=features[i]; i++) {
+      if (fi===f) {
+        features.splice(i, 1);
+        break;
+      }
+    }
+    // Remove bin if no features
+    if (!features.length) {
+      this.removeFeature(bin);
+    }
+  } else {
+    // console.log("[ERROR:Bin] remove feature: feature doesn't exists anymore.");
+  }
+  if (listen!==false) f.un("change", this._bindModify);
+};
+/** When clearing features remove the listener
+ * @private
+ */
+ol.source.BinBase.prototype._onClearFeature = function (e) {
+  if (e.type==='clearstart') {
+    this._origin.getFeatures().forEach(function (f) {
+      f.un("change", this._bindModify);
+    });
+    this.clear();
+    this._watch = false;
+  } else {
+    this._watch = true;
+  }
+};
+/**
+ * Get the bin that contains a feature
+ * @param {ol.Feature} f the feature
+ * @return {ol.Feature} the bin or null it doesn't exit
+ */
+ol.source.BinBase.prototype.getBin = function (feature) {
+  var bins = this.getFeatures();
+  for (var i=0, b; b = bins[i]; i++) {
+    var features = b.get('features');
+    for (var j=0, f; f=features[j]; j++) {
+      if (f===feature) return b;
+    }
+  }
+  return null;
+}
+/** Get the grid geometry at the coord 
+ * @param {ol.Coordinate} coord
+ * @param {Object} attributes add key/value to this object to add properties to the grid feature
+ * @returns {ol.geom.Polygon} 
+ * @api
+ */
+ol.source.BinBase.prototype.getGridGeomAt = function (coord /*, attributes */) {
+  return new ol.geom.Polygon([coord]);
+};
+/** Get the bean at a coord
+ * @param {ol.Coordinate} coord
+ * @param {boolean} create true to create if doesn't exit
+ * @return {ol.Feature} the bin or null it doesn't exit
+ */
+ol.source.BinBase.prototype.getBinAt = function (coord, create) {
+  var attributes = {};
+  var g = this.getGridGeomAt(coord, attributes);
+  if (!g) return null;
+  var center = g.getInteriorPoint ? g.getInteriorPoint().getCoordinates() : g.getInteriorPoints().getCoordinates()[0];// ol.extent.getCenter(g.getExtent());
+  var features = this.getFeaturesAtCoordinate( center );
+  var bin = features[0];
+  if (!bin && create) {
+    attributes.geometry = g;
+    attributes.features = [];
+    attributes.center = center;
+    bin = new ol.Feature(attributes);
+    this.addFeature(bin);
+  }
+  return bin || null;
+};
+/**
+ *  A feature has been modified
+ *  @param {ol.events.Event} e
+ *  @private
+ */
+ol.source.BinBase.prototype._onModifyFeature = function (e) {
+  var bin = this.getBin(e.target);
+  var bin2 = this.getBinAt(this._geomFn(e.target), 'create');
+  if (bin !== bin2) {
+    // remove from the bin
+    if (bin) {
+      this._onRemoveFeature(e, bin, false);
+    }
+    // insert in the new bin
+    if (bin2) {
+      this._onAddFeature(e, bin2, false);
+    }
+  }
+  this.changed();
+};
+/** Clear all bins and generate a new one. 
+ */
+ol.source.BinBase.prototype.reset = function () {
+  this.clear();
+  var features = this._origin.getFeatures();
+  for (var i = 0, f; f = features[i]; i++) {
+    this._onAddFeature({ feature: f });
+  }
+};
+/**
+ * Get features withour circular dependencies (vs. getFeatures)
+ * @return {Array<ol.Feature>}
+ */
+ol.source.BinBase.prototype.getGridFeatures = function () {
+  var features = [];
+  this.getFeatures().forEach(function (f) {
+    var bin = new ol.Feature(f.getGeometry().clone());
+    for (var i in f.getProperties()) {
+      if (i!=='features' && i!=='geometry') {
+        bin.set(i, f.get(i));
+      }
+    }
+    bin.set('nb', f.get('features').length);
+    this._flatAttributes(bin, f.get('features'));
+    features.push(bin);
+  }.bind(this));
+  return features;
+};
+/** Create bin attributes using the features it contains when exporting 
+ * @param {ol.Feature} bin the bin to export
+ * @param {Array<ol.Features>} features the features it contains
+ */
+ol.source.BinBase.prototype._flatAttributes = function(/*bin, features*/) {
 };
 
 /*	Copyright (c) 2015 Jean-Marc VIGLINO, 
@@ -15752,7 +15987,10 @@ ol.inherits (ol.source.DBPedia, ol.source.Vector);
 */
 ol.source.DBPedia.prototype.readFeature = function (feature, attributes, lastfeature) {
   // Copy RDF attributes values
-  for (var i in attributes) feature.set (i, attributes[i].value);
+  for (var i in attributes) {
+    if (attributes[i].type==='uri') attributes[i].value = encodeURI(attributes[i].value);
+    feature.set (i, attributes[i].value);
+  }
   // Prevent same feature with different type duplication
   if (lastfeature && lastfeature.get("subject") == attributes.subject.value) {
     // Kepp dbpedia.org type ?
@@ -16438,6 +16676,48 @@ ol.source.Delaunay.prototype.getNodesAt = function(coord) {
   return this._nodes.getFeaturesInExtent(extent);
 };
 
+  /*	Copyright (c) 2019 Jean-Marc VIGLINO,
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/** A source for INSEE grid
+ * @constructor
+ * @extends {ol.source.Vector}
+ * @param {Object} options ol.source.VectorOptions + grid option
+ *  @param {ol.source.Vector} options.source Source
+ *  @param {number} [options.size] size of the grid in meter, default 200m
+ *  @param {(f: ol.Feature) => ol.geom.Point} [options.geometryFunction] Function that takes an ol.Feature as argument and returns an ol.geom.Point as feature's center.
+ *  @param {(bin: ol.Feature, features: Array<ol.Feature>)} [options.flatAttributes] Function takes a bin and the features it contains and aggragate the features in the bin attributes when saving
+ */
+ol.source.FeatureBin = function (options) {
+  options = options || {};
+  this._sourceFeature = new ol.source.Vector ({ features: options.features || [] });
+  ol.source.BinBase.call(this, options);
+};
+ol.ext.inherits(ol.source.FeatureBin, ol.source.BinBase);
+/** Set grid size
+ * @param {ol.Feature} features
+ */
+ol.source.FeatureBin.prototype.setFeatures = function (features) {
+  this._sourceFeature.clear();
+  this._sourceFeature.addFeatures(features || []);
+  this.reset();
+};
+/** Get the grid geometry at the coord 
+ * @param {ol.Coordinate} coord
+ * @returns {ol.geom.Polygon} 
+ * @api
+ */
+ol.source.FeatureBin.prototype.getGridGeomAt = function (coord, attributes) {
+  var f = this._sourceFeature.getFeaturesAtCoordinate(coord)[0];
+  if (!f) return null;
+  var a = f.getProperties();
+  for (var i in a) {
+    if (i!=='geometry') attributes[i] = a[i];
+  }
+  return f.getGeometry();
+};
+
 /*	Copyright (c) 2015 Jean-Marc VIGLINO, 
 	released under the CeCILL-B license (French BSD license)
 	(http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
@@ -16646,46 +16926,46 @@ ol.source.GeoImage.prototype.setCrop = function(crop)
 	this.changed();
 };
 
-/*	Copyright (c) 2017 Jean-Marc VIGLINO,
-	released under the CeCILL-B license (French BSD license)
-	(http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+/*	Copyright (c) 2017-2019 Jean-Marc VIGLINO,
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
 */
 /** A source for hexagonal binning
  * @constructor
  * @extends {ol.source.Vector}
  * @param {Object} options ol.source.VectorOptions + ol.HexGridOptions
- *	 @param {ol.source.Vector} options.source Source
- *	 @param {number} [options.size] size of the hexagon in map units, default 80000
- *	 @param {ol.coordinate} [options.origin] origin of the grid, default [0,0]
- *	 @param {import('../render/HexGrid').HexagonLayout} [options.layout] grid layout, default pointy
- *	 @param {(f: ol.Feature) => ol.geom.Point} [options.geometryFunction] Function that takes an ol.Feature as argument and returns an ol.geom.Point as feature's center.
+ *  @param {ol.source.Vector} options.source Source
+ *  @param {number} [options.size] size of the hexagon in map units, default 80000
+ *  @param {ol.coordinate} [options.origin] origin of the grid, default [0,0]
+ *  @param {import('../render/HexGrid').HexagonLayout} [options.layout] grid layout, default pointy
+ *  @param {(f: ol.Feature) => ol.geom.Point} [options.geometryFunction] Function that takes an ol.Feature as argument and returns an ol.geom.Point as feature's center.
  */
 ol.source.HexBin = function (options) {
-	options = options || {};
-	/** Bind function for callback
-	 * 	@type {{modify: (e: ol.events.Event) => void}}
-	 */
-	this._bind = { modify: this._onModifyFeature.bind(this) };
-	ol.source.Vector.call(this, options);
-	/** The HexGrid
-	 * 	@type {ol.HexGrid}
-	 */
-	this._hexgrid = new ol.HexGrid(options);
-	/** @type {{[key: string]: ol.Feature}} */
-	this._bin = {};
-	/** Source and origin
-	 * 	@type {ol.source.Vector}
-	 */
-	this._origin = options.source;
-	/** Geometry function to get a point
-	 * 	@type {ol.Coordinate | ((f: ol.Feature) => ol.geom.Point)}
-	 */
-	this._geomFn = options.geometryFunction || ol.coordinate.getFeatureCenter || function (f) { return f.getGeometry().getFirstCoordinate(); };
-	// Existing features
-	this.reset();
-	// Future features
-	this._origin.on("addfeature", this._onAddFeature.bind(this));
-	this._origin.on("removefeature", this._onRemoveFeature.bind(this));
+  options = options || {};
+  /** Bind function for callback
+   * 	@type {{modify: (e: ol.events.Event) => void}}
+   */
+  this._bind = { modify: this._onModifyFeature.bind(this) };
+  ol.source.Vector.call(this, options);
+  /** The HexGrid
+   * 	@type {ol.HexGrid}
+   */
+  this._hexgrid = new ol.HexGrid(options);
+  /** @type {{[key: string]: ol.Feature}} */
+  this._bin = {};
+  /** Source and origin
+   * 	@type {ol.source.Vector}
+   */
+  this._origin = options.source;
+  /** Geometry function to get a point
+   * 	@type {ol.Coordinate | ((f: ol.Feature) => ol.geom.Point)}
+   */
+  this._geomFn = options.geometryFunction || ol.coordinate.getFeatureCenter || function (f) { return f.getGeometry().getFirstCoordinate(); };
+  // Existing features
+  this.reset();
+  // Future features
+  this._origin.on("addfeature", this._onAddFeature.bind(this));
+  this._origin.on("removefeature", this._onRemoveFeature.bind(this));
 };
 ol.inherits(ol.source.HexBin, ol.source.Vector);
 /**
@@ -16694,19 +16974,19 @@ ol.inherits(ol.source.HexBin, ol.source.Vector);
  * @private
  */
 ol.source.HexBin.prototype._onAddFeature = function (e) {
-	var f = e.feature || e.target;
-	var h = this._hexgrid.coord2hex(this._geomFn(f));
-	var id = h.toString();
-	if (this._bin[id]) {
-		this._bin[id].get('features').push(f);
-	} else {
-		var ex = new ol.Feature(new ol.geom.Polygon([this._hexgrid.getHexagon(h)]));
-		ex.set('features', [f]);
-		ex.set('center', new ol.geom.Point(ol.extent.getCenter(ex.getGeometry().getExtent())));
-		this._bin[id] = ex;
-		this.addFeature(ex);
-	}
-	f.on("change", this._bind.modify);
+  var f = e.feature || e.target;
+  var h = this._hexgrid.coord2hex(this._geomFn(f));
+  var id = h.toString();
+  if (this._bin[id]) {
+    this._bin[id].get('features').push(f);
+  } else {
+    var ex = new ol.Feature(new ol.geom.Polygon([this._hexgrid.getHexagon(h)]));
+    ex.set('features', [f]);
+    ex.set('center', new ol.geom.Point(ol.extent.getCenter(ex.getGeometry().getExtent())));
+    this._bin[id] = ex;
+    this.addFeature(ex);
+  }
+  f.on("change", this._bind.modify);
 };
 /** @typedef {Object} Bin ???
  * 	@property {string} id
@@ -16719,18 +16999,18 @@ ol.source.HexBin.prototype._onAddFeature = function (e) {
  *  @return {Bin} the bin id, the index of the feature in the bin and a boolean if the feature has moved to an other bin
  */
 ol.source.HexBin.prototype.getBin = function (f) {
-	// Test if feature exists in the current hex
-	var index, id = this._hexgrid.coord2hex(this._geomFn(f)).toString();
-	if (this._bin[id]) {
-		index = this._bin[id].get('features').indexOf(f);
-		if (index > -1) return { id: id, index: index };
-	}
-	// The feature has moved > check all bins
-	for (id in this._bin) {
-		index = this._bin[id].get('features').indexOf(f);
-		if (index > -1) return { id: id, index: index, moved: true };
-	}
-	return false;
+  // Test if feature exists in the current hex
+  var index, id = this._hexgrid.coord2hex(this._geomFn(f)).toString();
+  if (this._bin[id]) {
+    index = this._bin[id].get('features').indexOf(f);
+    if (index > -1) return { id: id, index: index };
+  }
+  // The feature has moved > check all bins
+  for (id in this._bin) {
+    index = this._bin[id].get('features').indexOf(f);
+    if (index > -1) return { id: id, index: index, moved: true };
+  }
+  return false;
 };
 /**
  *  On remove feature
@@ -16739,19 +17019,19 @@ ol.source.HexBin.prototype.getBin = function (f) {
  *  @private
  */
 ol.source.HexBin.prototype._onRemoveFeature = function (e, bin) {
-	var f = e.feature || e.target;
-	var b = bin || this.getBin(f);
-	if (b) {
-		var features = this._bin[b.id].get('features');
-		features.splice(b.index, 1);
-		if (!features.length) {
-			this.removeFeature(this._bin[b.id]);
-			delete this._bin[b.id];
-		}
-	} else {
-		console.log("[ERROR:HexBin] remove feature feature doesn't exists anymore.");
-	}
-	f.un("change", this._bind.modify);
+  var f = e.feature || e.target;
+  var b = bin || this.getBin(f);
+  if (b) {
+    var features = this._bin[b.id].get('features');
+    features.splice(b.index, 1);
+    if (!features.length) {
+      this.removeFeature(this._bin[b.id]);
+      delete this._bin[b.id];
+    }
+  } else {
+    console.log("[ERROR:HexBin] remove feature feature doesn't exists anymore.");
+  }
+  f.un("change", this._bind.modify);
 };
 /**
  *  A feature has been modified
@@ -16759,78 +17039,133 @@ ol.source.HexBin.prototype._onRemoveFeature = function (e, bin) {
  *  @private
  */
 ol.source.HexBin.prototype._onModifyFeature = function (e) {
-	var bin = this.getBin(e.target);
-	if (bin && bin.moved) {
-		// remove from the bin
-		this._onRemoveFeature(e, bin);
-		// insert in the new bin
-		this._onAddFeature(e);
-	}
-	this.changed();
+  var bin = this.getBin(e.target);
+  if (bin && bin.moved) {
+    // remove from the bin
+    this._onRemoveFeature(e, bin);
+    // insert in the new bin
+    this._onAddFeature(e);
+  }
+  this.changed();
 };
 /** Clear all bins and generate a new one. */
 ol.source.HexBin.prototype.reset = function () {
-	this._bin = {};
-	this.clear();
-	var features = this._origin.getFeatures();
-	for (var i = 0, f; f = features[i]; i++) {
-		this._onAddFeature({ feature: f });
-	}
+  this._bin = {};
+  this.clear();
+  var features = this._origin.getFeatures();
+  for (var i = 0, f; f = features[i]; i++) {
+    this._onAddFeature({ feature: f });
+  }
 };
 /**	Set the inner HexGrid size.
  * 	@param {number} newSize
  * 	@param {boolean} noreset If true, reset will not be called (It need to be called through)
  */
-ol.source.HexBin.prototype.setSize = function setSize(newSize, noreset) {
-	this._hexgrid.setSize(newSize);
-	if (!noreset) {
-		this.reset();
-	}
+ol.source.HexBin.prototype.setSize = function (newSize, noreset) {
+  this._hexgrid.setSize(newSize);
+  if (!noreset) {
+    this.reset();
+  }
 }
 /**	Get the inner HexGrid size.
  * 	@return {number}
  */
-ol.source.HexBin.prototype.getSize = function getSize() {
-	return this._hexgrid.getSize();
+ol.source.HexBin.prototype.getSize = function () {
+  return this._hexgrid.getSize();
 }
 /**	Set the inner HexGrid layout.
  * 	@param {import('../render/HexGrid').HexagonLayout} newLayout
  * 	@param {boolean} noreset If true, reset will not be called (It need to be called through)
  */
-ol.source.HexBin.prototype.setLayout = function setLayout(newLayout, noreset) {
-	this._hexgrid.setLayout(newLayout);
-	if (!noreset) {
-		this.reset();
-	}
+ol.source.HexBin.prototype.setLayout = function (newLayout, noreset) {
+  this._hexgrid.setLayout(newLayout);
+  if (!noreset) {
+    this.reset();
+  }
 }
 /**	Get the inner HexGrid layout.
  * 	@return {import('../render/HexGrid').HexagonLayout}
  */
-ol.source.HexBin.prototype.getLayout = function getLayout() {
-	return this._hexgrid.getLayout();
+ol.source.HexBin.prototype.getLayout = function () {
+  return this._hexgrid.getLayout();
 }
 /**	Set the inner HexGrid origin.
  * 	@param {ol.Coordinate} newLayout
  * 	@param {boolean} noreset If true, reset will not be called (It need to be called through)
  */
-ol.source.HexBin.prototype.setOrigin = function setOrigin(newLayout, noreset) {
-	this._hexgrid.setOrigin(newLayout);
-	if (!noreset) {
-		this.reset();
-	}
+ol.source.HexBin.prototype.setOrigin = function (newLayout, noreset) {
+  this._hexgrid.setOrigin(newLayout);
+  if (!noreset) {
+    this.reset();
+  }
 }
 /**	Get the inner HexGrid origin.
  * 	@return {ol.Coordinate}
  */
-ol.source.HexBin.prototype.getOrigin = function getOrigin() {
-	return this._hexgrid.getOrigin();
+ol.source.HexBin.prototype.getOrigin = function () {
+  return this._hexgrid.getOrigin();
 }
 /**
  * Get the orginal source
  * @return {ol.source.Vector}
  */
-ol.source.HexBin.prototype.getSource = function getSource() {
-	return this._origin;
+ol.source.HexBin.prototype.getSource = function () {
+  return this._origin;
+};
+/**
+ * Get hexagons withour circular dependencies (vs. getFeatures)
+ * @return {Array<ol.Feature>}
+ */
+ol.source.HexBin.prototype.getHexFeatures = function () {
+  var features = [];
+  this.getFeatures().forEach(function (f) {
+    var f2 = new ol.Feature(f.getGeometry().clone());
+    f2.set('nb', f.get('features').length);
+    features.push(f2);
+  });
+  return features;
+};
+
+  /*	Copyright (c) 2019 Jean-Marc VIGLINO,
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/** A source for INSEE grid
+ * @constructor
+ * @extends {ol.source.Vector}
+ * @param {Object} options ol.source.VectorOptions + grid option
+ *  @param {ol.source.Vector} options.source Source
+ *  @param {number} [options.size] size of the grid in meter, default 200m
+ *  @param {(f: ol.Feature) => ol.geom.Point} [options.geometryFunction] Function that takes an ol.Feature as argument and returns an ol.geom.Point as feature's center.
+ *  @param {(bin: ol.Feature, features: Array<ol.Feature>)} [options.flatAttributes] Function takes a bin and the features it contains and aggragate the features in the bin attributes when saving
+ */
+ol.source.InseeBin = function (options) {
+  options = options || {};
+  this._grid = new ol.InseeGrid({ size: options.size });
+  ol.source.BinBase.call(this, options);
+};
+ol.ext.inherits(ol.source.InseeBin, ol.source.BinBase);
+/** Set grid size
+ * @param {number} size
+ */
+ol.source.InseeBin.prototype.setSize = function (size) {
+  this._grid.set('size', size);
+  this.reset();
+};
+/** Get the grid geometry at the coord 
+ * @param {ol.Coordinate} coord
+ * @returns {ol.geom.Polygon} 
+ * @api
+ */
+ol.source.InseeBin.prototype.getGridGeomAt = function (coord) {
+  return this._grid.getGridAtCoordinate(coord, this.getProjection());
+};
+/** Get grid extent 
+ * @param {ol.ProjectionLike} proj
+ * @return {ol.Extent}
+ */
+ol.source.InseeBin.prototype.getGridExtent = function (proj) {
+  return this._grid.getExtent(proj);
 };
 
 /*	Copyright (c) 2017 Jean-Marc VIGLINO, 
@@ -17154,8 +17489,8 @@ ol.layer.AnimatedCluster = function(opt_options)
 	// Save cluster before change
 	this.getSource().on('change', this.saveCluster.bind(this));
 	// Animate the cluster
-	this.on('precompose', this.animate.bind(this));
-	this.on('postcompose', this.postanimate.bind(this));
+	this.on(['precompose','prerender'], this.animate.bind(this));
+	this.on(['postcompose','postrender'], this.postanimate.bind(this));
 };
 ol.inherits (ol.layer.AnimatedCluster, ol.layer.Vector);
 /** save cluster features before change
@@ -17244,8 +17579,9 @@ ol.layer.AnimatedCluster.prototype.animate = function(e)
 		time = a.start = (new Date()).getTime();
 	}
 	// Run animation
-	if (a.start)
-	{	var vectorContext = e.vectorContext;
+	if (a.start) {
+		var vectorContext = e.vectorContext || ol.render.getVectorContext(e);
+		console.log(vectorContext)
 		var d = (time - a.start) / duration;
 		// Animation ends
 		if (d > 1.0) 
@@ -17737,7 +18073,7 @@ ol.Overlay.Popup = function (options) {
     setTimeout(function(){ this.show(options.position); }.bind(this));
   }
 };
-ol.inherits(ol.Overlay.Popup, ol.Overlay);
+ol.ext.inherits(ol.Overlay.Popup, ol.Overlay);
 /**
  * Get CSS class of the popup according to its positioning.
  * @private
@@ -18084,7 +18420,7 @@ ol.Overlay.Placemark = function (options) {
   if (options.contentColor ) this.setContentColor(options.contentColor);
   if (options.size) this.setRadius(options.size);
 };
-ol.inherits(ol.Overlay.Placemark, ol.Overlay.Popup);
+ol.ext.inherits(ol.Overlay.Placemark, ol.Overlay.Popup);
 /**
  * Set the position and the content of the placemark (hide it before to enable animation).
  * @param {ol.Coordinate|string} coordinate the coordinate of the popup or the HTML content.
@@ -19785,6 +20121,57 @@ ol.HexGrid.prototype.cube_neighbors = function (c, d)
 		for (d=0; d<6; d++) n[d] = this.cube2hex(n[d])
 		return n;
 	}
+};
+
+/*	Copyright (c) 2017 Jean-Marc VIGLINO, 
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/**
+ * French INSEE grids
+ * @classdesc a class to compute French INSEE grids, ie. fix area (200x200m) square grid, based appon EPSG:3035
+ * @see https://www.capadresse.com/en/solutions/rental-data-grid
+ *
+ * @requires proj4
+ * @constructor 
+ * @extends {ol.Object}
+ * @param {Object} [options]
+ *  @param {number} [options.size] size grid size in meter, default 200 (200x200m)
+ */
+ol.InseeGrid = function (options) {
+  options = options || {};
+  // Define EPSG:3035 if none
+  if (!proj4.defs["EPSG:3035"]) {
+    proj4.defs("EPSG:3035","+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +units=m +no_defs");
+    ol.proj.proj4.register(proj4);
+  }
+  ol.Object.call (this, options);
+  // Options
+  var size = Math.max(200, Math.round((options.size||0)/200) * 200);
+  this.set('size', size);
+};
+ol.ext.inherits (ol.InseeGrid, ol.Object);
+/** Grid extent (in EPSG:3035)
+ */
+ol.InseeGrid.extent = [3200000,2000000,4300000,3140000];
+/** Get the grid extent
+ * @param {ol.proj.ProjLike} [proj='EPSG:3857']
+ */
+ol.InseeGrid.prototype.getExtent = function (proj) {
+  return ol.proj.transformExtent(ol.InseeGrid.extent, proj||'EPSG:3035', 'EPSG:3857')
+};
+/** Get grid geom at coord
+ * @param {ol.Coordinate} coord
+ * @param {ol.proj.ProjLike} [proj='EPSG:3857']
+ */
+ol.InseeGrid.prototype.getGridAtCoordinate = function (coord, proj) {
+  var c = ol.proj.transform(coord, proj||'EPSG:3857', 'EPSG:3035')
+  var s = this.get('size');
+  var x = Math.floor(c[0]/s) * s;
+  var y = Math.floor(c[1]/s) * s;
+  var geom = new ol.geom.Polygon([[[x,y],[x+s,y],[x+s,y+s],[x,y+s],[x,y]]]);
+  geom.transform('EPSG:3035', proj||'EPSG:3857');
+  return geom;
 };
 
 /*	Copyright (c) 2015 Jean-Marc VIGLINO, 
@@ -21726,7 +22113,7 @@ ol.layer.Vector.prototype.setTextPathStyle = function(style, maxResolution)
 	}
 	// New postcompose
 	if (!this.textPath_)
-	{	this.textPath_ = this.on('postcompose', drawTextPath.bind(this));
+	{	this.textPath_ = this.on(['postcompose','postrender'], drawTextPath.bind(this));
 	}
 	// Set textPathStyle
 	if (style===undefined)
