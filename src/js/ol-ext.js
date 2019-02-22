@@ -530,7 +530,7 @@ ol.control.Search = function(options) {
     self.dispatchEvent({ type:"change:input", input:e, value:input.value });
   });
   var doSearch = function(e) {
-    // console.log(e.type+" "+e.key)'
+    //console.log(e.type+" "+e.key)
     var li  = element.querySelector("ul.autocomplete li.select");
     var	val = input.value;
     // move up/down
@@ -5173,9 +5173,9 @@ ol.control.MapZone.zones.DOMTOM = [{
  * @extends {ol.control.Control}
  * @fire change:visible
  * @param {Object=} options Control options.
- *	- className {String} class of the control
- *	- hideOnClick {bool} hide the control on click, default false
- *	- closeBox {bool} add a closeBox to the control, default false
+ *  @param {string} className class of the control
+ *  @param {boolean} hideOnClick hide the control on click, default false
+ *  @param {boolean} closeBox add a closeBox to the control, default false
  */
 ol.control.Notification = function(options) {
   options = options || {};
@@ -5247,6 +5247,7 @@ ol.control.Notification.prototype.toggle = function(duration) {
     this.hide();
   }
 };
+
 /*	Copyright (c) 2017 Jean-Marc VIGLINO, 
 	released under the CeCILL-B license (French BSD license)
 	(http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
@@ -6975,6 +6976,7 @@ ol.inherits(ol.control.SearchGPS, ol.control.Search);
 ol.control.SearchGPS.prototype._createForm = function () {
   // Value has change
   var onchange = function(e) {
+    console.log(e)
     if (e.target.classList.contains('ol-dms')) {
       lon.value = (lond.value<0 ? -1:1) * Number(lond.value) + Number(lonm.value)/60 + Number(lons.value)/3600;
       lon.value = (lond.value<0 ? -1:1) * Math.round(lon.value*10000000)/10000000;
@@ -7004,6 +7006,8 @@ ol.control.SearchGPS.prototype._createForm = function () {
     var input = ol.ext.element.create('INPUT', {
       className: className,
       type:'number',
+      step:'any',
+      lang: 'en',
       parent: div,
       on: {
         'change keyup': onchange
@@ -7045,7 +7049,6 @@ ol.control.SearchGPS.prototype._createForm = function () {
   var latm = createInput('ol-dms','\'');
   var lats = createInput('ol-dms','"');
   // Focus
-  this._input.disabled = true;
   this.button.addEventListener("click", function() {
     lon.focus();
   });
@@ -10694,11 +10697,13 @@ ol.interaction.Delete.prototype._getSources = function(layers) {
   if (!layers) layers = this.getMap().getLayers();
   var sources = [];
   layers.forEach(function (l) {
-    if (l.getSource() instanceof ol.source.Vector) {
-      sources.push(l.getSource());
-    }
+    // LayerGroup
     if (l.getLayers) {
       sources = sources.concat(this._getSources(l.getLayers()));
+    } else {
+      if (l.getSource && l.getSource() instanceof ol.source.Vector) {
+        sources.push(l.getSource());
+      }
     }
   }.bind(this));
   return sources;
