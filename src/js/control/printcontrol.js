@@ -42,6 +42,7 @@ ol.control.Print = function(options) {
   this.setOrientation(options.orientation);
   this.setMargin(options.margin);
   this.set('extended', !!options.extended);
+  this.set('name', options.name);
   this.setPaperSize(options.paperSize||'a4');
 
   this.page2 = $('<div>').addClass('ol-print-page').appendTo('body');
@@ -106,6 +107,14 @@ ol.control.Print.prototype.preview = function(b, extended) {	// Set the control 
     this.calcPaperSize_();
     this.dispatchEvent({type: 'preview'});
   }
+};
+
+/** Set visiblity
+ * @param {boolean} b
+ */
+ol.control.Print.prototype.setVisible = function(b) {
+  if (b) ol.ext.element.show(this.element);
+  else ol.ext.element.hide(this.element);
 };
 
 /** Show preview
