@@ -337,6 +337,17 @@ ol.source.Vector.Webpart.prototype.countActions = function()
     return res;
 };
 
+/** Get the created/deleted/modified features 
+ * @return {*}
+ */
+ol.source.Vector.Webpart.prototype.getModifications = function() {
+    return {
+        inserted: this.insert_,
+        deleted: this.delete_,
+        updated: this.update_
+    }
+};
+
 /** test if something to save
  *
  * @returns {number}
