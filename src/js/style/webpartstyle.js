@@ -361,7 +361,7 @@ ol.layer.Vector.Webpart.Style.Default = ol.layer.Vector.Webpart.Style.getFeature
 ol.layer.Vector.Webpart.Style.zombie = function(options)
 {	
     function getColor(feature, opacity) 
-    {	return ( feature.get('detruit') ? [255,0,0,opacity] : [0,0,255,opacity] );
+    {	return ( feature.get(feature.getDetruitField()) ? [255,0,0,opacity] : [0,0,255,opacity] );
     };
 
     return function (feature, res)
@@ -385,7 +385,7 @@ ol.layer.Vector.Webpart.Style.zombie = function(options)
 */
 ol.layer.Vector.Webpart.Style.detruit = function(options)
 {	return function (feature, res)
-    {	if (!feature.get('detruit')) return [];
+    {	if (!feature.get(feature.getDetruitField())) return [];
         var fstyle = {						
             strokeColor: [255,0,0,1],
             strokeWidth: 2,
@@ -406,7 +406,7 @@ ol.layer.Vector.Webpart.Style.detruit = function(options)
 */
 ol.layer.Vector.Webpart.Style.vivant = function(options)
 {	return function (feature, res)
-    {	if (feature.get('detruit')) return [];
+    {	if (feature.get(feature.getDetruitField())) return [];
         var fstyle = {						
             strokeColor: [0,0,255,1],
             strokeWidth: 2,
@@ -667,7 +667,7 @@ ol.layer.Vector.Webpart.Style.batiment = function(options)
     };
     
     return function (feature, res)
-    {	if (feature.get('detruit')) return [];
+    {	if (feature.get(feature.getDetruitField())) return [];
         var fstyle = 
         {	strokeColor: getColor(feature, 1),
             fillColor: getColor(feature, 0.5)
