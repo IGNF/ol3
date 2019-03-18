@@ -359,12 +359,16 @@ ol.source.Vector.Webpart.prototype.hasActions = function() {
 
 /** Save changes
 */
-ol.source.Vector.Webpart.prototype.save = function()
+ol.source.Vector.Webpart.prototype.save = function(actions)
 {	var self = this;
 
-	var actions =[];
+	var actions = actions || [];
+	
+	
     try{
-	  actions = this.getSaveActions().actions;
+      if (actions.length == 0){
+	  	actions = this.getSaveActions().actions;
+      }
     }catch (e){
     	console.log("ol.source.Vector.Webpart.prototype.save " + e);
     	return;
@@ -372,8 +376,8 @@ ol.source.Vector.Webpart.prototype.save = function()
 	self.dispatchEvent({ type:"savestart" });
 
     // Noting to save
-	if (! actions.length) {
-		return;
+	if (!actions.length) {
+		return ;
 	}
 
     var databases = {};
