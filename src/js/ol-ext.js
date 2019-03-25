@@ -1,7 +1,7 @@
 /**
  * ol-ext - A set of cool extensions for OpenLayers (ol) in node modules structure
  * @description ol3,openlayers,popup,menu,symbol,renderer,filter,canvas,interaction,split,statistic,charts,pie,LayerSwitcher,toolbar,animation
- * @version v3.1.0
+ * @version v3.1.2
  * @author Jean-Marc Viglino
  * @see https://github.com/Viglino/ol-ext#,
  * @license BSD-3-Clause
@@ -24,7 +24,7 @@ ol.ext.inherits = function(child,parent) {
   child.prototype = Object.create(parent.prototype);
   child.prototype.constructor = child;
 };
-// Compatibilty with ol > 5
+// Compatibilty with ol > 5 to be removed when v6 is out
 if (window.ol) {
   if (!ol.inherits) ol.inherits = ol.ext.inherits;
 }
@@ -40,9 +40,9 @@ ol.ext.Ajax = function(options) {
   options = options || {};
 	ol.Object.call(this);
   this._auth = options.auth;
-  this.set('dataType', 'JSON');
+  this.set('dataType', options.dataType || 'JSON');
 };
-ol.inherits(ol.ext.Ajax, ol.Object);
+ol.ext.inherits(ol.ext.Ajax, ol.Object);
 /** Helper for get
  * @param {*} options
  *  @param {string} options.url
@@ -55,7 +55,7 @@ ol.ext.Ajax.get = function(options) {
   var ajax = new ol.ext.Ajax(options);
   if (options.success) ajax.on('success', function(e) { options.success(e.response, e); } );
   if (options.error) ajax.on('error', function(e) { options.error(e); } );
-  ajax.send(options.url, options.data);
+  ajax.send(options.url, options.data, options.options);
 };
 /** Send an ajax request (GET)
  * @fires success
@@ -66,16 +66,18 @@ ol.ext.Ajax.get = function(options) {
  *  @param {boolean} options.abort false to prevent aborting the current request, default true
  */
 ol.ext.Ajax.prototype.send = function (url, data, options){
+  options = options || {};
 	var self = this;
   // Url
-  url = encodeURI(url);
+  var encode = (options.encode !== false) 
+  if (encode) url = encodeURI(url);
   // Parameters
   var parameters = '';
 	for (var index in data) {
 		if (data.hasOwnProperty(index) && data[index]!==undefined) {
-      parameters += (parameters ? '&' : '?') + index + '=' + encodeURIComponent(data[index]);
+      parameters += (parameters ? '&' : '?') + index + '=' + (encode ? encodeURIComponent(data[index]) : data[index]);
     }
-	}
+  }
 	// Abort previous request
 	if (this._request && options.abort!==false) {
 		this._request.abort();
@@ -197,6 +199,7 @@ ol.ext.element.create = function (tagName, options) {
           this.setStyle(elt, options.style);
           break;
         }
+        case 'change':
         case 'click': {
           ol.ext.element.addListener(elt, attr, options[attr]);
           break;
@@ -227,6 +230,13 @@ ol.ext.element.create = function (tagName, options) {
 ol.ext.element.setHTML = function(element, html) {
   if (html instanceof Element) element.appendChild(html)
   else if (html!==undefined) element.innerHTML = html;
+};
+/** Append text into an elemnt
+ * @param {Element} element
+ * @param {string} text text content
+ */
+ol.ext.element.appendText = function(element, text) {
+  element.appendChild(document.createTextNode(text||''));
 };
 /**
  * Add a set of event listener to an element
@@ -455,6 +465,333 @@ if (window.ol && !ol.sphere) {
   ol.sphere.getArea = ol.Sphere.getArea;
   ol.sphere.getLength = ol.Sphere.getLength;
 }
+/**
+ * @classdesc 
+ *   OpenLayers 3 Attribution Control integrated in the canvas (for jpeg/png 
+ * @see http://www.kreidefossilien.de/webgis/dokumentation/beispiele/export-map-to-png-with-scale
+ *
+ * @constructor
+ * @extends {ol.control.Control}
+ * @param {Object=} options extend the ol.control options. 
+ *  @param {ol.style.Style} options.style style used to draw the title.
+ */
+ol.control.CanvasBase = function(options) {
+  if (!options) options = {};
+  // Define a style to draw on the canvas
+  this.setStyle(options.style);
+  ol.control.Control.call(this, options);
+}
+ol.ext.inherits(ol.control.CanvasBase, ol.control.Control);
+/**
+ * Remove the control from its current map and attach it to the new map.
+ * Subclasses may set up event handlers to get notified about changes to
+ * the map here.
+ * @param {o.Map} map Map.
+ * @api stable
+ */
+ol.control.CanvasBase.prototype.setMap = function (map) {
+  var oldmap = this.getMap();
+  if (this._listener) {
+    ol.Observable.unByKey(this._listener);
+    this._listener = null;
+  }
+  ol.control.Control.prototype.setMap.call(this, map);
+  if (oldmap) oldmap.renderSync();
+  // Get change redraw the map
+  if (map) {
+    this._listener = map.on('postcompose', this._draw.bind(this));
+  }
+};
+/** Get map Canvas
+ * @private
+ */
+ol.control.CanvasBase.prototype.getContext = function(e) {
+  var ctx = e.context;
+  if (!ctx) {
+    var c = this.getMap().getViewport().querySelectorAll('canvas');
+    for (var i=c.length-1; i>=0; i--) {
+      ctx = c[i].getContext('2d');
+      if (ctx.canvas.width && ctx.canvas.height) break;
+    }
+  }
+  return ctx;
+};
+/** Get stroke
+ * @api
+ */
+ol.control.CanvasBase.prototype.setStyle = function(style) {
+  this._style = style ||  new ol.style.Style ({});
+};
+/** Get stroke
+ * @api
+ */
+ol.control.CanvasBase.prototype.getStroke = function() {
+  var t = this._style.getStroke();
+  if (!t) this._style.setStroke(new ol.style.Stroke ({ color:'#000', width:3 }));
+  return this._style.getStroke();
+};
+/** Get fill
+ * @api
+ */
+ol.control.CanvasBase.prototype.getFill = function() {
+  var t = this._style.getFill();
+  if (!t) this._style.setFill(new ol.style.Fill ({ color:'#fff' }));
+  return this._style.getFill();
+};
+/** Get stroke
+ * @api
+ */
+ol.control.CanvasBase.prototype.getTextStroke = function() {
+  var t = this._style.getText();
+  if (!t) t = new ol.style.Text({});
+  if (!t.getStroke()) t.setStroke(new ol.style.Stroke ({ color:'#fff', width:3 }));
+  return t.getStroke();
+};
+/** Get text fill
+ * @api
+ */
+ol.control.CanvasBase.prototype.getTextFill = function() {
+  var t = this._style.getText();
+  if (!t) t = new ol.style.Text({});
+  if (!t.getFill()) t.setFill(new ol.style.Fill ({ color:'#fff', width:3 }));
+  return t.getFill();
+};
+/** Get text font
+ * @api
+ */
+ol.control.CanvasBase.prototype.getTextFont = function() {
+  var t = this._style.getText();
+  if (!t) t = new ol.style.Text({});
+  if (!t.getFont()) t.setFont('12px sans-serif');
+  return t.getFont();
+};
+/** Draw the control on canvas
+ * @private
+ */
+ol.control.CanvasBase.prototype._draw = function(/* e */) {
+  console.warn('[CanvasBase] draw function not implemented.');
+};
+
+/*	Copyright (c) 2019 Jean-Marc VIGLINO,
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/**
+ * This is the base class for Select controls on attributes values. 
+ * Abstract base class; 
+ * normally only used for creating subclasses and not instantiated in apps. 
+ *
+ * @constructor
+ * @extends {ol.control.Control}
+ * @fires select
+ * @param {Object=} options
+ *  @param {string} options.className control class name
+ *  @param {Element | undefined} options.target Specify a target if you want the control to be rendered outside of the map's viewport.
+ *  @param {ol.Collection<ol.Feature>} options.features a collection of feature to search in, the collection will be kept in date while selection
+ *  @param {ol/source/Vector | Array<ol/source/Vector>} options.source the source to search in if no features set
+ */
+ol.control.SelectBase = function(options) {
+  if (!options) options = {};
+  this._features = this.setFeatures(options.features);
+  var element;
+  if (options.target) {
+    element = document.createElement("div");
+  } else {
+    element = document.createElement("div");
+    element.className = 'ol-select ol-unselectable ol-control ol-collapsed';
+    ol.ext.element.create('BUTTON', {
+      type: 'button',
+      on: {
+        'click touchstart': function(e) {
+          element.classList.toggle('ol-collapsed');
+          e.preventDefault();
+        }
+      },
+      parent: element
+    });
+  }
+  if (options.className) element.classList.add(options.className);
+  element.appendChild(options.content);
+  // OK button
+  ol.ext.element.create('BUTTON', {
+    html: options.btInfo || 'OK',
+    className: 'ol-ok',
+    on: { 'click touchstart': this.doSelect.bind(this) },
+    parent: options.content
+  });
+  ol.control.Control.call(this, {
+    element: element,
+    target: options.target
+  });
+  this.setSources(options.source);
+};
+ol.ext.inherits(ol.control.SelectBase, ol.control.Control);
+/** Set the current sources
+ * @param {ol.source.Vector|Array<ol.source.Vector>|undefined} source
+ */
+ol.control.SelectBase.prototype.setSources = function (source) {
+  if (source) {
+    this.set ('source', (source instanceof Array) ? source : [source]);
+  } else {
+    this.unset('source');
+  }  
+};
+/** Set feature collection to search in
+ * @param {ol.Collection<ol.Feature>} features
+ */
+ol.control.SelectBase.prototype.setFeatures = function (features) {
+  if (features instanceof ol.Collection) this._features = features;
+  else this._features = null;
+};
+/** Get feature collection to search in
+ * @return {ol.Collection<ol.Feature>}
+ */
+ol.control.SelectBase.prototype.getFeatures = function () {
+  return this._features;
+};
+/** List of operators / translation
+ * @api
+ */
+ol.control.SelectBase.prototype.operationsList = {
+  '=': '=',
+  '!=': '≠',
+  '<': '<',
+  '<=': '≤',
+  '>=': '≥',
+  '>': '>',
+  'contain': '⊂', // ∈
+  '!contain': '⊄',	// ∉
+  'regexp': '≈'
+};
+/** Escape string for regexp
+ * @param {string} search
+ * @return {string}
+ */
+ol.control.SelectBase.prototype._escape = function (s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+};
+/**
+ * Test if a feature check aconditino
+ * @param {ol.Feature} f the feature to check condition
+ * @param {Object} condition an object to use for test
+ *  @param {string} condition.attr attribute name
+ *  @param {string} condition.op operator
+ *  @param {any} condition.val value to test
+ * @param {boolean} usecase use case or not when testing strings
+ * @return {boolean}
+ * @private
+ */
+ol.control.SelectBase.prototype._checkCondition = function (f, condition, usecase) {
+  if (!condition.attr) return true;
+  var val = f.get(condition.attr);
+  var rex;
+  switch (condition.op) {
+    case '=':
+      rex = new RegExp('^'+this._escape(condition.val)+'$', usecase ? '' : 'i');
+      return rex.test(val);
+    case '!=':
+      rex = new RegExp('^'+this._escape(condition.val)+'$', usecase ? '' : 'i');
+      return !rex.test(val);
+    case '<':
+      return val < condition.val;
+    case '<=':
+      return val <= condition.val;
+    case '>':
+      return val > condition.val;
+      case '>=':
+      return val >= condition.val;
+    case 'contain':
+      rex = new RegExp(this._escape(condition.val), usecase ? '' : 'i');
+      return rex.test(val);
+    case '!contain':
+      rex = new RegExp(this._escape(condition.val), usecase ? '' : 'i');
+      return !rex.test(val);
+    case 'regexp':
+      rex = new RegExp(condition.val, usecase ? '' : 'i');
+      return rex.test(val);
+    default:
+      return false;
+  }
+};
+/** Selection features in a list of features
+ * @param {Array<ol.Feature>} result the current list of features
+ * @param {Array<ol.Feature>} features to test in
+ * @param {Object} condition 
+ *  @param {string} condition.attr attribute name
+ *  @param {string} condition.op operator
+ *  @param {any} condition.val value to test
+ * @param {boolean} all all conditions must be valid
+ * @param {boolean} usecase use case or not when testing strings
+ */
+ol.control.SelectBase.prototype._selectFeatures = function (result, features, conditions, all, usecase) {
+  conditions = conditions || [];
+  var f;
+  for (var i=features.length-1; f=features[i]; i--) {
+    var isok = all;
+    for (var k=0, c; c=conditions[k]; k++) {
+      if (c.attr) {
+        if (all) {
+          isok = isok && this._checkCondition(f,c,usecase);
+        }
+        else {
+          isok = isok || this._checkCondition(f,c,usecase);
+        }
+      }
+    }
+    if (isok) {
+      result.push(f);
+    } else if (this._features) {
+      this._features.removeAt(i);
+    }
+  }
+  return result;
+};
+/** Get vector source
+ * @return {Array<ol.source.Vector>}
+ */
+ol.control.SelectBase.prototype.getSources = function () {
+  if (this.get('source')) return this.get('source');
+  var sources = [];
+  function getSources(layers) {
+    layers.forEach(function(l){
+      if (l.getLayers) {
+        getSources(l.getLayers());
+      } else if (l.getSource && l.getSource() instanceof ol.source.Vector) {
+        sources.push(l.getSource());
+      }
+    });
+  }
+  if (this.getMap()) {
+    getSources(this.getMap().getLayers());
+  }
+  return sources;
+};
+/** Select features by attributes
+ * @param {*} options
+ *  @param {Array<ol/source/Vector|undefined} options.sources source to apply rules, default the select sources
+ *  @param {bool} options.useCase case sensitive, default false
+ *  @param {bool} options.matchAll match all conditions, default false
+ *  @param {Array<conditions>} options.conditions array of conditions
+ * @return {Array<ol.Feature>}
+ * @fires select
+ */
+ol.control.SelectBase.prototype.doSelect = function (options) {
+  options = options || {};
+  var features = [];
+  if (options.features) {
+    this._selectFeatures(features, options.features, options.conditions, options.matchAll, options.useCase);
+  } else if (this._features) {
+    this._selectFeatures(features, this._features.getArray(), options.conditions, options.matchAll, options.useCase);
+  } else {
+    var sources = options.sources || this.getSources();
+    sources.forEach(function(s) {
+      this._selectFeatures(features, s.getFeatures(), options.conditions, options.matchAll, options.useCase);
+    }.bind(this));
+  }
+  this.dispatchEvent({ type:"select", features: features });
+  return features;
+};
+
 /*	Copyright (c) 2017 Jean-Marc VIGLINO,
   released under the CeCILL-B license (French BSD license)
   (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
@@ -492,7 +829,7 @@ ol.control.Search = function(options) {
   var classNames = (options.className||'')+ ' ol-search'
     + (options.target ? '' : ' ol-unselectable ol-control ol-collapsed');
   var element = ol.ext.element.create('DIV',{
-    className: classNames
+    className: classNames + ' ol-collapsed'
   })
   if (!options.target) {
     this.button = document.createElement("BUTTON");
@@ -530,7 +867,7 @@ ol.control.Search = function(options) {
     self.dispatchEvent({ type:"change:input", input:e, value:input.value });
   });
   var doSearch = function(e) {
-    //console.log(e.type+" "+e.key)
+    // console.log(e.type+" "+e.key)'
     var li  = element.querySelector("ul.autocomplete li.select");
     var	val = input.value;
     // move up/down
@@ -602,6 +939,7 @@ ol.control.Search = function(options) {
   if (typeof (options.getTitle)=='function') this.getTitle = options.getTitle;
   if (typeof (options.autocomplete)=='function') this.autocomplete = options.autocomplete;
   // Options
+  this.set('copy', options.copy);
   this.set('minLength', options.minLength || 1);
   this.set('maxItems', options.maxItems || 10);
   this.set('maxHistory', options.maxHistory || options.maxItems || 10);
@@ -609,7 +947,7 @@ ol.control.Search = function(options) {
   this.restoreHistory();
   this.drawList_();
 };
-ol.inherits(ol.control.Search, ol.control.Control);
+ol.ext.inherits(ol.control.Search, ol.control.Control);
 /** Get the input field
 *	@return {Element} 
 *	@api
@@ -773,7 +1111,9 @@ ol.control.Search.prototype.drawList_ = function (auto) {
         li.addEventListener("click", function(e) {
           self._handleSelect(self._list[e.currentTarget.getAttribute("data-search")]);
         });
-        li.innerHTML = self.getTitle(auto[i]);
+        var title = self.getTitle(auto[i]);
+        if (title instanceof Element) li.appendChild(title);
+        else li.innerHTML = title;
         ul.appendChild(li);
       }
     }
@@ -839,7 +1179,7 @@ ol.control.SearchJSON = function(options)
 	// Overwrite handleResponse
 	if (typeof(options.handleResponse)==='function') this.handleResponse = options.handleResponse;
 };
-ol.inherits(ol.control.SearchJSON, ol.control.Search);
+ol.ext.inherits(ol.control.SearchJSON, ol.control.Search);
 /** Autocomplete function (ajax request to the server)
 * @param {string} s search string
 * @param {function} cback a callback function that takes an array of {name, feature} to display in the autocomplete field
@@ -943,13 +1283,13 @@ ol.control.SearchJSON.prototype.handleResponse = function (response) {
 ol.control.SearchPhoton = function(options)
 {	options = options || {};
 	options.className = options.className || 'photon';
-	options.url = options.url || "http://photon.komoot.de/api/";
+	options.url = options.url || 'http://photon.komoot.de/api/';
+	options.copy = '<a href="http://www.openstreetmap.org/copyright" target="new">&copy; OpenStreetMap contributors</a>';
 	ol.control.SearchJSON.call(this, options);
 	this.set('lang', options.lang);
 	this.set('position', options.position);
-	this.set("copy","<a href='http://www.openstreetmap.org/copyright' target='new'>&copy; OpenStreetMap contributors</a>");
 };
-ol.inherits(ol.control.SearchPhoton, ol.control.SearchJSON);
+ol.ext.inherits(ol.control.SearchPhoton, ol.control.SearchJSON);
 /** Returns the text to be displayed in the menu
 *	@param {ol.Feature} f the feature
 *	@return {string} the text to be displayed in the index
@@ -1048,11 +1388,11 @@ ol.control.SearchGeoportail = function(options) {
   options.className = options.className || 'IGNF';
   options.typing = options.typing || 500;
   options.url = "https://wxs.ign.fr/"+options.apiKey+"/ols/apis/completion";
+	options.copy = '<a href="https://www.geoportail.gouv.fr/" target="new">&copy; IGN-Géoportail</a>';
   ol.control.SearchJSON.call(this, options);
-	this.set("copy","<a href='https://www.geoportail.gouv.fr/' target='new'>&copy; IGN-Géoportail</a>");
   this.set('type', options.type || 'StreetAddress,PositionOfInterest');
 };
-ol.inherits(ol.control.SearchGeoportail, ol.control.SearchJSON);
+ol.ext.inherits(ol.control.SearchGeoportail, ol.control.SearchJSON);
 /** Returns the text to be displayed in the menu
  *	@param {ol.Feature} f the feature
  *	@return {string} the text to be displayed in the index
@@ -1249,7 +1589,7 @@ ol.control.LayerSwitcher = function(options) {
     target: options.target
   });
 };
-ol.inherits(ol.control.LayerSwitcher, ol.control.Control);
+ol.ext.inherits(ol.control.LayerSwitcher, ol.control.Control);
 /** List of tips for internationalization purposes
 */
 ol.control.LayerSwitcher.prototype.tip = {
@@ -1922,7 +2262,7 @@ ol.control.Bar = function(options) {
 		}
 	}
 };
-ol.inherits(ol.control.Bar, ol.control.Control);
+ol.ext.inherits(ol.control.Bar, ol.control.Control);
 /** Set the control visibility
 * @param {boolean} b
 */
@@ -2109,7 +2449,7 @@ ol.control.Button = function(options)
 	if (options.title) this.set("title", options.title);
 	if (options.name) this.set("name", options.name);
 };
-ol.inherits(ol.control.Button, ol.control.Control);
+ol.ext.inherits(ol.control.Button, ol.control.Control);
 /** Set the control visibility
 * @param {boolean} b 
 */
@@ -2158,7 +2498,7 @@ ol.control.CanvasAttribution = function(options)
 	if (!options.style) options.style = new ol.style.Style();
 	this.setStyle (options.style);
 }
-ol.inherits(ol.control.CanvasAttribution, ol.control.Attribution);
+ol.ext.inherits(ol.control.CanvasAttribution, ol.control.Attribution);
 /**
  * Draw attribution on canvas
  * @param {boolean} b draw the attribution on canvas.
@@ -2168,6 +2508,10 @@ ol.control.CanvasAttribution.prototype.setCanvas = function (b)
 	this.element.style.visibility = b ? "hidden":"visible";
 	if (this.map_) this.map_.renderSync();
 };
+/** Get map Canvas
+ * @private
+ */
+ol.control.CanvasAttribution.prototype.getContext = ol.control.CanvasBase.prototype.getContext;
 /**
  * Change the control style
  * @param {ol.style.Style} style
@@ -2206,9 +2550,10 @@ ol.control.CanvasAttribution.prototype.setMap = function (map)
  * Draw attribution in the final canvas
  * @private
  */
-ol.control.CanvasAttribution.prototype.drawAttribution_ = function(e)
-{	var ctx = e.context;
+ol.control.CanvasAttribution.prototype.drawAttribution_ = function(e) {
 	if (!this.isCanvas_) return;
+	var ctx = this.getContext(e);
+	if (!ctx) return;
 	var text = "";
 	Array.prototype.slice.call(this.element.querySelectorAll('li'))
 		.filter(function(el) {
@@ -2217,30 +2562,28 @@ ol.control.CanvasAttribution.prototype.drawAttribution_ = function(e)
 		.map(function(el) {
 			text += (text ? " - ":"") + el.textContent;
 		});
-	// Get size of the scale div
-	var position = {left: this.element.offsetLeft, top: this.element.offsetTop};
 	// Retina device
 	var ratio = e.frameState.pixelRatio;
 	ctx.save();
 	ctx.scale(ratio,ratio);
-	// Position if transform:scale()
-	var container = this.getMap().getTargetElement();
-	var scx = container.offsetWidth / container.getBoundingClientRect().width;
-	var scy = container.offsetHeight / container.getBoundingClientRect().height;
-	position.left *= scx;
-	position.top *= scy;
-	position.right = position.left + this.element.offsetWidth;
-	position.bottom = position.top + this.element.offsetHeight;
+	// Position
+	var eltRect = this.element.getBoundingClientRect();
+	var mapRect = this.getMap().getViewport().getBoundingClientRect();
+	var sc = ctx.canvas.width / mapRect.width;
+	ctx.translate((eltRect.left-mapRect.left)*sc, (eltRect.top-mapRect.top)*sc);
+	var h = this.element.clientHeight;
+	var w = this.element.clientWidth;
+	var left = w/2;
 	// Draw scale text
 	ctx.beginPath();
 		ctx.strokeStyle = this.fontStrokeStyle_;
 		ctx.fillStyle = this.fontFillStyle_;
 		ctx.lineWidth = this.fontStrokeWidth_;
-		ctx.textAlign = "right";
-	ctx.textBaseline ="bottom";
+		ctx.textAlign = "center";
+		ctx.textBaseline ="middle";
 		ctx.font = this.font_;
-	ctx.strokeText(text, position.right, position.bottom);
-		ctx.fillText(text, position.right, position.bottom);
+		ctx.strokeText(text, left, h/2);
+		ctx.fillText(text, left, h/2);
 	ctx.closePath();
 	ctx.restore();
 };
@@ -2267,7 +2610,11 @@ ol.control.CanvasScaleLine = function(options)
 	if (!options.style) options.style = new ol.style.Style();
 	this.setStyle(options.style);
 }
-ol.inherits(ol.control.CanvasScaleLine, ol.control.ScaleLine);
+ol.ext.inherits(ol.control.CanvasScaleLine, ol.control.ScaleLine);
+/** Get map Canvas
+ * @private
+ */
+ol.control.CanvasScaleLine.prototype.getContext = ol.control.CanvasBase.prototype.getContext;
 /**
  * Remove the control from its current map and attach it to the new map.
  * Subclasses may set up event handlers to get notified about changes to
@@ -2315,7 +2662,8 @@ ol.control.CanvasScaleLine.prototype.setStyle = function (style)
  */
 ol.control.CanvasScaleLine.prototype.drawScale_ = function(e)
 {	if ( this.element.style.visibility!=="hidden" ) return;
-	var ctx = e.context;
+	var ctx = this.getContext(e);
+	if (!ctx) return;
 	// Get size of the scale div
 	var scalewidth = parseInt(this.olscale.style.width);
 	if (!scalewidth) return;
@@ -2325,14 +2673,6 @@ ol.control.CanvasScaleLine.prototype.drawScale_ = function(e)
 	var ratio = e.frameState.pixelRatio;
 	ctx.save();
 	ctx.scale(ratio,ratio);
-/*
-	// Position if transform:scale()
-	var container = this.getMap().getTargetElement();
-	var scx = container.offsetWidth / container.getBoundingClientRect().width;
-	var scy = container.offsetHeight / container.getBoundingClientRect().height;
-	position.left *= scx;
-	position.top *= scy;
-*/
 	// On top
 	position.top += this.element.clientHeight - this.scaleHeight_;
 	// Draw scale text
@@ -2366,143 +2706,228 @@ ol.control.CanvasScaleLine.prototype.drawScale_ = function(e)
 }
 
 /*	Copyright (c) 2015 Jean-Marc VIGLINO, 
-	released under the CeCILL-B license (French BSD license)
-	(http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
 */
 /**
- * OpenLayers 3 Title Control integrated in the canvas (for jpeg/png 
+ * A title Control integrated in the canvas (for jpeg/png 
  *
  * @constructor
- * @extends {ol.control.Control}
+ * @extends {ol.control.CanvasBase}
  * @param {Object=} options extend the ol.control options. 
- * 	@param {ol.style.Style} options.style style usesd to draw the title.
+ *  @param {string} options.title the title, default 'Title'
+ *  @param {ol.style.Style} options.style style used to draw the title.
  */
-ol.control.CanvasTitle = function(options)
-{	if (!options) options={};
-	// Get style options
-	if (!options.style) options.style = new ol.style.Style();
-	this.setStyle(options.style);
-	// Initialize parent
-	var elt = document.createElement('div');
-	elt.textContent = this.text_;
-	elt.className = 'ol-title ol-unselectable';
-	var css = {
-		font: this.font_,
-		position: 'absolute',
-		top:0,
-		left:0,
-		right:0,
-		display: 'block',
-		visibility: 'hidden'
-	};
-	Object.keys(css).forEach(function(key) {
-		elt.style[key] = css[key];
-	});
-	ol.control.Control.call(this,
-	{	element: elt,
-		target: options.target
-	});
-}
-ol.inherits(ol.control.CanvasTitle, ol.control.Control);
-/**
- * Remove the control from its current map and attach it to the new map.
- * Subclasses may set up event handlers to get notified about changes to
- * the map here.
- * @param {_ol_Map_} map Map.
- * @api stable
- */
-ol.control.CanvasTitle.prototype.setMap = function (map)
-{	var oldmap = this.getMap();
-	if (this._listener) ol.Observable.unByKey(this._listener);
-	this._listener = null;
-	ol.control.Control.prototype.setMap.call(this, map);
-	if (oldmap) oldmap.renderSync();
-	// Get change (new layer added or removed)
-	if (map) {
-		this._listener = map.on('postcompose', this.drawTitle_.bind(this));
-	}
-}
+ol.control.CanvasTitle = function(options) {
+  if (!options) options = {};
+  var elt = ol.ext.element.create('DIV', {
+    className: (options.className || '') + ' ol-control-title ol-unselectable',
+    style: {
+      display: 'block',
+      visibility: 'hidden'
+    }
+  });
+  ol.control.CanvasBase.call(this, {
+    element: elt
+  });
+  this.setTitle(options.title || 'Title');
+  this.element.style.font = this.getTextFont();
+};
+ol.ext.inherits(ol.control.CanvasTitle, ol.control.CanvasBase);
 /**
  * Change the control style
  * @param {ol.style.Style} style
  */
-ol.control.CanvasTitle.prototype.setStyle = function (style)
-{	var text = style.getText();
-	this.font_ = text ? text.getFont() || "20px Arial" : "20px Arial";
-	this.text_ = text ? text.getText() : "";
-	var stroke = text ? text.getStroke() : null;
-	var fill = text ? text.getFill() : null;
-	this.strokeStyle_ = stroke ? ol.color.asString(stroke.getColor()) : "#fff";
-	this.fillStyle_ = fill ? ol.color.asString(fill.getColor()) : "#000";
-	if (this.element) 
-	{	this.element.textContent = this.text_;
-		this.element.style.font = this.font_;
-	}
-	// refresh
-	if (this.getMap()) this.getMap().render();
-}
+ol.control.CanvasTitle.prototype.setStyle = function (style) {
+  ol.control.CanvasBase.prototype.setStyle.call(this, style);
+  // Element style
+  if (this.element) {
+    this.element.style.font = this.getTextFont();
+  }
+  // refresh
+  if (this.getMap()) this.getMap().render();
+};
 /**
  * Set the map title 
  * @param {string} map title.
  * @api stable
  */
-ol.control.CanvasTitle.prototype.setTitle = function (title)
-{	this.text_ = title;
-	this.element.textContent = this.text_;
-	if (this.getMap()) this.getMap().renderSync();
-}
+ol.control.CanvasTitle.prototype.setTitle = function (title) {
+  this.element.textContent = title;
+  this.set('title', title);
+  if (this.getMap()) this.getMap().renderSync();
+};
 /**
  * Get the map title 
  * @param {string} map title.
  * @api stable
  */
-ol.control.CanvasTitle.prototype.getTitle = function ()
-{	return this.text_;
-}
+ol.control.CanvasTitle.prototype.getTitle = function () {
+  return this.get('title');
+};
 /**
  * Set control visibility
  * @param {bool} b
  * @api stable
  */
-ol.control.CanvasTitle.prototype.setVisible = function (b)
-{	if (b) this.element.style.display = '';
-	else this.element.style.display = 'none';
-	if (this.getMap()) this.getMap().renderSync();
-}
+ol.control.CanvasTitle.prototype.setVisible = function (b) {
+  this.element.style.display = (b ? 'block' : 'none');
+  if (this.getMap()) this.getMap().renderSync();
+};
 /**
  * Get control visibility
  * @return {bool} 
  * @api stable
  */
-ol.control.CanvasTitle.prototype.getVisible = function ()
-{	return this.element.style.display !== 'none';
-}
-/** Draw scale line in the final canvas
+ol.control.CanvasTitle.prototype.getVisible = function () {
+  return this.element.style.display !== 'none';
+};
+/** Draw title in the final canvas
+ * @private
 */
-ol.control.CanvasTitle.prototype.drawTitle_ = function(e)
-{	if (!this.getVisible()) return;
-	var ctx = e.context;
-	// Retina device
-	var ratio = e.frameState.pixelRatio;
-	ctx.save();
-	ctx.scale(ratio,ratio);
-	var w = ctx.canvas.width/ratio;
-	var h = this.element.clientHeight;
-	var position = { top:0, left:w/2 };
-	ctx.beginPath();
-	ctx.fillStyle = this.strokeStyle_;
-	ctx.rect(0,0, w, h);
-	ctx.fill();
-	ctx.closePath();
-	ctx.beginPath();
-	ctx.fillStyle = this.fillStyle_;
-	ctx.textAlign = "center";
-	ctx.textBaseline = "middle";
-	ctx.font = this.font_;
-	ctx.fillText(this.text_, position.left, position.top +h/2);
-	ctx.closePath();
-	ctx.restore();
-}
+ol.control.CanvasTitle.prototype._draw = function(e) {
+  if (!this.getVisible()) return;
+  var ctx = this.getContext(e);
+	if (!ctx) return;
+  // Retina device
+  var ratio = e.frameState.pixelRatio;
+  ctx.save();
+  ctx.scale(ratio,ratio);
+  // Position
+  var eltRect = this.element.getBoundingClientRect();
+  var mapRect = this.getMap().getViewport().getBoundingClientRect();
+  var sc = ctx.canvas.width / mapRect.width;
+  ctx.translate((eltRect.left-mapRect.left)*sc, (eltRect.top-mapRect.top)*sc);
+  var h = this.element.clientHeight;
+  var w = this.element.clientWidth;
+  var left = w/2;
+  ctx.beginPath();
+  ctx.fillStyle = ol.color.asString(this.getFill().getColor());
+  ctx.rect(0,0, w, h);
+  ctx.fill();
+  ctx.closePath();
+  ctx.beginPath();
+  ctx.fillStyle = ol.color.asString(this.getTextFill().getColor());
+  ctx.strokeStyle = ol.color.asString(this.getTextStroke().getColor());
+  ctx.lineWidth = this.getTextStroke().getWidth();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = this.getTextFont();
+  if (ctx.lineWidth) ctx.strokeText(this.getTitle(), left, h/2);
+  ctx.fillText(this.getTitle(), left, h/2);
+  ctx.closePath();
+  ctx.restore();
+};
+
+/*	Copyright (c) 2015 Jean-Marc VIGLINO, 
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/**
+ * A title Control integrated in the canvas (for jpeg/png 
+ *
+ * @constructor
+ * @extends {ol.control.CanvasBase}
+ * @param {Object=} options extend the ol.control options. 
+ *  @param {string} options.className CSS class name
+ *  @param {ol.style.Style} options.style style used to draw in the canvas
+ *  @param {ol.proj.ProjectionLike} options.projection	Projection. Default is the view projection.
+ *  @param {ol.coordinate.CoordinateFormat} options.coordinateFormat A function that takes a ol.Coordinate and transforms it into a string.
+ *  @param {boolean} options.canvas true to draw in the canvas
+ */
+ol.control.CenterPosition = function(options) {
+  if (!options) options = {};
+  var elt = ol.ext.element.create('DIV', {
+    className: (options.className || '') + ' ol-center-position ol-unselectable',
+    style: {
+      display: 'block',
+      visibility: 'hidden'
+    }
+  });
+  ol.control.CanvasBase.call(this, {
+    element: elt
+  });
+  this.element.style.font = this.getTextFont();
+  this.set('projection', options.projection);
+  this.setCanvas(options.canvas);
+  this._format = (typeof options.coordinateFormat === 'function') ? options.coordinateFormat : ol.coordinate.toStringXY; 
+};
+ol.ext.inherits(ol.control.CenterPosition, ol.control.CanvasBase);
+/**
+ * Change the control style
+ * @param {ol.style.Style} style
+ */
+ol.control.CenterPosition.prototype.setStyle = function (style) {
+  ol.control.CanvasBase.prototype.setStyle.call(this, style);
+  // Element style
+  if (this.element) {
+    this.element.style.font = this.getTextFont();
+  }
+  // refresh
+  if (this.getMap()) this.getMap().render();
+};
+/**
+ * Draw on canvas
+ * @param {boolean} b draw the attribution on canvas.
+ */
+ol.control.CenterPosition.prototype.setCanvas = function (b) {
+  this.set('canvas', b);
+	this.element.style.visibility = b ? "hidden":"visible";
+	if (this.getMap()) this.getMap().renderSync();
+};
+/**
+ * Set control visibility
+ * @param {bool} b
+ * @api stable
+ */
+ol.control.CenterPosition.prototype.setVisible = function (b) {
+  this.element.style.display = (b ? '' : 'none');
+  if (this.getMap()) this.getMap().renderSync();
+};
+/**
+ * Get control visibility
+ * @return {bool} 
+ * @api stable
+ */
+ol.control.CenterPosition.prototype.getVisible = function () {
+  return this.element.style.display !== 'none';
+};
+/** Draw position in the final canvas
+ * @private
+*/
+ol.control.CenterPosition.prototype._draw = function(e) {
+  if (!this.getVisible() || !this.getMap()) return;
+  // Coordinate
+  var coord = this.getMap().getView().getCenter();
+  if (this.get('projection')) coord = ol.proj.transform (coord, this.getMap().getView().getProjection(), this.get('projection'));
+  coord  = this._format(coord);
+  this.element.textContent = coord;
+  if (!this.get('canvas')) return;
+  var ctx = this.getContext(e);
+	if (!ctx) return;
+  // Retina device
+  var ratio = e.frameState.pixelRatio;
+  ctx.save();
+  ctx.scale(ratio,ratio);
+  // Position
+  var eltRect = this.element.getBoundingClientRect();
+  var mapRect = this.getMap().getViewport().getBoundingClientRect();
+  var sc = ctx.canvas.width / mapRect.width;
+  ctx.translate((eltRect.left-mapRect.left)*sc, (eltRect.top-mapRect.top)*sc);
+  var h = this.element.clientHeight;
+  var w = this.element.clientWidth;
+  ctx.beginPath();
+  ctx.fillStyle = ol.color.asString(this.getTextFill().getColor());
+  ctx.strokeStyle = ol.color.asString(this.getTextStroke().getColor());
+  ctx.lineWidth = this.getTextStroke().getWidth();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = this.getTextFont();
+  if (ctx.lineWidth) ctx.strokeText(coord, w/2, h/2);
+  ctx.fillText(coord, w/2, h/2);
+  ctx.closePath();
+  ctx.restore();
+};
 
 /*	Copyright (c) 2017 Jean-Marc VIGLINO, 
 	released under the CeCILL-B license (French BSD license)
@@ -2512,7 +2937,7 @@ ol.control.CanvasTitle.prototype.drawTitle_ = function(e)
  * Draw a compass on the map. The position/size of the control is defined in the css.
  *
  * @constructor
- * @extends {ol.control.Control}
+ * @extends {ol.control.CanvasBase}
  * @param {Object=} options Control options. The style {_ol_style_Stroke_} option is usesd to draw the text.
  *	@param {string} options.className class name for the control
  *	@param {Image} options.image an image, default use the src option or a default image
@@ -2528,7 +2953,7 @@ ol.control.Compass = function(options)
 	elt.className = "ol-compassctrl ol-unselectable ol-hidden" + (options.className ? " "+options.className : "");
 	elt.style.position = "absolute";
 	elt.style.visibility = "hidden";
-	ol.control.Control.call(this, { element: elt });
+	ol.control.CanvasBase.call(this, { element: elt });
 	this.set('rotateVithView', options.rotateWithView!==false);
 	// Style to draw the lines
 	this.style = options.style;
@@ -2546,7 +2971,7 @@ ol.control.Compass = function(options)
 	this.da_ = [];
 	for (var i=0; i<8; i++) this.da_[i] = [ Math.cos(Math.PI*i/8), Math.sin(Math.PI*i/8) ];
 };
-ol.inherits(ol.control.Compass, ol.control.Control);
+ol.ext.inherits(ol.control.Compass, ol.control.CanvasBase);
 /**
  * Remove the control from its current map and attach it to the new map.
  * @param {_ol_Map_} map Map.
@@ -2556,7 +2981,7 @@ ol.control.Compass.prototype.setMap = function (map)
 {	var oldmap = this.getMap();
 	if (this._listener) ol.Observable.unByKey(this._listener);
 	this._listener = null;
-	ol.control.Control.prototype.setMap.call(this, map);
+	ol.control.CanvasBase.prototype.setMap.call(this, map);
 	if (oldmap) oldmap.renderSync();
 	// Get change (new layer added or removed)
 	if (map) this._listener = map.on('postcompose', this.drawCompass_.bind(this));
@@ -2622,7 +3047,7 @@ ol.control.Compass.prototype.defaultCompass_ = function (s, color)
 * @private
 */
 ol.control.Compass.prototype.drawCompass_ = function(e)
-{	var ctx = e.context;
+{	var ctx = this.getContext(e);
 	var canvas = ctx.canvas;
 	// Retina device
 	var ratio = e.frameState.pixelRatio;
@@ -2680,7 +3105,7 @@ ol.control.Disable = function(options)
 	{	element: element
 	});
 }
-ol.inherits(ol.control.Disable, ol.control.Control);
+ol.ext.inherits(ol.control.Disable, ol.control.Control);
 /** Test if the control is on
  * @return {bool}
  * @api stable
@@ -2730,7 +3155,7 @@ ol.control.EditBar = function(options) {
   if (options.edition!==false) this._setEditInteraction(options);
   this._setModifyInteraction(options);
 };
-ol.inherits(ol.control.EditBar, ol.control.Bar);
+ol.ext.inherits(ol.control.EditBar, ol.control.Bar);
 /**
  * Set the map instance the control is associated with
  * and add its controls associated to this map.
@@ -3107,7 +3532,7 @@ ol.control.Gauge = function(options)
 	this.val(options.val);
 	this.set("max", options.max||100);
 };
-ol.inherits(ol.control.Gauge, ol.control.Control);
+ol.ext.inherits(ol.control.Gauge, ol.control.Control);
 /** Set the control title
 * @param {string} title
 */
@@ -3213,7 +3638,7 @@ ol.control.GeoBookmark = function(options) {
   // Set default bmark
   this.setBookmarks(localStorage[this.get('namespace')+"@bookmark"] ? null:options.marks);
 };
-ol.inherits(ol.control.GeoBookmark, ol.control.Control);
+ol.ext.inherits(ol.control.GeoBookmark, ol.control.Control);
 /** Set bookmarks
 * @param {} bmark a list of bookmarks, default retreave in the localstorage
 * @example 
@@ -3375,7 +3800,7 @@ ol.control.GeolocationBar = function(options) {
     }
   });
 };
-ol.inherits(ol.control.GeolocationBar, ol.control.Bar);
+ol.ext.inherits(ol.control.GeolocationBar, ol.control.Bar);
 /** Get the ol.interaction.GeolocationDraw associatedwith the bar
  * 
  */
@@ -3460,7 +3885,7 @@ ol.control.Globe = function(opt_options)
 	})
 	this.ovmap_.addLayer(this.extentLayer);
 };
-ol.inherits(ol.control.Globe, ol.control.Control);
+ol.ext.inherits(ol.control.Globe, ol.control.Control);
 /**
  * Set the map instance the control associated with.
  * @param {ol.Map} map The map instance.
@@ -3536,7 +3961,7 @@ ol.control.Globe.prototype.setCenter = function (center, show)
  * Draw a graticule on the map.
  *
  * @constructor
- * @extends {ol.control.Control}
+ * @extends {ol.control.CanvasBase}
  * @param {Object=} _ol_control_ options.
  *	- projection {ol.projectionLike} projection to use for the graticule, default EPSG:4326 
  *	- maxResolution {number} max resolution to display the graticule
@@ -3552,7 +3977,7 @@ ol.control.Graticule = function(options) {
 	// Initialize parent
 	var elt = document.createElement("div");
 	elt.className = "ol-graticule ol-unselectable ol-hidden";
-	ol.control.Control.call(this, { element: elt });
+	ol.control.CanvasBase.call(this, { element: elt });
 	this.set('projection', options.projection || 'EPSG:4326');
 	// Use to limit calculation 
 	var p = new ol.proj.Projection({code:this.get('projection')});
@@ -3580,7 +4005,7 @@ ol.control.Graticule = function(options) {
 			}) 
 		});
 };
-ol.inherits(ol.control.Graticule, ol.control.Control);
+ol.ext.inherits(ol.control.Graticule, ol.control.CanvasBase);
 /**
  * Remove the control from its current map and attach it to the new map.
  * @param {_ol_Map_} map Map.
@@ -3590,7 +4015,7 @@ ol.control.Graticule.prototype.setMap = function (map) {
 	var oldmap = this.getMap();
 	if (this._listener) ol.Observable.unByKey(this._listener);
 	this._listener = null;
-	ol.control.Control.prototype.setMap.call(this, map);
+	ol.control.CanvasBase.prototype.setMap.call(this, map);
 	if (oldmap) oldmap.renderSync();
 	// Get change (new layer added or removed)
 	if (map) {
@@ -3605,7 +4030,7 @@ ol.control.Graticule.prototype.getStyle = function (style)
 };
 ol.control.Graticule.prototype.drawGraticule_ = function (e)
 {	if (this.get('maxResolution')<e.frameState.viewState.resolution) return;
-	var ctx = e.context;
+	var ctx = this.getContext(e);
 	var canvas = ctx.canvas;
 	var ratio = e.frameState.pixelRatio;
 	var w = canvas.width/ratio;
@@ -3792,7 +4217,7 @@ ol.control.Graticule.prototype.drawGraticule_ = function (e)
  * Draw a grid reference on the map and add an index.
  *
  * @constructor
- * @extends {ol.control.Control}
+ * @extends {ol.control.CanvasBase}
  * @fires select
  * @param {Object=} Control options.
  *	- style {ol.style.Style} Style to use for drawing the grid (stroke and text), default black.
@@ -3811,7 +4236,7 @@ ol.control.GridReference = function(options) {
 	// Initialize parent
 	var elt = document.createElement("div");
 	elt.className = (!options.target ? "ol-control ":"") +"ol-gridreference ol-unselectable "+(options.className||"");
-	ol.control.Control.call(this,
+	ol.control.CanvasBase.call(this,
 		{	element: elt,
 			target: options.target
 		});
@@ -3846,7 +4271,7 @@ ol.control.GridReference = function(options) {
 			})
 		});
 };
-ol.inherits(ol.control.GridReference, ol.control.Control);
+ol.ext.inherits(ol.control.GridReference, ol.control.CanvasBase);
 /** Returns the text to be displayed in the index
 *	@param {ol.Feature} f the feature
 *	@return {string} the text to be displayed in the index
@@ -3969,7 +4394,7 @@ ol.control.GridReference.prototype.setMap = function (map)
 {	var oldmap = this.getMap();
 	if (this._listener) ol.Observable.unByKey(this._listener);
 	this._listener = null;
-	ol.control.Control.prototype.setMap.call(this, map);
+	ol.control.CanvasBase.prototype.setMap.call(this, map);
 	if (oldmap) oldmap.renderSync();
 	// Get change (new layer added or removed)
 	if (map)
@@ -3995,7 +4420,7 @@ ol.control.GridReference.prototype.getStyle = function ()
 */
 ol.control.GridReference.prototype.drawGrid_ = function (e)
 {	if (this.get('maxResolution')<e.frameState.viewState.resolution) return;
-	var ctx = e.context;
+	var ctx = this.getContext(e);
 	var canvas = ctx.canvas;
 	var ratio = e.frameState.pixelRatio;
 	var w = canvas.width/ratio;
@@ -4131,7 +4556,7 @@ ol.control.Imageline = function(options) {
   this.set('useExtent', options.useExtent || false);
   this.refresh();
 };
-ol.inherits(ol.control.Imageline, ol.control.Control);
+ol.ext.inherits(ol.control.Imageline, ol.control.Control);
 /**
  * Remove the control from its current map and attach it to the new map.
  * @param {ol.Map} map Map.
@@ -4460,7 +4885,7 @@ ol.control.IsochroneGeoportail = function(options) {
   ol.ext.element.create('TEXT', { parent: div, html: 'mn' });
   div = ol.ext.element.create('DIV', { className: 'ol-distance', parent: content });
   ol.ext.element.create('DIV', { html:'isodistance:', parent: div });
-  ol.ext.element.create('INPUT', { type: 'number', parent: div, min: 0 })
+  ol.ext.element.create('INPUT', { type: 'number', step: 'any', parent: div, min: 0 })
     .addEventListener('change', function(){
       self.set('distance', Number(this.value));
     });
@@ -4505,7 +4930,7 @@ ol.control.IsochroneGeoportail = function(options) {
   }.bind(this));
   this.setMethod(options.method);
 };
-ol.inherits(ol.control.IsochroneGeoportail, ol.control.Control);
+ol.ext.inherits(ol.control.IsochroneGeoportail, ol.control.Control);
 /**
  * Set the map instance the control is associated with
  * and add its controls associated to this map.
@@ -4663,7 +5088,7 @@ ol.control.LayerPopup = function(options) {
 	if (options.mouseover!==false) options.mouseover=true;
 	ol.control.LayerSwitcher.call(this, options);
 };
-ol.inherits(ol.control.LayerPopup, ol.control.LayerSwitcher);
+ol.ext.inherits(ol.control.LayerPopup, ol.control.LayerSwitcher);
 /** Disable overflow
 */
 ol.control.LayerPopup.prototype.overflow = function(){};
@@ -4712,7 +5137,7 @@ ol.control.LayerSwitcherImage = function(options) {
 	if (options.mouseover!==false) options.mouseover=true;
 	ol.control.LayerSwitcher.call(this, options);
 };
-ol.inherits(ol.control.LayerSwitcherImage, ol.control.LayerSwitcher);
+ol.ext.inherits(ol.control.LayerSwitcherImage, ol.control.LayerSwitcher);
 /** Render a list of layer
  * @param {elt} element to render
  * @layers {Array{ol.layer}} list of layer to show
@@ -4812,7 +5237,7 @@ ol.control.Legend = function(options) {
   if (options.collapsed===false) this.show();
   this.refresh();
 };
-ol.inherits(ol.control.Legend, ol.control.Control);
+ol.ext.inherits(ol.control.Legend, ol.control.Control);
 /** Set the style
  * @param { ol.style.Style | Array<ol.style.Style> | ol.StyleFunction | undefined	} style a style or a style function to use with features
  */
@@ -5192,7 +5617,7 @@ ol.control.Notification = function(options) {
     target: options.target
   });
 };
-ol.inherits(ol.control.Notification, ol.control.Control);
+ol.ext.inherits(ol.control.Notification, ol.control.Control);
 /**
  * Display a notification on the map
  * @param {string|node|undefined} what the notification to show, default get the last one
@@ -5285,7 +5710,7 @@ ol.control.Overlay = function(options)
 	this._timeout = false;
 	this.setContent (options.content);
 };
-ol.inherits(ol.control.Overlay, ol.control.Control);
+ol.ext.inherits(ol.control.Overlay, ol.control.Control);
 /** Set the content of the overlay
 * @param {string|Element} html the html to display in the control
 */
@@ -5513,7 +5938,7 @@ ol.control.Overview = function(options)
     }
   }));
 };
-ol.inherits(ol.control.Overview, ol.control.Control);
+ol.ext.inherits(ol.control.Overview, ol.control.Control);
 /** Get overview map
 *	@return {ol.Map}
 */
@@ -5638,6 +6063,7 @@ ol.control.Overview.prototype.setView = function(e){
  *	@param {bool} options.urlReplace replace url or not, default true
  *	@param {integer} options.fixed number of digit in coords, default 6
  *	@param {bool} options.anchor use "#" instead of "?" in href
+ *	@param {bool} options.hidden hide the button on the map, default false
  *	@param {function} options.onclick a function called when control is clicked
  */
 ol.control.Permalink = function(opt_options) {
@@ -5655,7 +6081,8 @@ ol.control.Permalink = function(opt_options) {
   button.addEventListener('touchstart', linkto, false);
 	var element = document.createElement('div');
   element.className = (options.className || "ol-permalink") + " ol-unselectable ol-control";
-  element.appendChild(button);
+	element.appendChild(button);
+	if (options.hidden) ol.ext.element.hide(element);
 	ol.control.Control.call(this, {
     element: element,
 		target: options.target
@@ -5681,7 +6108,7 @@ ol.control.Permalink = function(opt_options) {
 	// Decode permalink
 	this.setPosition();
 };
-ol.inherits(ol.control.Permalink, ol.control.Control);
+ol.ext.inherits(ol.control.Permalink, ol.control.Control);
 /**
  * Set the map instance the control associated with.
  * @param {ol.Map} map The map instance.
@@ -5992,7 +6419,7 @@ ol.control.Profil = function(opt_options)
 	{	this.setGeometry (options.feature);
 	}
 };
-ol.inherits(ol.control.Profil, ol.control.Control);
+ol.ext.inherits(ol.control.Profil, ol.control.Control);
 /** Custom infos list
 * @api stable
 */
@@ -6329,7 +6756,7 @@ ol.control.RoutingGeoportail = function(options) {
   element.appendChild(this.resultElement);
   this.setMode(options.mode || 'car');
 };
-ol.inherits(ol.control.RoutingGeoportail, ol.control.Control);
+ol.ext.inherits(ol.control.RoutingGeoportail, ol.control.Control);
 ol.control.RoutingGeoportail.prototype.setMode = function (mode) {
   this.set('mode', mode);
   this.element.querySelector(".ol-car").classList.remove("selected");
@@ -6599,7 +7026,7 @@ ol.control.Scale = function(options) {
   this._input.addEventListener("change", this.setScale.bind(this));
   this.set('ppi', options.ppi || 96)
 };
-ol.inherits(ol.control.Scale, ol.control.Control);
+ol.ext.inherits(ol.control.Scale, ol.control.Control);
 /**
  * Remove the control from its current map and attach it to the new map.
  * Subclasses may set up event handlers to get notified about changes to
@@ -6700,12 +7127,12 @@ ol.control.Scale.prototype.setScale = function (value) {
 ol.control.SearchBAN = function(options)
 {	options = options || {};
     options.typing = options.typing || 500;
-    options.url = options.url || "https://api-adresse.data.gouv.fr/search/";
+    options.url = options.url || 'https://api-adresse.data.gouv.fr/search/';
     options.className = options.className || 'BAN';
+    options.copy = '<a href="https://adresse.data.gouv.fr/" target="new">&copy; BAN-data.gouv.fr</a>';
     ol.control.SearchPhoton.call(this, options);
-    this.set("copy","<a href='https://adresse.data.gouv.fr/' target='new'>&copy; BAN-data.gouv.fr</a>");
 };
-ol.inherits(ol.control.SearchBAN, ol.control.SearchPhoton);
+ol.ext.inherits(ol.control.SearchBAN, ol.control.SearchPhoton);
 /** Returns the text to be displayed in the menu
  *	@param {ol.Feature} f the feature
  *	@return {string} the text to be displayed in the index
@@ -6757,7 +7184,7 @@ ol.control.SearchDFCI = function(options) {
   options.placeholder = options.placeholder || 'Code DFCI';
   ol.control.Search.call(this, options);
 };
-ol.inherits(ol.control.SearchDFCI, ol.control.Search);
+ol.ext.inherits(ol.control.SearchDFCI, ol.control.Search);
 /** Autocomplete function
 * @param {string} s search string
 * @return {Array<any>|false} an array of search solutions or false if the array is send with the cback argument (asnchronous)
@@ -6829,7 +7256,7 @@ ol.control.SearchFeature = function(options) {
   this.set('property', options.property || 'name');
   this.source_ = options.source;
 };
-ol.inherits(ol.control.SearchFeature, ol.control.Search);
+ol.ext.inherits(ol.control.SearchFeature, ol.control.Search);
 /** No history avaliable on features
  */
 ol.control.SearchFeature.prototype.restoreHistory = function () {
@@ -6969,14 +7396,13 @@ ol.control.SearchGPS = function(options) {
   var ul = this.element.querySelector("ul.autocomplete");
   this.element.appendChild(ul);
 };
-ol.inherits(ol.control.SearchGPS, ol.control.Search);
+ol.ext.inherits(ol.control.SearchGPS, ol.control.Search);
 /** Create input form
  * @private
  */
 ol.control.SearchGPS.prototype._createForm = function () {
   // Value has change
   var onchange = function(e) {
-    console.log(e)
     if (e.target.classList.contains('ol-dms')) {
       lon.value = (lond.value<0 ? -1:1) * Number(lond.value) + Number(lonm.value)/60 + Number(lons.value)/3600;
       lon.value = (lond.value<0 ? -1:1) * Math.round(lon.value*10000000)/10000000;
@@ -7179,7 +7605,7 @@ ol.control.SearchGeoportailParcelle = function(options) {
 	this.on('select', this.selectCommune.bind(this));
 	this.set('pageSize', options.pageSize || 5);
 };
-ol.inherits(ol.control.SearchGeoportailParcelle, ol.control.SearchGeoportail);
+ol.ext.inherits(ol.control.SearchGeoportailParcelle, ol.control.SearchGeoportail);
 /** Select a commune => start searching parcelle  
  * @param {any} e 
  * @private
@@ -7362,12 +7788,12 @@ ol.control.SearchNominatim = function(options)
     options.className = options.className || 'nominatim';
     options.typing = options.typing || 500;
     options.url = options.url || 'https://nominatim.openstreetmap.org/search';
+    options.copy = '<a href="http://www.openstreetmap.org/copyright" target="new">&copy; OpenStreetMap contributors</a>';
     ol.control.SearchJSON.call(this, options);
-    this.set('copy','<a href="http://www.openstreetmap.org/copyright" target="new">&copy; OpenStreetMap contributors</a>');
     this.set('polygon', options.polygon);
     this.set('viewbox', options.viewbox);
 };
-ol.inherits(ol.control.SearchNominatim, ol.control.SearchJSON);
+ol.ext.inherits(ol.control.SearchNominatim, ol.control.SearchJSON);
 /** Returns the text to be displayed in the menu
  *	@param {ol.Feature} f the feature
  *	@return {string} the text to be displayed in the index
@@ -7407,6 +7833,137 @@ ol.control.SearchNominatim.prototype.select = function (f){
     this.dispatchEvent({ type:"select", search:f, coordinate: c });
 };
 
+/*	Copyright (c) 2019 Jean-Marc VIGLINO,
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/**
+ * Search places using the MediaWiki API.
+ * @see https://www.mediawiki.org/wiki/API:Main_page
+ *
+ * @constructor
+ * @extends {ol.control.SearchJSON}
+ * @fires select
+ * @param {Object=} Control options.
+ *  @param {string} options.className control class name
+ *  @param {Element | string | undefined} options.target Specify a target if you want the control to be rendered outside of the map's viewport.
+ *  @param {string | undefined} options.label Text label to use for the search button, default "search"
+ *  @param {string | undefined} options.placeholder placeholder, default "Search..."
+ *  @param {number | undefined} options.typing a delay on each typing to start searching (ms), default 1000.
+ *  @param {integer | undefined} options.minLength minimum length to start searching, default 3
+ *  @param {integer | undefined} options.maxItems maximum number of items to display in the autocomplete list, default 10
+ *  @param {function | undefined} options.handleResponse Handle server response to pass the features array to the list
+ * 
+ *  @param {string|undefined} options.lang API language, default none
+ */
+ol.control.SearchWikipedia = function(options){
+  options = options || {};
+  options.lang = options.lang||'en';
+  options.className = options.className || 'ol-search-wikipedia';
+  options.url = 'https://'+options.lang+'.wikipedia.org/w/api.php';
+  options.placeholder = options.placeholder || 'search string, File:filename';
+  options.copy = '<a href="https://'+options.lang+'.wikipedia.org/" target="new">Wikipedia&reg; - CC-By-SA</a>';
+  ol.control.SearchJSON.call(this, options);
+  this.set('lang', options.lang);
+};
+ol.ext.inherits(ol.control.SearchWikipedia, ol.control.SearchJSON);
+/** Returns the text to be displayed in the menu
+*	@param {ol.Feature} f the feature
+*	@return {string} the text to be displayed in the index
+*	@api
+*/
+ol.control.SearchWikipedia.prototype.getTitle = function (f){
+  return ol.ext.element.create('DIV', {
+    html: f.title,
+    title: f.desc
+  });
+  //return f.desc;
+};
+/** Set the current language
+ * @param {string} lang the current language as ISO string (en, fr, de, es, it, ja, ...)
+ */
+ol.control.SearchWikipedia.prototype.setLang = function (lang){
+  this.set('lang', lang)
+  this.set('url', 'https://'+lang+'.wikipedia.org/w/api.php');
+};
+/** 
+ * @param {string} s the search string
+ * @return {Object} request data (as key:value)
+ * @api
+ */
+ol.control.SearchWikipedia.prototype.requestData = function (s) {
+  var data = {
+    action: 'opensearch',
+    search: s,
+    lang: this.get('lang'),
+    format: 'json',
+    origin: '*',
+    limit: this.get('maxItems')
+  }
+  return data;
+};
+/**
+ * Handle server response to pass the features array to the list
+ * @param {any} response server response
+ * @return {Array<any>} an array of feature
+ */
+ol.control.SearchWikipedia.prototype.handleResponse = function (response) {
+  var features = [];
+  for (var i=0; i<response[1].length; i++) {
+    features.push({
+      title: response[1][i],
+      desc: response[2][i],
+      uri: response[3][i]
+    })
+  }
+  return features;
+};
+/** A ligne has been clicked in the menu query for more info and disatch event
+*	@param {any} f the feature, as passed in the autocomplete
+*	@api
+*/
+ol.control.SearchWikipedia.prototype.select = function (f){
+  var title = decodeURIComponent(f.uri.split('/').pop()).replace(/'/,'%27');
+  // Search for coords
+  ol.ext.Ajax.get({
+    url: f.uri.split('wiki/')[0]+'w/api.php',
+    data: {
+      action: 'query',
+      prop: 'pageimages|coordinates|extracts',
+      exintro: 1,
+      explaintext: 1,
+      piprop: 'original',
+      origin: '*',
+      format: 'json',
+      redirects: 1,
+      titles: title
+    },
+    options: {
+      encode: false
+    },
+    success: function (e) {
+      var page = e.query.pages[Object.keys(e.query.pages).pop()];
+      console.log(page);
+      var feature = {
+        title: f.title,
+        desc: page.extract || f.desc,
+        url: f.uri,
+        img: page.original ? page.original.source : undefined,
+        pageid: page.pageid
+      }
+      var c;
+      if (page.coordinates) {
+        feature.lon = page.coordinates[0].lon;
+        feature.lat = page.coordinates[0].lat;
+        c = [feature.lon, feature.lat];
+        c = ol.proj.transform (c, 'EPSG:4326', this.getMap().getView().getProjection());
+      }
+      this.dispatchEvent({ type:"select", search:feature, coordinate: c });
+    }.bind(this)
+  })
+};
+/** */
+
 /*	Copyright (c) 2017 Jean-Marc VIGLINO,
   released under the CeCILL-B license (French BSD license)
   (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
@@ -7432,75 +7989,47 @@ ol.control.SearchNominatim.prototype.select = function (f){
 ol.control.Select = function(options) {
   var self = this;
   if (!options) options = {};
-  var element;
-  if (options.target) {
-    element = document.createElement("div");
-    element.className = options.className || "ol-select";
-  } else {
-    element = document.createElement("div");
-    element.className = ((options.className || 'ol-select') +' ol-unselectable ol-control ol-collapsed').trim();
-    var button = document.createElement("button")
-        button.setAttribute('type','button');
-        var click_touchstart_function = function(e) {
-          element.classList.toggle('ol-collapsed');
-          e.preventDefault();
-        }
-        button.addEventListener("click", click_touchstart_function);
-        button.addEventListener("touchstart", click_touchstart_function);
-    element.appendChild(button);
-  }
-  // Containre
-  var div = document.createElement("div");
-      element.appendChild(div);
-  // List of selection
-  this._ul = document.createElement('ul');
-      div.appendChild(this._ul);
-  // All conditions
-  this._all = document.createElement('input');
-    this._all.setAttribute('type', 'checkbox')
-    this._all.value = 'all';
-    this._all.checked = true;
-  var label_match_all = document.createElement('label');
-    label_match_all.textContent = options.allLabel || 'match all'
-    div.appendChild(label_match_all);
-  label_match_all.insertBefore(this._all, label_match_all.firstChild);
-  div.appendChild(label_match_all);
-  // Use case
-  this._useCase = document.createElement('input');
-  this._useCase.setAttribute('type', 'checkbox');
-  var label_case_sensitive = document.createElement('label');
-  label_case_sensitive.textContent = options.caseLabel || 'case sensitive';
-  div.appendChild(label_case_sensitive);
-  label_case_sensitive.insertBefore(this._useCase, label_case_sensitive.firstChild);
-  div.appendChild(label_case_sensitive);
-  // Select button
-  var select_button = document.createElement('button');
-      select_button.setAttribute('type','button');
-      select_button.classList.add('ol-submit')
-      select_button.textContent = options.selectLabel || 'Select';
-      select_button.addEventListener("click", function() {
-        self.doSelect();
-      });
-    div.appendChild(select_button);
-  // Add button
-  var create_button = document.createElement('button');
-    create_button.classList.add('ol-append');
-    create_button.textContent = options.addLabel	|| 'add rule';
-    create_button.addEventListener("click", function(){
-      self.addCondition();
-    });
-    div.appendChild(create_button);
-  this._conditions = [];
-  ol.control.Control.call(this, {
-    element: element,
-    target: options.target
+  // Container
+  var div = options.content = document.createElement("div");
+  // Autocompletion list
+  this._ul = ol.ext.element.create('UL', {
+    parent: div
   });
-  this.set('source', (options.source instanceof Array) ? options.source : [options.source]);
+  // All conditions
+  this._all = ol.ext.element.create('INPUT', {
+    type: 'checkbox',
+    checked: true
+  });
+  var label_match_all = ol.ext.element.create('LABEL',{
+    html: this._all,
+    parent: div
+  });
+  ol.ext.element.appendText(label_match_all, options.allLabel || 'match all');
+  // Use case
+  this._useCase = ol.ext.element.create('INPUT', {
+    type: 'checkbox'
+  });
+  var label_case_sensitive = ol.ext.element.create('LABEL',{
+    html: this._useCase,
+    parent: div
+  });
+  ol.ext.element.appendText(label_case_sensitive, options.caseLabel || 'case sensitive');
+  ol.control.SelectBase.call(this, options);
+  // Add button
+  ol.ext.element.create('BUTTON', {
+    className: 'ol-append',
+    html: options.addLabel	|| 'add rule',
+    click: function(){
+      self.addCondition();
+    },
+    parent: div
+  });
+  this._conditions = [];
   this.set('attrPlaceHolder', options.attrPlaceHolder || 'attribute');
   this.set('valuePlaceHolder', options.valuePlaceHolder || 'value');
   this.addCondition();
 };
-ol.inherits(ol.control.Select, ol.control.Control);
+ol.ext.inherits(ol.control.Select, ol.control.SelectBase);
 /** Add a new condition
  * @param {*} options
  * 	@param {string} options.attr attribute name
@@ -7541,25 +8070,11 @@ ol.control.Select.prototype.getConditionsString = function (cond) {
     if (c.attr) {
       st += (st ? (cond.all ? ' AND ' : ' OR ') : '')
         + c.attr
-        + ol.control.Select.operationsList[c.op]
+        + this.operationsList[c.op]
         + c.val;
     }
   }
   return st
-};
-/** List of operations / for translation
- * @api
- */
-ol.control.Select.operationsList = {
-  '=': '=',
-  '!=': '≠',
-  '<': '<',
-  '<=': '≤',
-  '>=': '≥',
-  '>': '>',
-  'contain': '⊂', // ∈
-  '!contain': '⊄',	// ∉
-  'regexp': '≈'
 };
 /** Draw the liste
  * @private
@@ -7640,10 +8155,10 @@ ol.control.Select.prototype._getLiCondition = function (i) {
   // Operation
   var select = document.createElement('select');
   li.appendChild(select);
-  for (var k in ol.control.Select.operationsList) {
+  for (var k in this.operationsList) {
     var option = document.createElement('option');
         option.value = k;
-        option.textContent = ol.control.Select.operationsList[k];
+        option.textContent = this.operationsList[k];
         select.appendChild(option);
   }
   select.value = self._conditions[i].op;
@@ -7675,50 +8190,6 @@ ol.control.Select.prototype.removeCondition = function (i) {
   this._conditions.splice(i,1);
   this._drawlist();
 };
-/** Escape string for regexp
- * @param {string} search
- * @return {string}
- */
-ol.control.Select.prototype._escape = function (s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
-}
-/**
- *
- * @param {*} f
- * @private
- */
-ol.control.Select.prototype._checkCondition = function (f, c, usecase) {
-  if (!c.attr) return true;
-  var val = f.get(c.attr);
-  var rex;
-  switch (c.op) {
-    case '=':
-      rex = new RegExp('^'+this._escape(c.val)+'$', usecase ? '' : 'i');
-      return rex.test(val);
-    case '!=':
-      rex = new RegExp('^'+this._escape(c.val)+'$', usecase ? '' : 'i');
-      return !rex.test(val);
-    case '<':
-      return val < c.val;
-    case '<=':
-      return val <= c.val;
-    case '>':
-      return val > c.val;
-      case '>=':
-      return val >= c.val;
-    case 'contain':
-      rex = new RegExp(this._escape(c.val), usecase ? '' : 'i');
-      return rex.test(val);
-    case '!contain':
-      rex = new RegExp(this._escape(c.val), usecase ? '' : 'i');
-      return !rex.test(val);
-    case 'regexp':
-      rex = new RegExp(c.val, usecase ? '' : 'i');
-      return rex.test(val);
-    default:
-      return false;
-  }
-}
 /** Select features by attributes
  * @param {*} options
  *  @param {Array<ol/source/Vector|undefined} options.sources source to apply rules, default the select sources
@@ -7729,32 +8200,500 @@ ol.control.Select.prototype._checkCondition = function (f, c, usecase) {
  */
 ol.control.Select.prototype.doSelect = function (options) {
   options = options || {};
-  var sources = options.sources || this.get('source');
-  var features = [];
-  var usecase = options.useCase || this._useCase.checked;
-  var all = options.matchAll || this._all.checked;
-  var conditions = options.conditions || this._conditions
-  for (var i=0,s; s=sources[i]; i++) {
-    var sfeatures = s.getFeatures();
-    for (var j=0,f; f=sfeatures[j]; j++) {
-      var isok = all;
-      for (var k=0, c; c=conditions[k]; k++) {
-        if (c.attr) {
-          if (all) {
-            isok = isok && this._checkCondition(f,c,usecase);
-          }
-          else {
-            isok = isok || this._checkCondition(f,c,usecase);
-          }
-        }
-      }
-      if (isok) {
-        features.push(f);
+  options.useCase = options.useCase || this._useCase.checked;
+  options.matchAll = options.matchAll || this._all.checked;
+  options.conditions = options.conditions || this._conditions
+  return ol.control.SelectBase.prototype.doSelect.call(this, options);
+};
+
+/*	Copyright (c) 2019 Jean-Marc VIGLINO,
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/**
+ * Select features by property using a popup 
+ *
+ * @constructor
+ * @extends {ol.control.SelectBase}
+ * @fires select
+ * @param {Object=} options
+ *  @param {string} options.className control class name
+ *  @param {Element | undefined} options.target Specify a target if you want the control to be rendered outside of the map's viewport.
+ *  @param {ol/source/Vector | Array<ol/source/Vector>} options.source the source to search in
+ *  @param {string} options.property property to select on
+ *  @param {string} options.label control label
+ *  @param {number} options.max max feature to test to get the values, default 10000
+ *  @param {number} options.selectAll select all features if no option selected
+ *  @param {string} options.type check type: checkbox or radio, default checkbox
+ *  @param {number} options.defaultLabel label for the default radio button
+ *  @param {function|undefined} options.onchoice function triggered when an option is clicked, default doSelect
+ */
+ol.control.SelectCheck = function(options) {
+  if (!options) options = {};
+  // Container
+  var div = options.content = ol.ext.element.create('DIV');
+  if (options.label) {
+    ol.ext.element.create('LABEL', {
+      html: options.label,
+      parent: div
+    });
+  }
+  // Input div
+  this._input = ol.ext.element.create('DIV', {
+    parent: div
+  });
+  options.className = options.className || 'ol-select-check';
+  ol.control.SelectBase.call(this, options);
+  this.set('property', options.property || 'name');
+  this.set('max', options.max || 10000);
+  this.set('defaultLabel', options.defaultLabel);
+  this.set('type', options.type);
+  this._selectAll = options.selectAll;
+  this._onchoice = options.onchoice;
+  // Set select options
+  this.setValues();
+};
+ol.ext.inherits(ol.control.SelectCheck, ol.control.SelectBase);
+/**
+* Set the map instance the control associated with.
+* @param {o.Map} map The map instance.
+*/
+ol.control.SelectCheck.prototype.setMap = function(map) {
+  ol.control.SelectBase.prototype.setMap.call(this, map);
+  this.setValues();
+};
+/** Select features by attributes
+ */
+ol.control.SelectCheck.prototype.doSelect = function(options) {
+  options = options || {};
+  var conditions = [];
+  this._checks.forEach(function(c) {
+    if (c.checked) {
+      if (c.value) {
+        conditions.push({
+          attr: this.get('property'),
+          op: '=',
+          val: c.value
+        });
       }
     }
+  }.bind(this));
+  if (!conditions.length) {
+    return ol.control.SelectBase.prototype.doSelect.call(this, { features: options.features, matchAll: this._selectAll });
+  } else {
+    return ol.control.SelectBase.prototype.doSelect.call(this, {
+      features: options.features, 
+      conditions: conditions
+    })
   }
+};
+/** Set the popup values
+ * @param {Object} options
+ *  @param {Object} options.values a key/value list with key = property value, value = title shown in the popup, default search values in the sources
+ *  @param {boolean} options.sort sort values
+ */
+ol.control.SelectCheck.prototype.setValues = function(options) {
+  options = options || {};
+  console.log(options)
+  var values, vals;
+  if (options.values) {
+    if (options.values instanceof Array) {
+      vals = {};
+      options.values.forEach(function(v) { vals[v] = v; });
+    } else {
+      vals = options.values;
+    }
+  } else {
+    vals = {};
+    var prop = this.get('property');
+    this.getSources().forEach(function(s){
+      var features = s.getFeatures();
+      var max = Math.min(features.length, this.get('max'))
+      for (var i=0; i<max; i++) {
+        var p = features[i].get(prop);
+        if (p) vals[p] = p;
+      }
+    }.bind(this));
+  }
+  if (!Object.keys(vals).length) return;
+  if (options.sort) {
+    values = {};
+    Object.keys(vals).sort().forEach(function(key) {
+      values[key] = vals[key];
+    });
+  } else {
+    values = vals;
+  }
+  ol.ext.element.setHTML(this._input, '');
+  this._checks = [];
+  var id = 'radio_'+(new Date().getTime());
+  var addCheck = function(val, info) {
+    var label = ol.ext.element.create('LABEL', {
+      className: (this.get('type')==='radio' ? 'ol-radio' : 'ol-checkbox'),
+      parent: this._input
+    });
+    this._checks.push( ol.ext.element.create('INPUT', {
+      name: id,
+      type: (this.get('type')==='radio' ? 'radio' : 'checkbox'),
+      value: val,
+      change: function () { 
+        if (this._onchoice) this._onchoice()
+        else this.doSelect();
+      }.bind(this),
+      parent: label
+    }));
+    ol.ext.element.create('DIV', {
+      html: info,
+      parent: label
+    });
+  }.bind(this);
+  if (this.get('defaultLabel') && this.get('type')==='radio') addCheck('', this.get('defaultLabel'));
+  for (var k in values) addCheck(k, values[k]);
+};
+
+/*	Copyright (c) 2019 Jean-Marc VIGLINO,
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/**
+ * Select features by property using a popup 
+ *
+ * @constructor
+ * @extends {ol.control.SelectBase}
+ * @fires select
+ * @param {Object=} options
+ *  @param {string} options.className control class name
+ *  @param {Element | undefined} options.target Specify a target if you want the control to be rendered outside of the map's viewport.
+ *  @param {ol/source/Vector | Array<ol/source/Vector>} options.source the source to search in
+ *  @param {string} options.label control label, default 'condition'
+ *  @param {number} options.selectAll select all features if no option selected
+ *  @param {condition|Array<condition>} options.condition conditions 
+ *  @param {function|undefined} options.onchoice function triggered when an option is clicked, default doSelect
+ */
+ol.control.SelectCondition = function(options) {
+  if (!options) options = {};
+  // Container
+  var div = options.content = ol.ext.element.create('DIV');
+  var label = ol.ext.element.create('LABEL', {
+    parent: div
+  });
+  this._check = ol.ext.element.create('INPUT', {
+    type: 'checkbox',
+    change: function () { 
+      if (this._onchoice) this._onchoice()
+      else this.doSelect();
+    }.bind(this),
+    parent: label
+  });
+  ol.ext.element.create('DIV', {
+    html: options.label || 'condition',
+    parent: label
+  });
+  // Input div
+  this._input = ol.ext.element.create('DIV', {
+    parent: div
+  });
+  options.className = options.className || 'ol-select-condition';
+  ol.control.SelectBase.call(this, options);
+  this.setCondition(options.condition);
+  this._selectAll = options.selectAll;
+  this._onchoice = options.onchoice;
+};
+ol.ext.inherits(ol.control.SelectCondition, ol.control.SelectBase);
+/** Set condition to select on
+ * @param {condition, Arrat<condition>} condition
+ *  @param {string} attr property to select on
+ *  @param {string} op operator (=, !=, <; <=, >, >=, contain, !contain, regecp)
+ *  @param {*} val value to select on
+ */
+ol.control.SelectCondition.prototype.setCondition = function(condition) {
+  if (!condition) this._conditions = [];
+  else this._conditions = (condition instanceof Array ?  condition : [condition]);
+};
+/** Add a condition to select on
+ * @param {condition} condition
+ *  @param {string} attr property to select on
+ *  @param {string} op operator (=, !=, <; <=, >, >=, contain, !contain, regecp)
+ *  @param {*} val value to select on
+ */
+ol.control.SelectCondition.prototype.addCondition = function(condition) {
+  this._conditions.push(condition);
+};
+/** Select features by condition
+ */
+ol.control.SelectCondition.prototype.doSelect = function(options) {
+  options = options || {};
+  var conditions = this._conditions;
+  if (!this._check.checked) {
+    return ol.control.SelectBase.prototype.doSelect.call(this, { features: options.features, matchAll: this._selectAll });
+  } else {
+    return ol.control.SelectBase.prototype.doSelect.call(this, {
+      features: options.features,
+      conditions: conditions
+    })
+  }
+};
+
+/*	Copyright (c) 2019 Jean-Marc VIGLINO,
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/**
+ * Select features by property using a simple text input
+ *
+ * @constructor
+ * @extends {ol.control.SelectBase}
+ * @fires select
+ * @param {Object=} options
+ *  @param {string} options.className control class name
+ *  @param {Element | undefined} options.target Specify a target if you want the control to be rendered outside of the map's viewport.
+ *  @param {ol/source/Vector | Array<ol/source/Vector>} options.source the source to search in
+ *  @param {string} options.property property to select on
+ *  @param {function|undefined} options.onchoice function triggered the text change, default nothing
+ */
+ol.control.SelectFulltext = function(options) {
+  if (!options) options = {};
+  // Container
+  var div = options.content =ol.ext.element.create('DIV');
+  if (options.label) {
+    ol.ext.element.create('LABEL', {
+      html: options.label,
+      parent: div
+    });
+  }
+  this._input = ol.ext.element.create('INPUT', {
+    placeHolder: options.placeHolder || 'search...',
+    change: function() {
+      if (this._onchoice) this._onchoice();
+    }.bind(this),
+    parent: div
+  });
+  ol.control.SelectBase.call(this, options);
+  this._onchoice = options.onchoice;
+  this.set('property', options.property || 'name');
+};
+ol.ext.inherits(ol.control.SelectFulltext, ol.control.SelectBase);
+/** Select features by condition
+ */
+ol.control.SelectFulltext.prototype.doSelect= function(options) {
+  options = options || {};
+  return ol.control.SelectBase.prototype.doSelect.call(this, {
+    features: options.features,
+    useCase: false,
+    conditions: [{
+      attr: this.get('property'),
+      op: 'contain',
+      val: this._input.value
+    }]
+  });
+}
+
+/*	Copyright (c) 2019 Jean-Marc VIGLINO,
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/**
+ * A multiselect control. 
+ * A container that manage other control Select 
+ *
+ * @constructor
+ * @extends {ol.control.SelectBase}
+ * @fires select
+ * @param {Object=} options
+ *  @param {string} options.className control class name
+ *  @param {Element | undefined} options.target Specify a target if you want the control to be rendered outside of the map's viewport.
+ *  @param {ol/source/Vector | Array<ol/source/Vector>} options.source the source to search in
+ *  @param {string} options.label control label, default 'condition'
+ *  @param {number} options.selectAll select all features if no option selected
+ *  @param {condition|Array<condition>} options.condition conditions 
+ *  @param {function|undefined} options.onchoice function triggered when an option is clicked, default doSelect
+ */
+ol.control.SelectMulti = function(options) {
+  if (!options) options = {};
+  // Container
+  options.content = ol.ext.element.create('DIV');
+  this._container = ol.ext.element.create('UL', {
+    parent: options.content
+  });
+  options.className = options.className || 'ol-select-multi';
+  ol.control.SelectBase.call(this, options);
+  this._controls = [];
+  options.controls.forEach(this.addControl.bind(this));
+};
+ol.ext.inherits(ol.control.SelectMulti, ol.control.SelectBase);
+/**
+* Set the map instance the control associated with.
+* @param {o.Map} map The map instance.
+*/
+ol.control.SelectMulti.prototype.setMap = function(map) {
+  if (this.getMap()) {
+    this._controls.forEach(function(c) {
+      this.getMap().remveControl(c);
+    }.bind(this));
+  }
+  ol.control.SelectBase.prototype.setMap.call(this, map);
+  if (this.getMap()) {
+    this._controls.forEach(function(c) {
+      this.getMap().addControl(c);
+    }.bind(this));
+  }
+};
+/** Add a new control
+ * @param {ol.control.SelectBase} c
+ */
+ol.control.SelectMulti.prototype.addControl = function(c) {
+  if (c instanceof ol.control.SelectBase) {
+    this._controls.push(c);
+    c.setTarget(ol.ext.element.create('LI', {
+      parent: this._container
+    }));
+    c._selectAll = true;
+    c._onchoice = this.doSelect.bind(this);
+    if (this.getMap()) {
+      this.getMap().addControl(c);
+    }
+  }
+};
+/** Get select controls
+ * @return {Aray<ol.control.SelectBase>}
+ */
+ol.control.SelectMulti.prototype.getControls = function() {
+  return this._controls;
+};
+/** Select features by condition
+ */
+ol.control.SelectMulti.prototype.doSelect = function() {
+  var features = [];
+  this.getSources().forEach(function(s) {
+    features = features.concat(s.getFeatures());
+  });
+  this._controls.forEach(function(c) {
+    features = c.doSelect({ features: features });
+  });
   this.dispatchEvent({ type:"select", features: features });
   return features;
+};
+
+/*	Copyright (c) 2019 Jean-Marc VIGLINO,
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/**
+ * Select features by property using a popup 
+ *
+ * @constructor
+ * @extends {ol.control.SelectBase}
+ * @fires select
+ * @param {Object=} options
+ *  @param {string} options.className control class name
+ *  @param {Element | undefined} options.target Specify a target if you want the control to be rendered outside of the map's viewport.
+ *  @param {ol/source/Vector | Array<ol/source/Vector>} options.source the source to search in
+ *  @param {string} options.property property to select on
+ *  @param {number} options.max max feature to test to get the values, default 10000
+ *  @param {number} options.selectAll select all features if no option selected
+ *  @param {string} options.defaultLabel label for the default selection
+ *  @param {function|undefined} options.onchoice function triggered when an option is clicked, default doSelect
+ */
+ol.control.SelectPopup = function(options) {
+  if (!options) options = {};
+  // Container
+  var div = options.content = ol.ext.element.create('DIV');
+  if (options.label) {
+    ol.ext.element.create('LABEL', {
+      html: options.label,
+      parent: div
+    });
+  }
+  this._input = ol.ext.element.create('SELECT', {
+    on: { change: function () { 
+      if (this._onchoice) this._onchoice();
+      else this.doSelect();
+    }.bind(this) },
+    parent: div
+  });
+  options.className = options.className || 'ol-select-popup';
+  ol.control.SelectBase.call(this, options);
+  this.set('property', options.property || 'name');
+  this.set('max', options.max || 10000);
+  this.set('defaultLabel', options.defaultLabel);
+  this._selectAll = options.selectAll;
+  this._onchoice = options.onchoice;
+  // Set select options
+  this.setValues();
+};
+ol.ext.inherits(ol.control.SelectPopup, ol.control.SelectBase);
+/**
+* Set the map instance the control associated with.
+* @param {o.Map} map The map instance.
+*/
+ol.control.SelectPopup.prototype.setMap = function(map) {
+  ol.control.SelectBase.prototype.setMap.call(this, map);
+  this.setValues();
+};
+/** Select features by attributes
+ */
+ol.control.SelectPopup.prototype.doSelect = function(options) {
+  options = options || {};
+  if (!this._input.value) {
+    return ol.control.SelectBase.prototype.doSelect.call(this, { features: options.features, matchAll: this._selectAll });
+  } else {
+    return ol.control.SelectBase.prototype.doSelect.call(this, {
+      features: options.features, 
+      conditions: [{
+        attr: this.get('property'),
+        op: '=',
+        val: this._input.value
+      }]
+    })
+  }
+};
+/** Set the popup values
+ * @param {Object} values a key/value list with key = property value, value = title shown in the popup, default search values in the sources
+ */
+ol.control.SelectPopup.prototype.setValues = function(options) {
+  options = options || {};
+  var values, vals;
+  if (options.values) {
+    if (options.values instanceof Array) {
+      vals = {};
+      options.values.forEach(function(v) { vals[v] = v; });
+    } else {
+      vals = options.values;
+    }
+  } else {
+    vals = {};
+    var prop = this.get('property');
+    this.getSources().forEach(function(s){
+      var features = s.getFeatures();
+      var max = Math.min(features.length, this.get('max'))
+      for (var i=0; i<max; i++) {
+        var p = features[i].get(prop);
+        if (p) vals[p] = p;
+      }
+    }.bind(this));
+  }
+  if (options.sort) {
+    values = {};
+    Object.keys(vals).sort().forEach(function(key) {
+      values[key] = vals[key];
+    });
+  } else {
+    values = vals;
+  }
+  ol.ext.element.setHTML(this._input, '');
+  ol.ext.element.create('OPTION', {
+    className: 'ol-default',
+    html: this.get('defaultLabel') || '',
+    value: '',
+    parent: this._input
+  });
+  for (var k in values) {
+    ol.ext.element.create('OPTION', {
+      html: values[k],
+      value: k,
+      parent: this._input
+    });
+  }
 };
 
 /** A control with scroll-driven navigation to create narrative maps
@@ -7839,7 +8778,7 @@ ol.control.Storymap = function(options) {
     }
   }.bind(this));
 };
-ol.inherits(ol.control.Storymap, ol.control.Control);
+ol.ext.inherits(ol.control.Storymap, ol.control.Control);
 /** Scroll to a chapter
  * @param {string} name Name of the chapter to scroll to
  */
@@ -7857,41 +8796,42 @@ ol.control.Storymap.prototype.setChapter = function (name) {
 	(http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
 */
 /**
- * @classdesc OpenLayers 3 swipe Control.
+ * @classdesc Swipe Control.
  *
  * @constructor
  * @extends {ol.control.Control}
- * @param {Object=} Control opt_options.
- *	- layers {ol.layer} layer to swipe
- *	- rightLayer {ol.layer} layer to swipe on right side
- *	- className {string} control class name
- *	- position {number} position propertie of the swipe [0,1], default 0.5
- *	- orientation {vertical|horizontal} orientation propertie, default vertical
+ * @param {Object=} Control options.
+ *	@param {ol.layer} options.layers layer to swipe
+ *	@param {ol.layer} options.rightLayer layer to swipe on right side
+ *	@param {string} options.className control class name
+ *	@param {number} options.position position propertie of the swipe [0,1], default 0.5
+ *	@param {string} options.orientation orientation propertie (vertical|horizontal), default vertical
  */
-ol.control.Swipe = function(opt_options) {
-	var options = opt_options || {};
+ol.control.Swipe = function(options) {
+	options = options || {};
 	var button = document.createElement('button');
 	var element = document.createElement('div');
-			element.className = (options.className || "ol-swipe") + " ol-unselectable ol-control";
-			element.appendChild(button);
+  element.className = (options.className || "ol-swipe") + " ol-unselectable ol-control";
+  element.appendChild(button);
 	element.addEventListener("mousedown", this.move.bind(this));
 	element.addEventListener("touchstart", this.move.bind(this));
-	ol.control.Control.call(this,
-	{	element: element
+	ol.control.Control.call(this, {
+    element: element
 	});
 	// An array of listener on layer postcompose
-	this._listener = [];
+	this.precomposeRight_ = this.precomposeRight.bind(this);
+	this.precomposeLeft_ = this.precomposeLeft.bind(this);
+	this.postcompose_ = this.postcompose.bind(this);
 	this.layers = [];
 	if (options.layers) this.addLayer(options.layers, false);
 	if (options.rightLayers) this.addLayer(options.rightLayers, true);
-	this.on('propertychange', function() 
-	{	if (this.getMap()) this.getMap().renderSync();
-		if (this.get('orientation') === "horizontal")
-		{	this.element.style.top = this.get('position')*100+"%";
+	this.on('propertychange', function() {
+    if (this.getMap()) this.getMap().renderSync();
+		if (this.get('orientation') === "horizontal") {
+      this.element.style.top = this.get('position')*100+"%";
 			this.element.style.left = "";
-		}
-		else
-		{	if (this.get('orientation') !== "vertical") this.set('orientation', "vertical");
+		} else {
+      if (this.get('orientation') !== "vertical") this.set('orientation', "vertical");
 			this.element.style.left = this.get('position')*100+"%";
 			this.element.style.top = "";
 		}
@@ -7901,37 +8841,38 @@ ol.control.Swipe = function(opt_options) {
 	this.set('position', options.position || 0.5);
 	this.set('orientation', options.orientation || 'vertical');
 };
-ol.inherits(ol.control.Swipe, ol.control.Control);
+ol.ext.inherits(ol.control.Swipe, ol.control.Control);
 /**
  * Set the map instance the control associated with.
  * @param {_ol_Map_} map The map instance.
  */
 ol.control.Swipe.prototype.setMap = function(map) {
 	var i;
-	for (i=0; i<this._listener.length; i++) {
-		ol.Observable.unByKey(this._listener[i]);
-	}
-	this._listener = [];
 	if (this.getMap()) {
+		for (i=0; i<this.layers.length; i++) {
+			if (l.right) l.layer.un(['precompose','prerender'], this.precomposeRight_);
+			else l.layer.un(['precompose','prerender'], this.precomposeLeft_);
+			l.layer.un(['postcompose','postrender'], this.postcompose_);
+		}
 		this.getMap().renderSync();
 	}
 	ol.control.Control.prototype.setMap.call(this, map);
-	if (map)
-	{	this._listener = [];
-		for (i=0; i<this.layers.length; i++)
-		{	var l = this.layers[i];
-			if (l.right) this._listener.push (l.layer.on('precompose', this.precomposeRight.bind(this)));
-			else this._listener.push (l.layer.on('precompose', this.precomposeLeft.bind(this)));
-			this._listener.push(l.layer.on('postcompose', this.postcompose.bind(this)));
+	if (map) {
+    this._listener = [];
+		for (i=0; i<this.layers.length; i++) {
+      var l = this.layers[i];
+			if (l.right) l.layer.on(['precompose','prerender'], this.precomposeRight_);
+			else l.layer.on(['precompose','prerender'], this.precomposeLeft_);
+			l.layer.on(['postcompose','postrender'], this.postcompose_);
 		}
 		map.renderSync();
 	}
 };
 /** @private
 */
-ol.control.Swipe.prototype.isLayer_ = function(layer)
-{	for (var k=0; k<this.layers.length; k++)
-	{	if (this.layers[k].layer === layer) return k;
+ol.control.Swipe.prototype.isLayer_ = function(layer){
+  for (var k=0; k<this.layers.length; k++) {
+    if (this.layers[k].layer === layer) return k;
 	}
 	return -1;
 };
@@ -7939,16 +8880,16 @@ ol.control.Swipe.prototype.isLayer_ = function(layer)
  *	@param {ol.layer|Array<ol.layer>} layer to clip
 *	@param {bool} add layer in the right part of the map, default left.
 */
-ol.control.Swipe.prototype.addLayer = function(layers, right)
-{	if (!(layers instanceof Array)) layers = [layers];
+ol.control.Swipe.prototype.addLayer = function(layers, right) {
+  if (!(layers instanceof Array)) layers = [layers];
 	for (var i=0; i<layers.length; i++) {
 		var l = layers[i];
-		if (this.isLayer_(l)<0)
-		{	this.layers.push({ layer:l, right:right });
-			if (this.getMap())
-			{	if (right) this._listener.push (l.on('precompose', this.precomposeRight.bind(this)));
-				else this._listener.push (l.on('precompose', this.precomposeLeft.bind(this)));
-				this._listener.push(l.on('postcompose', this.postcompose.bind(this)));
+		if (this.isLayer_(l) < 0) {
+      this.layers.push({ layer:l, right:right });
+			if (this.getMap()) {
+        if (right) l.on(['precompose','prerender'], this.precomposeRight_);
+				else l.on(['precompose','prerender'], this.precomposeLeft_);
+				l.on(['postcompose','postrender'], this.postcompose_);
 				this.getMap().renderSync();
 			}
 		}
@@ -7957,14 +8898,14 @@ ol.control.Swipe.prototype.addLayer = function(layers, right)
 /** Remove a layer to clip
  *	@param {ol.layer|Array<ol.layer>} layer to clip
  */
-ol.control.Swipe.prototype.removeLayer = function(layers)
-{	if (!(layers instanceof Array)) layers = [layers];
-	for (var i=0; i<layers.length; i++)
-	{	var k = this.isLayer_(layers[i]);
-		if (k >=0 && this.getMap())
-		{	if (this.layers[k].right) layers[i].un('precompose', this.precomposeRight, this);
-			else layers[i].un('precompose', this.precomposeLeft, this);
-			layers[i].un('postcompose', this.postcompose, this);
+ol.control.Swipe.prototype.removeLayer = function(layers) {
+  if (!(layers instanceof Array)) layers = [layers];
+	for (var i=0; i<layers.length; i++) {
+    var k = this.isLayer_(layers[i]);
+		if (k >=0 && this.getMap()) {
+      if (this.layers[k].right) layers[i].un(['precompose','prerender'], this.precomposeRight_);
+			else layers[i].un(['precompose','prerender'], this.precomposeLeft_);
+			layers[i].un(['postcompose','postrender'], this.postcompose_);
 			this.layers.splice(k,1);
 			this.getMap().renderSync();
 		}
@@ -7975,11 +8916,11 @@ ol.control.Swipe.prototype.removeLayer = function(layers)
 ol.control.Swipe.prototype.move = function(e) {
 	var self = this;
 	var l;
-	switch (e.type)
-	{	case 'touchcancel':
+	switch (e.type) {
+    case 'touchcancel':
 		case 'touchend':
-		case 'mouseup':
-		{	self.isMoving = false;
+		case 'mouseup': {
+      self.isMoving = false;
 			["mouseup", "mousemove", "touchend", "touchcancel", "touchmove"]
 				.forEach(function(eventName) {
 					document.removeEventListener(eventName, self.move);
@@ -7996,23 +8937,22 @@ ol.control.Swipe.prototype.move = function(e) {
 		}
 		// fallthrough
 		case 'mousemove':
-		case 'touchmove':
-		{	if (self.isMoving)
-			{	if (self.get('orientation') === "vertical")
-				{	var pageX = e.pageX
-						|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageX)
-						|| (e.originalEvent.changedTouches && e.originalEvent.changedTouches.length && e.originalEvent.changedTouches[0].pageX);
-					if (!pageX) break;
-					pageX -= self.getMap().getTargetElement().getBoundingClientRect().left +
-						window.pageXOffset - document.documentElement.clientLeft;
+		case 'touchmove': {
+      if (self.isMoving) {
+        if (self.get('orientation') === "vertical") {
+          var pageX = e.pageX
+						|| (e.touches && e.touches.length && e.touches[0].pageX)
+						|| (e.changedTouches && e.changedTouches.length && e.changedTouches[0].pageX);
+          if (!pageX) break;
+          pageX -= self.getMap().getTargetElement().getBoundingClientRect().left +
+            window.pageXOffset - document.documentElement.clientLeft;
 					l = self.getMap().getSize()[0];
 					l = Math.min(Math.max(0, 1-(l-pageX)/l), 1);
 					self.set('position', l);
-				}
-				else
-				{	var pageY = e.pageY
-						|| (e.originalEvent.touches && e.originalEvent.touches.length && e.originalEvent.touches[0].pageY)
-						|| (e.originalEvent.changedTouches && e.originalEvent.changedTouches.length && e.originalEvent.changedTouches[0].pageY);
+				} else {
+          var pageY = e.pageY
+						|| (e.touches && e.touches.length && e.touches[0].pageY)
+						|| (e.changedTouches && e.changedTouches.length && e.changedTouches[0].pageY);
 					if (!pageY) break;
 					pageY -= self.getMap().getTargetElement().getBoundingClientRect().top +
 						window.pageYOffset - document.documentElement.clientTop;
@@ -8028,8 +8968,8 @@ ol.control.Swipe.prototype.move = function(e) {
 };
 /** @private
 */
-ol.control.Swipe.prototype.precomposeLeft = function(e)
-{	var ctx = e.context;
+ol.control.Swipe.prototype.precomposeLeft = function(e) {
+  var ctx = e.context;
 	var canvas = ctx.canvas;
 	ctx.save();
 	ctx.beginPath();
@@ -8039,8 +8979,8 @@ ol.control.Swipe.prototype.precomposeLeft = function(e)
 };
 /** @private
 */
-ol.control.Swipe.prototype.precomposeRight = function(e)
-{	var ctx = e.context;
+ol.control.Swipe.prototype.precomposeRight = function(e) {
+  var ctx = e.context;
 	var canvas = ctx.canvas;
 	ctx.save();
 	ctx.beginPath();
@@ -8050,8 +8990,8 @@ ol.control.Swipe.prototype.precomposeRight = function(e)
 };
 /** @private
 */
-ol.control.Swipe.prototype.postcompose = function(e)
-{	e.context.restore();
+ol.control.Swipe.prototype.postcompose = function(e) {
+  e.context.restore();
 };
 
 /*	Copyright (c) 2016 Jean-Marc VIGLINO, 
@@ -8060,6 +9000,7 @@ ol.control.Swipe.prototype.postcompose = function(e)
 */
 /** ol.control.Target draw a target at the center of the map.
  * @constructor
+ * @extends {ol.control.CanvasBase}
  * @param {Object} options
  *  - style {ol.style.Style|Array<ol.style.Style>} ol.style.Stroke: draw a cross on the map, ol.style.Image: draw the image on the map
  *  - composite {string} composite operation : difference|multiply|xor|screen|overlay|darken|lighter|lighten|...
@@ -8074,13 +9015,13 @@ ol.control.Target = function(options)
 	this.composite = options.composite || '';
 	var div = document.createElement('div');
 	div.className = "ol-target ol-unselectable ol-control";
-	ol.control.Control.call(this,
+	ol.control.CanvasBase.call(this,
 	{	element: div,
 		target: options.target
 	});
 	this.setVisible(options.visible!==false);
 };
-ol.inherits(ol.control.Target, ol.control.Control);
+ol.ext.inherits(ol.control.Target, ol.control.CanvasBase);
 /**
  * Remove the control from its current map and attach it to the new map.
  * Subclasses may set up event handlers to get notified about changes to
@@ -8094,7 +9035,7 @@ ol.control.Target.prototype.setMap = function (map)
 	}
 	if (this._listener) ol.Observable.unByKey(this._listener);
 	this._listener = null;
-	ol.control.Control.prototype.setMap.call(this, map);
+	ol.control.CanvasBase.prototype.setMap.call(this, map);
 	if (map) 
 	{	this._listener = map.on('postcompose', this.drawTarget_.bind(this));
 	}
@@ -8117,7 +9058,7 @@ ol.control.Target.prototype.getVisible = function ()
 */
 ol.control.Target.prototype.drawTarget_ = function (e)
 {	if (!this.getMap() || !this.getVisible()) return;
-	var ctx = e.context;
+	var ctx = this.getContext(e);
 	var ratio = e.frameState.pixelRatio;
 	ctx.save();
 		ctx.scale(ratio,ratio);
@@ -8125,6 +9066,7 @@ ol.control.Target.prototype.drawTarget_ = function (e)
 		var cy = ctx.canvas.height/(2*ratio);
 		var geom = new ol.geom.Point (this.getMap().getCoordinateFromPixel([cx,cy]));
 		if (this.composite) ctx.globalCompositeOperation = this.composite;
+	/**/
 		for (var i=0; i<this.style.length; i++)
 		{	var style = this.style[i];
 			if (style instanceof ol.style.Style)
@@ -8135,12 +9077,26 @@ ol.control.Target.prototype.drawTarget_ = function (e)
 				{	sc = imgs.getScale(); 
 					imgs.setScale(ratio*sc);
 				}
-				e.vectorContext.setStyle(style);
-				e.vectorContext.drawGeometry(geom);
+				var vectorContext = e.vectorContext;
+				if (!vectorContext) {
+					var event = {
+						inversePixelTransform: [ratio,0,0,ratio,0,0],
+						context: ctx,
+						frameState: {
+							pixelRatio: ratio,
+							extent: e.frameState.extent,
+							coordinateToPixelTransform: e.frameState.coordinateToPixelTransform,
+							viewState: e.frameState.viewState
+						}
+					}
+					vectorContext = ol.render.getVectorContext(event);
+				} 
+				vectorContext.setStyle(style);
+				vectorContext.drawGeometry(geom);
 				if (imgs) imgs.setScale(sc);
 			}
 		}
-	/*
+	/*/
 		for (var i=0; i<this.style.length; i++)
 		{	var style = this.style[i];
 			if (style.stroke instanceof ol.style.Stroke)
@@ -8177,7 +9133,7 @@ ol.control.Target.prototype.drawTarget_ = function (e)
 				}
 			}
 		}
-		*/
+		/**/
 	ctx.restore();
 };
 
@@ -8199,7 +9155,7 @@ ol.control.TextButton = function(options)
     options.className = (options.className||"") + " ol-text-button";
     ol.control.Button.call(this, options);
 };
-ol.inherits(ol.control.TextButton, ol.control.Button);
+ol.ext.inherits(ol.control.TextButton, ol.control.Button);
 
 /*eslint no-constant-condition: ["error", { "checkLoops": false }]*/
 /** Timeline control
@@ -8328,7 +9284,7 @@ ol.control.Timeline = function(options) {
   // Feature source 
   this.setFeatures(options.features || options.source, options.zoom);
 };
-ol.inherits(ol.control.Timeline, ol.control.Control);
+ol.ext.inherits(ol.control.Timeline, ol.control.Control);
 /**
  * Set the map instance the control is associated with
  * and add interaction attached to it to this map.
@@ -8779,7 +9735,7 @@ ol.control.Toggle = function(options)
 	this.setActive (options.active);
 	this.setDisable (options.disable);
 };
-ol.inherits(ol.control.Toggle, ol.control.Button);
+ol.ext.inherits(ol.control.Toggle, ol.control.Button);
 /**
  * Set the map instance the control is associated with
  * and add interaction attached to it to this map.
@@ -8891,7 +9847,7 @@ ol.featureAnimation = function(options)
 	this.hiddenStyle = options.hiddenStyle;
 	ol.Object.call(this);
 };
-ol.inherits(ol.featureAnimation, ol.Object);
+ol.ext.inherits(ol.featureAnimation, ol.Object);
 /** Draw a geometry 
 * @param {olx.animateFeatureEvent} e
 * @param {ol.geom} geom geometry for shadow
@@ -8912,10 +9868,11 @@ ol.featureAnimation.prototype.drawGeom_ = function (e, geom, shadow)
 			imgs.setScale(e.frameState.pixelRatio*sc);
 		}
 		// Prevent crach if the style is not ready (image not loaded)
-		try{
-			e.vectorContext.setStyle(style[i]);
-			if (style[i].getZIndex()<0) e.vectorContext.drawGeometry(shadow||geom);
-			else e.vectorContext.drawGeometry(geom);
+		try {
+			var vectorContext = e.vectorContext || ol.render.getVectorContext(e);
+			vectorContext.setStyle(style[i]);
+			if (style[i].getZIndex()<0) vectorContext.drawGeometry(shadow||geom);
+			else vectorContext.drawGeometry(geom);
 		} catch(e) { /* ok */ }
 		if (imgs) imgs.setScale(sc);
 	}
@@ -8945,14 +9902,30 @@ ol.featureAnimation.prototype.animate = function (/* e */)
  * @param {ol.featureAnimation|Array<ol.featureAnimation>} fanim the animation to play
  * @return {olx.animationControler} an object to control animation with start, stop and isPlaying function
  */
-ol.Map.prototype.animateFeature =
+ol.Map.prototype.animateFeature = function(feature, fanim) {
+	// Animate on last visible layer
+	function animLayer(layers) {
+		for (var l, i=layers.length-1; l=layers[i]; i--) {
+			if (l.getVisible()) {
+				if (l.getLayers) {
+					if (animLayer(l.getLayers().getArray())) return true;
+				} else {
+					l.animateFeature(feature, fanim);
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	animLayer(this.getLayers().getArray());
+};
 /** Animate feature on a vector layer 
  * @fires animationstart, animationend
  * @param {ol.Feature} feature Feature to animate
  * @param {ol.featureAnimation|Array<ol.featureAnimation>} fanim the animation to play
  * @return {olx.animationControler} an object to control animation with start, stop and isPlaying function
-*/
-ol.layer.Vector.prototype.animateFeature = function(feature, fanim)
+ */
+ol.layer.Base.prototype.animateFeature = function(feature, fanim)
 {	var self = this;
 	var listenerKey;
 	// Save style
@@ -8960,8 +9933,6 @@ ol.layer.Vector.prototype.animateFeature = function(feature, fanim)
 	var flashStyle = style || (this.getStyleFunction ? this.getStyleFunction()(feature) : null);
 	if (!flashStyle) flashStyle=[];
 	if (!(flashStyle instanceof Array)) flashStyle = [flashStyle];
-	// Hide feature while animating
-	feature.setStyle(fanim.hiddenStyle || []);
 	// Structure pass for animating
 	var event = 
 		{	// Frame context
@@ -8985,8 +9956,10 @@ ol.layer.Vector.prototype.animateFeature = function(feature, fanim)
 	{	if (fanim[i].duration_===0) fanim.splice(i,1);
 	}
 	var nb=0, step = 0;
-	function animate(e) 
-	{	event.vectorContext = e.vectorContext;
+	function animate(e) {
+		try {
+			event.vectorContext = e.vectorContext || ol.render.getVectorContext(e);
+		} catch(e) { /* nothing todo */ }
 		event.frameState = e.frameState;
 		if (!event.extent) 
 		{	event.extent = e.frameState.extent;
@@ -9034,12 +10007,14 @@ ol.layer.Vector.prototype.animateFeature = function(feature, fanim)
 		self.dispatchEvent(event);
 	}
 	// Launch animation
-	function start(options)
-	{	if (fanim.length && !listenerKey)
-		{	listenerKey = self.on('postcompose', animate.bind(self));
+	function start(options){
+		if (fanim.length && !listenerKey)
+		{	listenerKey = self.on(['postcompose','postrender'], animate.bind(self));
 			// map or layer?
 			if (self.renderSync) self.renderSync();
 			else self.changed();
+			// Hide feature while animating
+			feature.setStyle(fanim[step].hiddenStyle || new ol.style.Style({ image: new ol.style.Circle({}) }));
 			// Send event
 			var event = { type:'animationstart', feature: feature };
 			if (options) 
@@ -9079,7 +10054,7 @@ ol.featureAnimation.Bounce = function(options)
 	this.amplitude_ = options.amplitude || 40;
 	this.bounce_ = -Math.PI*(options.bounce || 3);
 }
-ol.inherits(ol.featureAnimation.Bounce, ol.featureAnimation);
+ol.ext.inherits(ol.featureAnimation.Bounce, ol.featureAnimation);
 /** Animate
 * @param {ol.featureAnimationEvent} e
 */
@@ -9113,7 +10088,7 @@ ol.featureAnimation.Drop = function(options)
 	ol.featureAnimation.call(this, options);
 	this.side_ = options.side || 'top';
 }
-ol.inherits(ol.featureAnimation.Drop, ol.featureAnimation);
+ol.ext.inherits(ol.featureAnimation.Drop, ol.featureAnimation);
 /** Animate
 * @param {ol.featureAnimationEvent} e
 */
@@ -9153,7 +10128,7 @@ ol.featureAnimation.Fade = function(options)
 	this.speed_ = options.speed || 0;
 	ol.featureAnimation.call(this, options);
 }
-ol.inherits(ol.featureAnimation.Fade, ol.featureAnimation);
+ol.ext.inherits(ol.featureAnimation.Fade, ol.featureAnimation);
 /** Animate
 * @param {ol.featureAnimationEvent} e
 */
@@ -9176,7 +10151,7 @@ ol.featureAnimation.Fade.prototype.animate = function (e)
 ol.featureAnimation.None = function(options)
 {	ol.featureAnimation.call(this, options);
 };
-ol.inherits(ol.featureAnimation.None, ol.featureAnimation);
+ol.ext.inherits(ol.featureAnimation.None, ol.featureAnimation);
 /** Animate: do nothing during the laps time
 * @param {ol.featureAnimationEvent} e
 */
@@ -9196,7 +10171,7 @@ ol.featureAnimation.None.prototype.animate = function (e)
 ol.featureAnimation.Null = function() {
   ol.featureAnimation.call(this, { duration:0 });
 };
-ol.inherits(ol.featureAnimation.Null, ol.featureAnimation);
+ol.ext.inherits(ol.featureAnimation.Null, ol.featureAnimation);
 
 /*
 	Copyright (c) 2016-2018 Jean-Marc VIGLINO, 
@@ -9233,7 +10208,7 @@ ol.featureAnimation.Path = function(options)
 	else this.dist_ = 0;
 	if (this.speed_>0) this.duration_ = this.dist_/this.speed_;
 }
-ol.inherits(ol.featureAnimation.Path, ol.featureAnimation);
+ol.ext.inherits(ol.featureAnimation.Path, ol.featureAnimation);
 /** Animate
 * @param {ol.featureAnimationEvent} e
 */
@@ -9294,7 +10269,7 @@ ol.featureAnimation.Shake = function(options)
 	this.bounce_ = -Math.PI*(options.bounce || 6);
 	this.horizontal_ = options.horizontal;
 }
-ol.inherits(ol.featureAnimation.Shake, ol.featureAnimation);
+ol.ext.inherits(ol.featureAnimation.Shake, ol.featureAnimation);
 /** Animate
 * @param {ol.featureAnimationEvent} e
 */
@@ -9325,7 +10300,7 @@ ol.featureAnimation.Shake.prototype.animate = function (e)
 ol.featureAnimation.Show = function(options)
 {	ol.featureAnimation.call(this, options);
 }
-ol.inherits(ol.featureAnimation.Show, ol.featureAnimation);
+ol.ext.inherits(ol.featureAnimation.Show, ol.featureAnimation);
 /** Animate: just show the object during the laps time
 * @param {ol.featureAnimationEvent} e
 */
@@ -9351,7 +10326,7 @@ ol.featureAnimation.Slide = function(options)
 	ol.featureAnimation.call(this, options);
 	this.side_ = options.side || 'left';
 }
-ol.inherits(ol.featureAnimation.Slide, ol.featureAnimation);
+ol.ext.inherits(ol.featureAnimation.Slide, ol.featureAnimation);
 /** Animate
 * @param {ol.featureAnimationEvent} e
 */
@@ -9381,7 +10356,7 @@ ol.featureAnimation.Slide.prototype.animate = function (e)
 ol.featureAnimation.Teleport = function(options)
 {	ol.featureAnimation.call(this, options);
 }
-ol.inherits(ol.featureAnimation.Teleport, ol.featureAnimation);
+ol.ext.inherits(ol.featureAnimation.Teleport, ol.featureAnimation);
 /** Animate
 * @param {ol.featureAnimationEvent} e
 */
@@ -9418,7 +10393,7 @@ ol.featureAnimation.Throw = function(options)
 	this.speed_ = options.speed || 0;
 	this.side_ = options.side || 'left';
 }
-ol.inherits(ol.featureAnimation.Throw, ol.featureAnimation);
+ol.ext.inherits(ol.featureAnimation.Throw, ol.featureAnimation);
 /** Animate
 * @param {ol.featureAnimationEvent} e
 */
@@ -9461,7 +10436,7 @@ ol.featureAnimation.Zoom = function(options)
 	ol.featureAnimation.call(this, options);
 	this.set('zoomout', options.zoomOut);
 }
-ol.inherits(ol.featureAnimation.Zoom, ol.featureAnimation);
+ol.ext.inherits(ol.featureAnimation.Zoom, ol.featureAnimation);
 /** Zoom animation: feature zoom out (for points)
  * @constructor
  * @extends {ol.featureAnimation}
@@ -9472,7 +10447,7 @@ ol.featureAnimation.ZoomOut = function(options)
 	options.zoomOut = true;
 	ol.featureAnimation.Zoom.call(this, options);
 }
-ol.inherits(ol.featureAnimation.ZoomOut, ol.featureAnimation.Zoom);
+ol.ext.inherits(ol.featureAnimation.ZoomOut, ol.featureAnimation.Zoom);
 /** Animate
 * @param {ol.featureAnimationEvent} e
 */
@@ -9547,7 +10522,7 @@ ol.filter.Base = function(options) {
   if (options && options.active===false) this.set('active', false);
   else this.set('active', true);
 };
-ol.inherits(ol.filter.Base, ol.Object);
+ol.ext.inherits(ol.filter.Base, ol.Object);
 /** Activate / deactivate filter
 *	@param {boolean} b
 */
@@ -9566,14 +10541,14 @@ ol.filter.Base.prototype.getActive = function () {
 * @private
 */
 function precompose_(e) {
-  if (this.get('active')) this.precompose(e);
+  if (this.get('active') && e.context) this.precompose(e);
 }
 /** Internal function
 * @this {ol.filter} this the filter
 * @private
 */
 function postcompose_(e) {
-  if (this.get('active')) this.postcompose(e);
+  if (this.get('active') && e.context) this.postcompose(e);
 }
 /** Force filter redraw / Internal function
 * @this {ol.Map|ol.layer.Layer} this: the map or layer the filter is added to
@@ -9590,8 +10565,8 @@ function filterRedraw_() {
 function addFilter_(filter) {
   if (!this.filters_) this.filters_ = [];
   this.filters_.push(filter);
-  if (filter.precompose) filter._listener.push ( { listener: this.on('precompose', precompose_.bind(filter)), target: this });
-  if (filter.postcompose) filter._listener.push ( { listener: this.on('postcompose', postcompose_.bind(filter)), target: this });
+  if (filter.precompose) filter._listener.push ( { listener: this.on(['precompose','prerender'], precompose_.bind(filter)), target: this });
+  if (filter.postcompose) filter._listener.push ( { listener: this.on(['postcompose','postrender'], postcompose_.bind(filter)), target: this });
   filter._listener.push ( { listener: filter.on('propertychange', filterRedraw_.bind(this)), target: this });
   filterRedraw_.call (this);
 }
@@ -9618,6 +10593,7 @@ function removeFilter_(filter) {
 *	@param {ol.filter}
 */
 ol.Map.prototype.addFilter = function (filter) {
+  console.warn('[OL-EXT] addFilter deprecated on map.')
   addFilter_.call (this, filter);
 };
 /** Remove a filter to an ol.Map
@@ -9680,7 +10656,7 @@ ol.filter.Mask = function(options)
 	this.set("inner", options.inner);
 	this.fillColor_ = options.fill ? ol.color.asString(options.fill.getColor()) || "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.2)";
 }
-ol.inherits(ol.filter.Mask, ol.filter.Base);
+ol.ext.inherits(ol.filter.Mask, ol.filter.Base);
 /** Draw the feature into canvas */
 ol.filter.Mask.prototype.drawFeaturePath_ = function(e, out)
 {	var ctx = e.context;
@@ -9774,7 +10750,7 @@ ol.filter.Clip = function(options)
 		options.extent = [xmin,ymin,xmax,ymax];
 	}
 }
-ol.inherits(ol.filter.Clip, ol.filter.Base);
+ol.ext.inherits(ol.filter.Clip, ol.filter.Base);
 ol.filter.Clip.prototype.clipPath_ = function(e)
 {	var ctx = e.context;
 	var canvas = ctx.canvas;
@@ -9866,7 +10842,7 @@ ol.filter.Colorize = function(options)
 {	ol.filter.Base.call(this, options);
 	this.setFilter(options);
 }
-ol.inherits(ol.filter.Colorize, ol.filter.Base);
+ol.ext.inherits(ol.filter.Colorize, ol.filter.Base);
 /** Set options to the filter
  * @param {FilterColorizeOptions} [options]
  */
@@ -9976,7 +10952,7 @@ ol.filter.Composite = function(options)
 {	ol.filter.Base.call(this, options);
 	this.set("operation", options.operation || "source-over");
 }
-ol.inherits(ol.filter.Composite, ol.filter.Base);
+ol.ext.inherits(ol.filter.Composite, ol.filter.Base);
 /** Change the current operation
 *	@param {string} operation composite function
 */
@@ -9993,8 +10969,8 @@ ol.filter.Composite.prototype.postcompose = function(e)
 }
 
 /*	Copyright (c) 2016 Jean-Marc VIGLINO, 
-	released under the CeCILL-B license (French BSD license)
-	(http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
 */
 /** Crop drawing using an ol.Feature
 * @constructor
@@ -10005,20 +10981,20 @@ ol.filter.Composite.prototype.postcompose = function(e)
 *  @param {ol.Feature} [options.feature] feature to crop with
 *  @param {boolean} [options.inner=false] mask inner, default false
 */
-ol.filter.Crop = function(options)
-{	options = options || {};
-	ol.filter.Mask.call(this, options);
+ol.filter.Crop = function(options) {
+  options = options || {};
+  ol.filter.Mask.call(this, options);
 }
-ol.inherits(ol.filter.Crop, ol.filter.Mask);
-ol.filter.Crop.prototype.precompose = function(e)
-{	if (!this.feature_) return;
-	var ctx = e.context;
-	ctx.save();
-	this.drawFeaturePath_(e, this.get("inner"));
-	ctx.clip("evenodd");
+ol.ext.inherits(ol.filter.Crop, ol.filter.Mask);
+ol.filter.Crop.prototype.precompose = function(e) {
+  if (!this.feature_) return;
+  var ctx = e.context;
+  ctx.save();
+  this.drawFeaturePath_(e, this.get("inner"));
+  ctx.clip("evenodd");
 }
-ol.filter.Crop.prototype.postcompose = function(e)
-{	if (this.feature_) e.context.restore();
+ol.filter.Crop.prototype.postcompose = function(e) {
+  if (this.feature_) e.context.restore();
 }
 
 /*	Copyright (c) 2017 Jean-Marc VIGLINO,
@@ -10043,8 +11019,8 @@ ol.filter.Fold = function(options)
 	this.set("padding", options.padding || 8);
 	if (typeof options.fsize == "number") options.fsize = [options.fsize,options.fsize];
 	this.set("fsize", options.fsize || [8,10]);
-}
-ol.inherits(ol.filter.Fold, ol.filter.Base);
+};
+ol.ext.inherits(ol.filter.Fold, ol.filter.Base);
 ol.filter.Fold.prototype.drawLine_ = function(ctx, d, m)
 {	var canvas = ctx.canvas;
 	var fold = this.get("fold");
@@ -10074,7 +11050,7 @@ ol.filter.Fold.prototype.drawLine_ = function(ctx, d, m)
 		ctx.lineTo ( x, y );
 	}
 	ctx.closePath();
-}
+};
 ol.filter.Fold.prototype.precompose = function(e)
 {	var ctx = e.context;
 	ctx.save();
@@ -10091,7 +11067,7 @@ ol.filter.Fold.prototype.precompose = function(e)
 	ctx.save();
 	this.drawLine_(ctx, this.get("fsize"), this.get("margin") + this.get("padding"));
 	ctx.clip();
-}
+};
 ol.filter.Fold.prototype.postcompose = function(e)
 {	var ctx = e.context;
 	var canvas = ctx.canvas;
@@ -10114,7 +11090,7 @@ ol.filter.Fold.prototype.postcompose = function(e)
 			ctx.restore()
 		}
 	ctx.restore();
-}
+};
 
 /*	Copyright (c) 2017 Jean-Marc VIGLINO, 
 	released under the CeCILL-B license (French BSD license)
@@ -10143,7 +11119,7 @@ ol.filter.Lego = function(options)
 	this.setBrick (options.brickSize, img);
 	this.internal_ = document.createElement('canvas');
 }
-ol.inherits(ol.filter.Lego, ol.filter.Base);
+ol.ext.inherits(ol.filter.Lego, ol.filter.Base);
 /** Image definition
 */
 ol.filter.Lego.prototype.img =
@@ -10280,7 +11256,7 @@ ol.filter.Texture = function(options)
 {	ol.filter.Base.call(this, options);
 	this.setFilter(options);
 }
-ol.inherits(ol.filter.Texture, ol.filter.Base);
+ol.ext.inherits(ol.filter.Texture, ol.filter.Base);
 /** Set texture
  * @param {FilterTextureOptions} [options]
  */
@@ -10461,7 +11437,7 @@ ol.interaction.CenterTouch = function(options)
 			}
 		});
 };
-ol.inherits(ol.interaction.CenterTouch, ol.interaction.Interaction);
+ol.ext.inherits(ol.interaction.CenterTouch, ol.interaction.Interaction);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -10540,111 +11516,111 @@ ol.interaction.CenterTouch.prototype.drawTarget_ = function (e)
 /** Clip interaction to clip layers in a circle
  * @constructor
  * @extends {ol.interaction.Pointer}
- *	@param {ol.interaction.Clip.options} options flashlight  param
- *		- radius {number} radius of the clip, default 100
- *		- layers {ol.layer|Array<ol.layer>} layers to clip
+ * @param {ol.interaction.Clip.options} options flashlight  param
+ *  @param {number} options.radius radius of the clip, default 100
+ *	@param {ol.layer|Array<ol.layer>} options.layers layers to clip
  */
 ol.interaction.Clip = function(options) {
-	this.layers_ = [];
-	ol.interaction.Pointer.call(this,
-	{	handleDownEvent: this.setPosition,
-		handleMoveEvent: this.setPosition
-	});
-	// Default options
-	options = options || {};
-	this.pos = false;
-	this.radius = (options.radius||100);
-	if (options.layers) this.addLayer(options.layers);
+  this.layers_ = [];
+  ol.interaction.Pointer.call(this, {
+    handleDownEvent: this.setPosition,
+    handleMoveEvent: this.setPosition
+  });
+  this.precomposeBind_ = this.precompose_.bind(this);
+  this.postcomposeBind_ = this.postcompose_.bind(this);
+  // Default options
+  options = options || {};
+  this.pos = false;
+  this.radius = (options.radius||100);
+  if (options.layers) this.addLayer(options.layers);
 };
-ol.inherits(ol.interaction.Clip, ol.interaction.Pointer);
+ol.ext.inherits(ol.interaction.Clip, ol.interaction.Pointer);
 /** Set the map > start postcompose
 */
 ol.interaction.Clip.prototype.setMap = function(map) {
-	var i;
-	if (this.getMap()) {
-		for (i=0; i<this.layers_.length; i++) {
-			if (this.layers_[i].precompose) ol.Observable.unByKey(this.layers_[i].precompose);
-			if (this.layers_[i].postcompose) ol.Observable.unByKey(this.layers_[i].postcompose);
-			this.layers_[i].precompose = this.layers_[i].postcompose = null;
-		}
-		this.getMap().renderSync();
-	}
-	ol.interaction.Pointer.prototype.setMap.call(this, map);
-	if (map) {
-		for (i=0; i<this.layers_.length; i++) {
-			this.layers_[i].precompose = this.layers_[i].layer.on('precompose', this.precompose_.bind(this));
-			this.layers_[i].postcompose = this.layers_[i].layer.on('postcompose', this.postcompose_.bind(this));
-		}
-		map.renderSync();
-	}
+  var i;
+  if (this.getMap()) {
+    for (i=0; i<this.layers_.length; i++) {
+      this.layers_[i].un(['precompose','prerender'], this.precomposeBind_);
+      this.layers_[i].un(['postcompose','postrender'], this.postcomposeBind_);
+    }
+    this.getMap().renderSync();
+  }
+  ol.interaction.Pointer.prototype.setMap.call(this, map);
+  if (map) {
+    for (i=0; i<this.layers_.length; i++) {
+      this.layers_[i].on(['precompose','prerender'], this.precomposeBind_);
+      this.layers_[i].on(['postcompose','postrender'], this.postcomposeBind_);
+    }
+    map.renderSync();
+  }
 }
 /** Set clip radius
  *	@param {integer} radius
- */
-ol.interaction.Clip.prototype.setRadius = function(radius)
-{	this.radius = radius;
-	if (this.getMap()) this.getMap().renderSync();
+*/
+ol.interaction.Clip.prototype.setRadius = function(radius) {
+  this.radius = radius;
+  if (this.getMap()) this.getMap().renderSync();
 }
 /** Add a layer to clip
  *	@param {ol.layer|Array<ol.layer>} layer to clip
- */
-ol.interaction.Clip.prototype.addLayer = function(layers)
-{	if (!(layers instanceof Array)) layers = [layers];
-	for (var i=0; i<layers.length; i++) {
-		var l = { layer: layers[i] }
-		if (this.getMap()) {
-			l.precompose = layers[i].on('precompose', this.precompose_.bind(this));
-			l.postcompose = layers[i].on('postcompose', this.postcompose_.bind(this));
-			this.getMap().renderSync();
-		}
-		this.layers_.push(l);
-	}
-}
+*/
+ol.interaction.Clip.prototype.addLayer = function(layers)  {
+  if (!(layers instanceof Array)) layers = [layers];
+  for (var i=0; i<layers.length; i++) {
+    if (this.getMap()) {
+      layers[i].on(['precompose','prerender'], this.precomposeBind_);
+      layers[i].on(['postcompose','postrender'], this.postcomposeBind_);
+      this.getMap().renderSync();
+    }
+    this.layers_.push(layers[i]);
+  }
+};
 /** Remove a layer to clip
  *	@param {ol.layer|Array<ol.layer>} layer to clip
- */
-ol.interaction.Clip.prototype.removeLayer = function(layers)
-{	if (!(layers instanceof Array)) layers = [layers];
-	for (var i=0; i<layers.length; i++)
-	{	var k;
-		for (k=0; k<this.layers_.length; k++)
-		{	if (this.layers_[k].layer===layers[i]) 
-			{	break;
-			}
-		}
-		if (k!=this.layers_.length && this.getMap())
-		{	if (this.layers_[k].precompose) ol.Observable.unByKey(this.layers_[k].precompose);
-			if (this.layers_[k].postcompose) ol.Observable.unByKey(this.layers_[k].postcompose);
-			this.layers_.splice(k,1);
-			this.getMap().renderSync();
-		}
-	}
-}
+*/
+ol.interaction.Clip.prototype.removeLayer = function(layers) {
+  if (!(layers instanceof Array)) layers = [layers];
+  for (var i=0; i<layers.length; i++) {
+    var k;
+    for (k=0; k<this.layers_.length; k++) {
+      if (this.layers_[k]===layers[i]) {
+        break;
+      }
+    }
+    if (k!=this.layers_.length && this.getMap()) {
+      this.layers_[k].un(['precompose','prerender'], this.precomposeBind_);
+      this.layers_[k].un(['postcompose','postrender'], this.postcomposeBind_);
+      this.layers_.splice(k,1);
+      this.getMap().renderSync();
+    }
+  }
+};
 /** Set position of the clip
 *	@param {ol.Pixel|ol.MapBrowserEvent}
 */
-ol.interaction.Clip.prototype.setPosition = function(e)
-{	if (e.pixel) this.pos = e.pixel;
-	else 
-	{	if (e && e instanceof Array) this.pos = e;
-		else e = [-10000000,-10000000];
-	}
-	if (this.getMap()) this.getMap().renderSync();
-}
+ol.interaction.Clip.prototype.setPosition = function(e) {
+  if (e.pixel) this.pos = e.pixel;
+  else {
+    if (e && e instanceof Array) this.pos = e;
+    else e = [-10000000,-10000000];
+  }
+  if (this.getMap()) this.getMap().renderSync();
+};
 /* @private
 */
-ol.interaction.Clip.prototype.precompose_ = function(e)
-{	var ctx = e.context;
-	var ratio = e.frameState.pixelRatio;
-	ctx.save();
-	ctx.beginPath();
-	ctx.arc (this.pos[0]*ratio, this.pos[1]*ratio, this.radius*ratio, 0, 2*Math.PI);
-	ctx.clip();
-}
+ol.interaction.Clip.prototype.precompose_ = function(e) {
+  var ctx = e.context;
+  var ratio = e.frameState.pixelRatio;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc (this.pos[0]*ratio, this.pos[1]*ratio, this.radius*ratio, 0, 2*Math.PI);
+  ctx.clip();
+};
 /* @private
 */
-ol.interaction.Clip.prototype.postcompose_ = function(e)
-{	e.context.restore();
+ol.interaction.Clip.prototype.postcompose_ = function(e) {
+  e.context.restore();
 };
 /**
  * Activate or deactivate the interaction.
@@ -10653,22 +11629,22 @@ ol.interaction.Clip.prototype.postcompose_ = function(e)
  * @api
  */
 ol.interaction.Clip.prototype.setActive = function(b) {
-	var i;
-	ol.interaction.Pointer.prototype.setActive.call (this, b);
-	if(b) {
-		for(i=0; i<this.layers_.length; i++) {
-			this.layers_[i].precompose = this.layers_[i].layer.on('precompose', this.precompose_.bind(this));
-			this.layers_[i].postcompose = this.layers_[i].layer.on('postcompose', this.postcompose_.bind(this));
-		}
-	} else {
-		for(i=0; i<this.layers_.length; i++) {
-			if (this.layers_[i].precompose) ol.Observable.unByKey(this.layers_[i].precompose);
-			if (this.layers_[i].postcompose) ol.Observable.unByKey(this.layers_[i].postcompose);
-			this.layers_[i].precompose = this.layers_[i].postcompose = null;
-		}
-	}
-	if (this.getMap()) this.getMap().renderSync();
-}
+  if (b===this.getActive()) return;
+  ol.interaction.Pointer.prototype.setActive.call (this, b);
+  var i;
+  if (b) {
+    for(i=0; i<this.layers_.length; i++) {
+      this.layers_[i].on(['precompose','prerender'], this.precomposeBind_);
+      this.layers_[i].on(['postcompose','postrender'], this.postcomposeBind_);
+    }
+  } else {
+    for(i=0; i<this.layers_.length; i++) {
+      this.layers_[i].un(['precompose','prerender'], this.precomposeBind_);
+      this.layers_[i].un(['postcompose','postrender'], this.postcomposeBind_);
+    }
+  }
+  if (this.getMap()) this.getMap().renderSync();
+};
 
 /*	Copyright (c) 2018 Jean-Marc VIGLINO, 
 	released under the CeCILL-B license (French BSD license)
@@ -10688,7 +11664,7 @@ ol.interaction.Delete = function(options) {
     this.delete(e.selected);
   }.bind(this));
 };
-ol.inherits(ol.interaction.Delete, ol.interaction.Select);
+ol.ext.inherits(ol.interaction.Delete, ol.interaction.Select);
 /** Get vector source of the map
  * @return {Array<ol.source.Vector}
  */
@@ -10790,7 +11766,7 @@ ol.interaction.DragOverlay = function(options) {
   if (!(options.overlays instanceof Array)) options.overlays = [options.overlays];
   options.overlays.forEach(this.addOverlay.bind(this));
 };
-ol.inherits(ol.interaction.DragOverlay, ol.interaction.Pointer);
+ol.ext.inherits(ol.interaction.DragOverlay, ol.interaction.Pointer);
 /** Add an overlay to the interacton
  * @param {ol.Overlay} ov
  */
@@ -10878,7 +11854,7 @@ ol.interaction.DrawHole = function(options)
 	// End drawing add the hole to the current Polygon
 	this.on('drawend', this._finishDrawing.bind(this));
 };
-ol.inherits(ol.interaction.DrawHole, ol.interaction.Draw);
+ol.ext.inherits(ol.interaction.DrawHole, ol.interaction.Draw);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -11098,7 +12074,7 @@ ol.interaction.DrawRegular = function(options) {
       handleEvent: this.handleEvent_
     });
 };
-ol.inherits(ol.interaction.DrawRegular, ol.interaction.Interaction);
+ol.ext.inherits(ol.interaction.DrawRegular, ol.interaction.Interaction);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -11478,7 +12454,7 @@ ol.interaction.DrawTouch = function(options) {
 		});
 	this.geom_ = [];
 };
-ol.inherits(ol.interaction.DrawTouch, ol.interaction.CenterTouch);
+ol.ext.inherits(ol.interaction.DrawTouch, ol.interaction.CenterTouch);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -11641,7 +12617,7 @@ ol.interaction.DropFile = function(options)
 	var self = this;
 	zone.addEventListener('drop', function(e){ return self.ondrop(e);});
 };
-ol.inherits(ol.interaction.DropFile, ol.interaction.DragAndDrop);
+ol.ext.inherits(ol.interaction.DropFile, ol.interaction.DragAndDrop);
 /** Set the map
 */
 ol.interaction.DropFile.prototype.setMap = function(map)
@@ -11753,7 +12729,7 @@ ol.interaction.FillAttribute = function(options, properties) {
     this._cursor = 'url('+canvas.toDataURL()+') 0 13, auto';
   }
 };
-ol.inherits(ol.interaction.FillAttribute, ol.interaction.Select);
+ol.ext.inherits(ol.interaction.FillAttribute, ol.interaction.Select);
 /** Activate the interaction
  * @param {boolean} active
  */
@@ -11831,7 +12807,7 @@ ol.interaction.Flashlight = function(options) {
 	this.radius = (options.radius||100);
 	this.setColor(options);
 };
-ol.inherits(ol.interaction.Flashlight, ol.interaction.Pointer);
+ol.ext.inherits(ol.interaction.Flashlight, ol.interaction.Pointer);
 /** Set the map > start postcompose
 */
 ol.interaction.Flashlight.prototype.setMap = function(map) {
@@ -12018,7 +12994,7 @@ ol.interaction.GeolocationDraw = function(options) {
 	this.setFollowTrack (options.followTrack===undefined ? true : options.followTrack);
 	this.setActive(false);
 };
-ol.inherits(ol.interaction.GeolocationDraw, ol.interaction.Interaction);
+ol.ext.inherits(ol.interaction.GeolocationDraw, ol.interaction.Interaction);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -12245,7 +13221,7 @@ ol.interaction.Hover = function(options)
 	this.set('hitTolerance', options.hitTolerance)
 	this.setCursor (options.cursor);
 };
-ol.inherits(ol.interaction.Hover, ol.interaction.Interaction);
+ol.ext.inherits(ol.interaction.Hover, ol.interaction.Interaction);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -12381,7 +13357,7 @@ ol.interaction.LongTouch = function(options)
 		}
 	});
 };
-ol.inherits(ol.interaction.LongTouch, ol.interaction.Interaction);
+ol.ext.inherits(ol.interaction.LongTouch, ol.interaction.Interaction);
 
 /* Extent the ol/interaction/Modify with a getModifyFeatures
  * Get the features modified by the interaction
@@ -12506,7 +13482,7 @@ ol.interaction.ModifyFeature = function(options){
     style: sketchStyle
   });
 };
-ol.inherits(ol.interaction.ModifyFeature, ol.interaction.Pointer);
+ol.ext.inherits(ol.interaction.ModifyFeature, ol.interaction.Pointer);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -13105,7 +14081,7 @@ ol.interaction.ModifyTouch = function(options) {
   // Use a popup ?
   this.set('usePopup', options.usePopup !== false);
 };
-ol.inherits(ol.interaction.ModifyTouch, ol.interaction.Modify);
+ol.ext.inherits(ol.interaction.ModifyTouch, ol.interaction.Modify);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -13204,7 +14180,7 @@ ol.interaction.Offset = function(options) {
   // init
   this.previousCursor_ = false;
 };
-ol.inherits(ol.interaction.Offset, ol.interaction.Pointer);
+ol.ext.inherits(ol.interaction.Offset, ol.interaction.Pointer);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -13397,7 +14373,7 @@ ol.interaction.Ripple = function(options)
     this.interval = options.interval;
 	this.rains (this.interval);
 };
-ol.inherits(ol.interaction.Ripple, ol.interaction.Pointer);
+ol.ext.inherits(ol.interaction.Ripple, ol.interaction.Pointer);
 /** Set the map > start postcompose
 */
 ol.interaction.Ripple.prototype.setMap = function(map)
@@ -13605,7 +14581,7 @@ ol.interaction.SelectCluster = function(options)
 	ol.interaction.Select.call(this, options);
 	this.on("select", this.selectCluster.bind(this));
 };
-ol.inherits(ol.interaction.SelectCluster, ol.interaction.Select);
+ol.ext.inherits(ol.interaction.SelectCluster, ol.interaction.Select);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -13877,7 +14853,7 @@ ol.interaction.SnapGuides = function(options) {
 		}
 	});
 };
-ol.inherits(ol.interaction.SnapGuides, ol.interaction.Interaction);
+ol.ext.inherits(ol.interaction.SnapGuides, ol.interaction.Interaction);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -14165,7 +15141,7 @@ ol.interaction.Split = function(options)
 		}
 	});
 };
-ol.inherits(ol.interaction.Split, ol.interaction.Interaction);
+ol.ext.inherits(ol.interaction.Split, ol.interaction.Interaction);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -14363,7 +15339,7 @@ ol.interaction.Splitter = function(options)
 	// Get all features candidate
 	this.filterSplit_ = options.filter || function(){ return true; };
 };
-ol.inherits(ol.interaction.Splitter, ol.interaction.Interaction);
+ol.ext.inherits(ol.interaction.Splitter, ol.interaction.Interaction);
 /** Calculate intersection on 2 segs
 * @param {Array<_ol_coordinate_>} s1 first seg to intersect (2 points)
 * @param {Array<_ol_coordinate_>} s2 second seg to intersect (2 points)
@@ -14547,7 +15523,7 @@ ol.interaction.Synchronize = function(options)
 		});
 	this.maps = options.maps;
 };
-ol.inherits(ol.interaction.Synchronize, ol.interaction.Interaction);
+ol.ext.inherits(ol.interaction.Synchronize, ol.interaction.Interaction);
 /**
  * Remove the interaction from its current map, if any,  and attach it to a new
  * map, if any. Pass `null` to just remove the interaction from the current map.
@@ -14678,7 +15654,7 @@ ol.interaction.TinkerBell = function(options)
 	this.out_ = function() { self.isout_=true; };
 	this.isout_ = true;
 };
-ol.inherits(ol.interaction.TinkerBell, ol.interaction.Pointer);
+ol.ext.inherits(ol.interaction.TinkerBell, ol.interaction.Pointer);
 /** Set the map > start postcompose
 */
 ol.interaction.TinkerBell.prototype.setMap = function(map) {
@@ -14804,7 +15780,7 @@ ol.interaction.TouchCompass = function(options) {
 		ctx.fill();
 	}
 };
-ol.inherits(ol.interaction.TouchCompass, ol.interaction.Pointer);
+ol.ext.inherits(ol.interaction.TouchCompass, ol.interaction.Pointer);
 /** Compass Image as a JS Image object
 * @api
 */
@@ -14966,7 +15942,7 @@ ol.interaction.Transform = function(options) {
   // setstyle
   this.setDefaultStyle();
 };
-ol.inherits(ol.interaction.Transform, ol.interaction.Pointer);
+ol.ext.inherits(ol.interaction.Transform, ol.interaction.Pointer);
 /** Cursors for transform
 */
 ol.interaction.Transform.prototype.Cursors = {
@@ -15458,16 +16434,6 @@ ol.interaction.Transform.prototype.handleUpEvent_ = function(evt) {
   return false;
 };
 
-(function () {
-  var clear = ol.source.Vector.prototype.clear;
-  /** Overwrite ol/source/Vector clear to fire clearstart / clearend event
-   */
-  ol.source.Vector.prototype.clear = function(opt_fast) {
-    this.dispatchEvent({ type: 'clearstart' });
-    clear.call(this, opt_fast)
-    this.dispatchEvent({ type: 'clearend' });
-  };
-})();
 /** Undo/redo interaction
  * @constructor
  * @extends {ol.interaction.Interaction}
@@ -15491,7 +16457,7 @@ ol.interaction.UndoRedo = function(options) {
   // Custom definitions
   this._defs = {};
 };
-ol.inherits(ol.interaction.UndoRedo, ol.interaction.Interaction);
+ol.ext.inherits(ol.interaction.UndoRedo, ol.interaction.Interaction);
 /** Add a custom undo/redo
  * @param {string} action the action key name
  * @param {function} undoFn function called when undoing
@@ -15774,6 +16740,7 @@ ol.interaction.UndoRedo.prototype.hasRedo = function() {
  * @extends {ol.source.Vector}
  * @param {Object} options ol.source.VectorOptions + grid option
  *  @param {ol.source.Vector} options.source Source
+ *  @param {boolean} options.listenChange listen changes (move) on source features to recalculate the bin, default true
  *  @param {(f: ol.Feature) => ol.geom.Point} [options.geometryFunction] Function that takes an ol.Feature as argument and returns an ol.geom.Point as feature's center.
  *  @param {(bin: ol.Feature, features: Array<ol.Feature>)} [options.flatAttributes] Function takes a bin and the features it contains and aggragate the features in the bin attributes when saving
  */
@@ -15783,15 +16750,16 @@ ol.source.BinBase = function (options) {
   this._watch === true;
   ol.source.Vector.call(this, options);
   this._origin = options.source;
+  this._listen = (options.listenChange !== false);
   // Geometry function
   this._geomFn = options.geometryFunction || ol.coordinate.getFeatureCenter || function (f) { return f.getGeometry().getFirstCoordinate(); };
   // Existing features
   this.reset();
   // Future features
-  this._origin.on("addfeature", this._onAddFeature.bind(this));
-  this._origin.on("removefeature", this._onRemoveFeature.bind(this));
-  this._origin.on("clearstart", this._onClearFeature.bind(this));
-  this._origin.on("clearend", this._onClearFeature.bind(this));
+  this._origin.on('addfeature', this._onAddFeature.bind(this));
+  this._origin.on('removefeature', this._onRemoveFeature.bind(this));
+  this._origin.on('clearstart', this._onClearFeature.bind(this));
+  this._origin.on('clearend', this._onClearFeature.bind(this));
   if (typeof (options.flatAttributes) === 'function') this._flatAttributes = options.flatAttributes;
 };
 ol.ext.inherits(ol.source.BinBase, ol.source.Vector);
@@ -15805,7 +16773,7 @@ ol.source.BinBase.prototype._onAddFeature = function (e, bin, listen) {
   var f = e.feature || e.target;
   bin = bin || this.getBinAt(this._geomFn(f), true);
   if (bin) bin.get('features').push(f);
-  if (listen!==false) f.on("change", this._bindModify);
+  if (this._listen && listen!==false) f.on('change', this._bindModify);
 };
 /**
  *  On remove feature
@@ -15833,16 +16801,18 @@ ol.source.BinBase.prototype._onRemoveFeature = function (e, bin, listen) {
   } else {
     // console.log("[ERROR:Bin] remove feature: feature doesn't exists anymore.");
   }
-  if (listen!==false) f.un("change", this._bindModify);
+  if (this._listen && listen!==false) f.un('change', this._bindModify);
 };
 /** When clearing features remove the listener
  * @private
  */
 ol.source.BinBase.prototype._onClearFeature = function (e) {
   if (e.type==='clearstart') {
-    this._origin.getFeatures().forEach(function (f) {
-      f.un("change", this._bindModify);
-    });
+    if (this._listen) {
+      this._origin.getFeatures().forEach(function (f) {
+        f.un('change', this._bindModify);
+      }.bind(this));
+    }
     this.clear();
     this._watch = false;
   } else {
@@ -15924,7 +16894,7 @@ ol.source.BinBase.prototype.reset = function () {
   }
 };
 /**
- * Get features withour circular dependencies (vs. getFeatures)
+ * Get features without circular dependencies (vs. getFeatures)
  * @return {Array<ol.Feature>}
  */
 ol.source.BinBase.prototype.getGridFeatures = function () {
@@ -15947,6 +16917,13 @@ ol.source.BinBase.prototype.getGridFeatures = function () {
  * @param {Array<ol.Features>} features the features it contains
  */
 ol.source.BinBase.prototype._flatAttributes = function(/*bin, features*/) {
+};
+/**
+ * Get the orginal source
+ * @return {ol.source.Vector}
+ */
+ol.source.BinBase.prototype.getSource = function () {
+  return this._origin;
 };
 
 /*	Copyright (c) 2015 Jean-Marc VIGLINO, 
@@ -15982,7 +16959,7 @@ ol.source.DBPedia = function(opt_options) {
     if (!options.strategy) options.strategy = ol.loadingstrategy.bbox;
   ol.source.Vector.call (this, options);
 };
-ol.inherits (ol.source.DBPedia, ol.source.Vector);
+ol.ext.inherits(ol.source.DBPedia, ol.source.Vector);
 /** Decode RDF attributes and choose to add feature to the layer
 * @param {feature} the feature
 * @param {attributes} RDF attributes
@@ -16164,7 +17141,7 @@ ol.source.DFCI = function(options) {
   if (!proj4.defs["EPSG:27572"]) proj4.defs("EPSG:27572","+proj=lcc +lat_1=46.8 +lat_0=46.8 +lon_0=0 +k_0=0.99987742 +x_0=600000 +y_0=2200000 +a=6378249.2 +b=6356515 +towgs84=-168,-60,320,0,0,0,0 +pm=paris +units=m +no_defs");
   ol.proj.proj4.register(proj4);
 };
-ol.inherits (ol.source.DFCI, ol.source.Vector);
+ol.ext.inherits(ol.source.DFCI, ol.source.Vector);
 /** Cacluate grid according extent/resolution
  */
 ol.source.DFCI.prototype._calcGrid = function (extent, resolution, projection) {
@@ -16285,7 +17262,7 @@ ol.source.Delaunay = function(options) {
   this._nodes.on('removefeature', this._onRemoveNode.bind(this));
   this.set ('epsilon', options.epsilon || .0001)
 };
-ol.inherits (ol.source.Delaunay, ol.source.Vector);
+ol.ext.inherits(ol.source.Delaunay, ol.source.Vector);
 /** Add a new triangle in the source
  * @param {Array<ol/coordinates>} pts
  */
@@ -16807,7 +17784,7 @@ ol.source.GeoImage = function(opt_options)
 	ol.source.ImageCanvas.call (this, options);	
 	this.setCrop (this.crop);
 };
-ol.inherits (ol.source.GeoImage, ol.source.ImageCanvas);
+ol.ext.inherits(ol.source.GeoImage, ol.source.ImageCanvas);
 /**
  * Get coordinate of the image center.
  * @return {ol.Coordinate} coordinate of the image center.
@@ -16931,6 +17908,54 @@ ol.source.GeoImage.prototype.setCrop = function(crop)
 	this.changed();
 };
 
+/*	Copyright (c) 2019 Jean-Marc VIGLINO,
+  released under the CeCILL-B license (French BSD license)
+  (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
+*/
+/** A source for grid binning
+ * @constructor
+ * @extends {ol.source.Vector}
+ * @param {Object} options ol.source.VectorOptions + grid option
+ *  @param {ol.source.Vector} options.source Source
+ *  @param {number} [options.size] size of the grid in meter, default 200m
+ *  @param {(f: ol.Feature) => ol.geom.Point} [options.geometryFunction] Function that takes an ol.Feature as argument and returns an ol.geom.Point as feature's center.
+ *  @param {(bin: ol.Feature, features: Array<ol.Feature>)} [options.flatAttributes] Function takes a bin and the features it contains and aggragate the features in the bin attributes when saving
+ */
+ol.source.GridBin = function (options) {
+  options = options || {};
+  ol.source.BinBase.call(this, options);
+  this.set('gridProjection', options.gridProjection || 'EPSG:4326');
+  this.set('size', options.size || 1);
+};
+ol.ext.inherits(ol.source.GridBin, ol.source.BinBase);
+/** Set grid projection
+ * @param {ol.ProjectionLike} proj
+ */
+ol.source.GridBin.prototype.setGridProjection = function (proj) {
+  this.set('gridProjection', proj);
+  this.reset();
+};
+/** Set grid size
+ * @param {number} size
+ */
+ol.source.GridBin.prototype.setSize = function (size) {
+  this.set('size', size);
+  this.reset();
+};
+/** Get the grid geometry at the coord 
+ * @param {ol.Coordinate} coord
+ * @returns {ol.geom.Polygon} 
+ * @api
+ */
+ol.source.GridBin.prototype.getGridGeomAt = function (coord) {
+  coord = ol.proj.transform (coord, this.getProjection() || 'EPSG:3857', this.get('gridProjection'));
+  var size = this.get('size');
+  var x = size * Math.floor(coord[0] / size);
+  var y = size * Math.floor(coord[1] / size);
+  var geom = new ol.geom.Polygon([[[x,y], [x+size,y], [x+size,y+size], [x,y+size], [x,y]]]);
+  return geom.transform(this.get('gridProjection'), this.getProjection() || 'EPSG:3857');
+};
+
 /*	Copyright (c) 2017-2019 Jean-Marc VIGLINO,
   released under the CeCILL-B license (French BSD license)
   (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
@@ -16944,123 +17969,25 @@ ol.source.GeoImage.prototype.setCrop = function(crop)
  *  @param {ol.coordinate} [options.origin] origin of the grid, default [0,0]
  *  @param {import('../render/HexGrid').HexagonLayout} [options.layout] grid layout, default pointy
  *  @param {(f: ol.Feature) => ol.geom.Point} [options.geometryFunction] Function that takes an ol.Feature as argument and returns an ol.geom.Point as feature's center.
+ *  @param {(bin: ol.Feature, features: Array<ol.Feature>)} [options.flatAttributes] Function takes a bin and the features it contains and aggragate the features in the bin attributes when saving
  */
 ol.source.HexBin = function (options) {
   options = options || {};
-  /** Bind function for callback
-   * 	@type {{modify: (e: ol.events.Event) => void}}
-   */
-  this._bind = { modify: this._onModifyFeature.bind(this) };
-  ol.source.Vector.call(this, options);
   /** The HexGrid
    * 	@type {ol.HexGrid}
    */
   this._hexgrid = new ol.HexGrid(options);
-  /** @type {{[key: string]: ol.Feature}} */
-  this._bin = {};
-  /** Source and origin
-   * 	@type {ol.source.Vector}
-   */
-  this._origin = options.source;
-  /** Geometry function to get a point
-   * 	@type {ol.Coordinate | ((f: ol.Feature) => ol.geom.Point)}
-   */
-  this._geomFn = options.geometryFunction || ol.coordinate.getFeatureCenter || function (f) { return f.getGeometry().getFirstCoordinate(); };
-  // Existing features
-  this.reset();
-  // Future features
-  this._origin.on("addfeature", this._onAddFeature.bind(this));
-  this._origin.on("removefeature", this._onRemoveFeature.bind(this));
+  ol.source.BinBase.call(this, options);
 };
-ol.inherits(ol.source.HexBin, ol.source.Vector);
-/**
- * On add feature
- * @param {ol.events.Event} e
- * @private
+ol.ext.inherits(ol.source.HexBin, ol.source.BinBase);
+/** Get the hexagon geometry at the coord 
+ * @param {ol.Coordinate} coord
+ * @returns {ol.geom.Polygon} 
+ * @api
  */
-ol.source.HexBin.prototype._onAddFeature = function (e) {
-  var f = e.feature || e.target;
-  var h = this._hexgrid.coord2hex(this._geomFn(f));
-  var id = h.toString();
-  if (this._bin[id]) {
-    this._bin[id].get('features').push(f);
-  } else {
-    var ex = new ol.Feature(new ol.geom.Polygon([this._hexgrid.getHexagon(h)]));
-    ex.set('features', [f]);
-    ex.set('center', new ol.geom.Point(ol.extent.getCenter(ex.getGeometry().getExtent())));
-    this._bin[id] = ex;
-    this.addFeature(ex);
-  }
-  f.on("change", this._bind.modify);
-};
-/** @typedef {Object} Bin ???
- * 	@property {string} id
- * 	@property {number} index
- * 	@property {boolean} [moved]
- */
-/**
- *  Get the hexagon of a feature
- *  @param {ol.Feature} f
- *  @return {Bin} the bin id, the index of the feature in the bin and a boolean if the feature has moved to an other bin
- */
-ol.source.HexBin.prototype.getBin = function (f) {
-  // Test if feature exists in the current hex
-  var index, id = this._hexgrid.coord2hex(this._geomFn(f)).toString();
-  if (this._bin[id]) {
-    index = this._bin[id].get('features').indexOf(f);
-    if (index > -1) return { id: id, index: index };
-  }
-  // The feature has moved > check all bins
-  for (id in this._bin) {
-    index = this._bin[id].get('features').indexOf(f);
-    if (index > -1) return { id: id, index: index, moved: true };
-  }
-  return false;
-};
-/**
- *  On remove feature
- *  @param {ol.events.Event} e
- *  @param {Bin} bin
- *  @private
- */
-ol.source.HexBin.prototype._onRemoveFeature = function (e, bin) {
-  var f = e.feature || e.target;
-  var b = bin || this.getBin(f);
-  if (b) {
-    var features = this._bin[b.id].get('features');
-    features.splice(b.index, 1);
-    if (!features.length) {
-      this.removeFeature(this._bin[b.id]);
-      delete this._bin[b.id];
-    }
-  } else {
-    console.log("[ERROR:HexBin] remove feature feature doesn't exists anymore.");
-  }
-  f.un("change", this._bind.modify);
-};
-/**
- *  A feature has been modified
- *  @param {ol.events.Event} e
- *  @private
- */
-ol.source.HexBin.prototype._onModifyFeature = function (e) {
-  var bin = this.getBin(e.target);
-  if (bin && bin.moved) {
-    // remove from the bin
-    this._onRemoveFeature(e, bin);
-    // insert in the new bin
-    this._onAddFeature(e);
-  }
-  this.changed();
-};
-/** Clear all bins and generate a new one. */
-ol.source.HexBin.prototype.reset = function () {
-  this._bin = {};
-  this.clear();
-  var features = this._origin.getFeatures();
-  for (var i = 0, f; f = features[i]; i++) {
-    this._onAddFeature({ feature: f });
-  }
+ol.source.HexBin.prototype.getGridGeomAt = function (coord) {
+  var h = this._hexgrid.coord2hex(coord);
+  return new ol.geom.Polygon([this._hexgrid.getHexagon(h)])
 };
 /**	Set the inner HexGrid size.
  * 	@param {number} newSize
@@ -17111,27 +18038,14 @@ ol.source.HexBin.prototype.getOrigin = function () {
   return this._hexgrid.getOrigin();
 }
 /**
- * Get the orginal source
- * @return {ol.source.Vector}
- */
-ol.source.HexBin.prototype.getSource = function () {
-  return this._origin;
-};
-/**
- * Get hexagons withour circular dependencies (vs. getFeatures)
+ * Get hexagons without circular dependencies (vs. getFeatures)
  * @return {Array<ol.Feature>}
  */
 ol.source.HexBin.prototype.getHexFeatures = function () {
-  var features = [];
-  this.getFeatures().forEach(function (f) {
-    var f2 = new ol.Feature(f.getGeometry().clone());
-    f2.set('nb', f.get('features').length);
-    features.push(f2);
-  });
-  return features;
+  return ol.source.BinBase.prototype.getGridFeatures.call(this);
 };
 
-  /*	Copyright (c) 2019 Jean-Marc VIGLINO,
+/*	Copyright (c) 2019 Jean-Marc VIGLINO,
   released under the CeCILL-B license (French BSD license)
   (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
 */
@@ -17154,8 +18068,16 @@ ol.ext.inherits(ol.source.InseeBin, ol.source.BinBase);
  * @param {number} size
  */
 ol.source.InseeBin.prototype.setSize = function (size) {
-  this._grid.set('size', size);
-  this.reset();
+  if (this.getSize() !== size) {
+    this._grid.set('size', size);
+    this.reset();
+  }
+};
+/** Get grid size
+ * @return {number} size
+ */
+ol.source.InseeBin.prototype.getSize = function () {
+  return this._grid.get('size');
 };
 /** Get the grid geometry at the coord 
  * @param {ol.Coordinate} coord
@@ -17202,7 +18124,7 @@ ol.source.Mapillary = function(opt_options)
 	// Client ID
 	// this.set("clientId", options.clientId);
 };
-ol.inherits (ol.source.Mapillary, ol.source.Vector);
+ol.ext.inherits(ol.source.Mapillary, ol.source.Vector);
 /** Decode wiki attributes and choose to add feature to the layer
 * @param {feature} the feature
 * @param {attributes} wiki attributes
@@ -17310,7 +18232,7 @@ ol.source.Overpass = function(options) {
   };
   this._filter = options.filter;
 };
-ol.inherits (ol.source.Overpass, ol.source.Vector);
+ol.ext.inherits(ol.source.Overpass, ol.source.Vector);
 /** Loader function used to load features.
 * @private
 */
@@ -17367,6 +18289,17 @@ ol.source.Overpass.prototype.hasFeature = function(feature) {
 	return false;
 };
 
+(function () {
+  var clear = ol.source.Vector.prototype.clear;
+  /** Overwrite ol/source/Vector clear to fire clearstart / clearend event
+   */
+  ol.source.Vector.prototype.clear = function(opt_fast) {
+    this.dispatchEvent({ type: 'clearstart' });
+    clear.call(this, opt_fast)
+    this.dispatchEvent({ type: 'clearend' });
+  };
+})();
+
 /*	Copyright (c) 2016 Jean-Marc VIGLINO, 
   released under the CeCILL-B license (French BSD license)
   (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
@@ -17395,7 +18328,7 @@ ol.source.WikiCommons = function(opt_options) {
     if (!options.strategy) options.strategy = ol.loadingstrategy.bbox;
   ol.source.Vector.call (this, options);
 };
-ol.inherits (ol.source.WikiCommons, ol.source.Vector);
+ol.ext.inherits(ol.source.WikiCommons, ol.source.Vector);
 /** Decode wiki attributes and choose to add feature to the layer
 * @param {feature} the feature
 * @param {attributes} wiki attributes
@@ -17497,7 +18430,7 @@ ol.layer.AnimatedCluster = function(opt_options)
 	this.on(['precompose','prerender'], this.animate.bind(this));
 	this.on(['postcompose','postrender'], this.postanimate.bind(this));
 };
-ol.inherits (ol.layer.AnimatedCluster, ol.layer.Vector);
+ol.ext.inherits(ol.layer.AnimatedCluster, ol.layer.Vector);
 /** save cluster features before change
  * @private
  */
@@ -17586,7 +18519,6 @@ ol.layer.AnimatedCluster.prototype.animate = function(e)
 	// Run animation
 	if (a.start) {
 		var vectorContext = e.vectorContext || ol.render.getVectorContext(e);
-		console.log(vectorContext)
 		var d = (time - a.start) / duration;
 		// Animation ends
 		if (d > 1.0) 
@@ -17835,9 +18767,13 @@ ol.render3D.prototype.onPostcompose_ = function(e)
 /** Set layer to render 3D
 */
 ol.render3D.prototype.setLayer = function(l) {
-	if (this._listener) ol.Observable.unByKey(this._listener);
+	if (this._listener) {
+		this._listener.forEach( function(l) { 
+			ol.Observable.unByKey(l); 
+		});
+	}
 	this.layer_ = l;
-	this._listener = l.on ('postcompose', this.onPostcompose_.bind(this));
+	this._listener = l.on (['postcompose', 'postrender'], this.onPostcompose_.bind(this));
 }
 /** Create a function that return height of a feature
 *	@param {function|string|number} h a height function or a popertie name or a fixed value
@@ -18048,7 +18984,7 @@ ol.Overlay.Popup = function (options) {
   // Content
   this.content = ol.ext.element.create("div", { 
     html: options.html || '',
-    className: "content",
+    className: "ol-popup-content",
     parent: element
   });
   // Closebox
@@ -18309,7 +19245,7 @@ ol.Overlay.Magnify = function (options) {
 	this.set("active", true);
 	this.on("propertychange", this.setView_.bind(this));
 };
-ol.inherits(ol.Overlay.Magnify, ol.Overlay);
+ol.ext.inherits(ol.Overlay.Magnify, ol.Overlay);
 /**
  * Set the map instance the overlay is associated with.
  * @param {ol.Map} map The map instance.
@@ -18483,27 +19419,31 @@ ol.Overlay.Placemark.prototype.setRadius = function(size) {
   (http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt).
 */
 /**
-* A popup element to be displayed on a feature.
-*
-* @constructor
-* @extends {ol.Overlay.Popup}
-* @param {} options Extend Popup options 
-*	@param {String} options.popupClass the a class of the overlay to style the popup.
-*	@param {bool} options.closeBox popup has a close box, default false.
-*	@param {function|undefined} options.onclose: callback function when popup is closed
-*	@param {function|undefined} options.onshow callback function when popup is shown
-*	@param {Number|Array<number>} options.offsetBox an offset box
-*	@param {ol.OverlayPositioning | string | undefined} options.positionning 
-*		the 'auto' positioning var the popup choose its positioning to stay on the map.
-* @param {*} options.template A template with a list of properties to use in the popup
-* @param boolean} options.canFix Enable popup to be fixed 
-* @api stable
-*/
+ * A popup element to be displayed on a feature.
+ *
+ * @constructor
+ * @extends {ol.Overlay.Popup}
+ * @param {} options Extend Popup options 
+ *  @param {String} options.popupClass the a class of the overlay to style the popup.
+ *  @param {bool} options.closeBox popup has a close box, default false.
+ *  @param {function|undefined} options.onclose: callback function when popup is closed
+ *  @param {function|undefined} options.onshow callback function when popup is shown
+ *  @param {Number|Array<number>} options.offsetBox an offset box
+ *  @param {ol.OverlayPositioning | string | undefined} options.positionning 
+ *    the 'auto' positioning var the popup choose its positioning to stay on the map.
+ *  @param {*} options.template A template with a list of properties to use in the popup
+ *  @param {boolean} options.canFix Enable popup to be fixed, default false
+ *  @param {boolean} options.showImage display image url as image, default false
+ *  @param {boolean} options.maxChar max char to display in a cell, default 200
+ *  @api stable
+ */
 ol.Overlay.PopupFeature = function (options) {
   options = options || {};
   ol.Overlay.Popup.call(this, options);
   this.setTemplate(options.template);
   this.set('canFix', options.canFix)
+  this.set('showImage', options.showImage)
+  this.set('maxChar', options.maxChar||200)
   // Bind with a select interaction
   if (options.select && (typeof options.select.on ==='function')) {
     this._select = options.select;
@@ -18512,13 +19452,13 @@ ol.Overlay.PopupFeature = function (options) {
     }.bind(this));
   }
 };
-ol.inherits(ol.Overlay.PopupFeature, ol.Overlay.Popup);
+ol.ext.inherits(ol.Overlay.PopupFeature, ol.Overlay.Popup);
 /** Set the template
  * @param {*} template A template with a list of properties to use in the popup
  */
 ol.Overlay.PopupFeature.prototype.setTemplate = function(template) {
-  this._template = template || {};
-  if (this._template.attributes instanceof Array) {
+  this._template = template;
+  if (this._template && this._template.attributes instanceof Array) {
     var att = {};
     this._template.attributes.forEach(function (a) {
       att[a] = true;
@@ -18539,7 +19479,7 @@ ol.Overlay.PopupFeature.prototype.show = function(coordinate, features) {
   var html = this._getHtml(features[0]);
   this.hide();
   if (html) {
-    if (!coordinate) {
+    if (!coordinate || features[0].getGeometry().getType()==='Point') {
       coordinate = features[0].getGeometry().getFirstCoordinate();
     }
     ol.Overlay.Popup.prototype.show.call(this, coordinate, html);
@@ -18557,25 +19497,47 @@ ol.Overlay.PopupFeature.prototype._getHtml = function(feature) {
         this.element.classList.toggle('ol-fixed');
       }.bind(this));
   }
-  if (this._template.title) {
+  var template = this._template;
+  // calculate template
+  if (!template || !template.attributes) {
+    template = template || {};
+    template. attributes = {};
+    for (var i in feature.getProperties()) if (i!='geometry') {
+      template.attributes[i] = i;
+    }
+  }
+  // Display title
+  if (template.title) {
     var title;
-    if (typeof this._template.title === 'function') {
-      title = this._template.title(feature);
+    if (typeof template.title === 'function') {
+      title = template.title(feature);
     } else {
-      title = feature.get(this._template.title);
+      title = feature.get(template.title);
     }
     ol.ext.element.create('H1', { html:title, parent: html });
   }
-  if (this._template.attributes) {
+  // Display properties in a table
+  if (template.attributes) {
     var tr, table = ol.ext.element.create('TABLE', { parent: html });
-    var atts = this._template.attributes;
+    var atts = template.attributes;
     for (var att in atts) {
       var a = atts[att];
       tr = ol.ext.element.create('TR', { parent: table });
       ol.ext.element.create('TD', { html: a.title || att, parent: tr });
-      var val = feature.get(att);
+      var content, val = feature.get(att);
+      // Show image or content
+      if (this.get('showImage') && /(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|gif|png)/.test(val)) {
+        content = ol.ext.element.create('IMG',{
+          src: val
+        });
+      } else {
+        content = (a.before||'') + (a.format ? a.format(val) : val) + (a.after||'');
+        var maxc = this.get('maxChar') || 200;
+        if (typeof(content) === 'string' && content.length>maxc) content = content.substr(0,maxc)+'[...]';
+      }
+      // Add value
       ol.ext.element.create('TD', { 
-        html: (a.before||'') + (a.format ? a.format(val) : val) + (a.after||''), 
+        html: content, 
         parent: tr 
       });
     }
@@ -18583,7 +19545,15 @@ ol.Overlay.PopupFeature.prototype._getHtml = function(feature) {
   // Zoom button
   ol.ext.element.create('BUTTON', { className: 'ol-zoombt', parent: html })
     .addEventListener('click', function() {
-      this.getMap().getView().fit(feature.getGeometry().getExtent(), { duration:1000 });
+      if (feature.getGeometry().getType()==='Point') {
+        this.getMap().getView().animate({
+          center: feature.getGeometry().getFirstCoordinate(),
+          zoom:  Math.max(this.getMap().getView().getZoom(), 18)
+        });
+      } else  {
+        var ext = feature.getGeometry().getExtent();
+        this.getMap().getView().fit(ext, { duration:1000 });
+      }
     }.bind(this));
   // Counter
   if (this._features.length > 1) {
@@ -18663,7 +19633,7 @@ ol.Overlay.Tooltip = function (options) {
     }.bind(this)
   });
 };
-ol.inherits(ol.Overlay.Tooltip, ol.Overlay.Popup);
+ol.ext.inherits(ol.Overlay.Tooltip, ol.Overlay.Popup);
 /**
  * Set the map instance the control is associated with
  * and add its controls associated to this map.
@@ -19036,7 +20006,7 @@ ol.graph.Dijskra = function (options) {
   ol.Object.call (this);
   this.set ('epsilon', options.epsilon || 1E-6);
 };
-ol.inherits(ol.graph.Dijskra, ol.Object);
+ol.ext.inherits(ol.graph.Dijskra, ol.Object);
 /** Get the weighting of the edge, for example a speed factor
  * The function returns a value beetween ]0,1]
  * - 1   = no weighting
@@ -19872,7 +20842,7 @@ ol.HexGrid = function (options)
 	this.origin_ = options.origin || [0,0];
 	this.layout_ = this.layout[options.layout] || this.layout.pointy;
 };
-ol.inherits (ol.HexGrid, ol.Object);
+ol.ext.inherits(ol.HexGrid, ol.Object);
 /** Layout
 */
 ol.HexGrid.prototype.layout =
@@ -20134,8 +21104,8 @@ ol.HexGrid.prototype.cube_neighbors = function (c, d)
 */
 /**
  * French INSEE grids
- * @classdesc a class to compute French INSEE grids, ie. fix area (200x200m) square grid, based appon EPSG:3035
- * @see https://www.capadresse.com/en/solutions/rental-data-grid
+ * @classdesc a class to compute French INSEE grids, ie. fix area (200x200m) square grid, 
+ * based appon EPSG:3035
  *
  * @requires proj4
  * @constructor 
@@ -20424,7 +21394,7 @@ ol.style.Chart = function(opt_options)
 	}
 	this.renderChart_();
 };
-ol.inherits(ol.style.Chart, ol.style.RegularShape);
+ol.ext.inherits(ol.style.Chart, ol.style.RegularShape);
 /** Default color set: classic, dark, pale, pastel, neon
 */
 ol.style.Chart.colors =
@@ -20755,7 +21725,7 @@ ol.style.FillPattern = function(options)
 	}
 	ol.style.Fill.call (this, { color: pattern });
 };
-ol.inherits(ol.style.FillPattern, ol.style.Fill);
+ol.ext.inherits(ol.style.FillPattern, ol.style.Fill);
 /**
  * Clones the style. 
  * @return {ol.style.FillPattern}
@@ -21224,7 +22194,7 @@ ol.style.FlowLine = function(options) {
   // LineCap
   this.setLineCap(options.lineCap);
 };
-ol.inherits(ol.style.FlowLine, ol.style.Style);
+ol.ext.inherits(ol.style.FlowLine, ol.style.Style);
 /** Set the initial width
  * @param {number} width width, default 0
  */
@@ -21424,7 +22394,7 @@ ol.style.FontSymbol = function(options)
 	this.glyph_ = this.getGlyph(options.glyph) || "";
 	this.renderMarker_();
 };
-ol.inherits(ol.style.FontSymbol, ol.style.RegularShape);
+ol.ext.inherits(ol.style.FontSymbol, ol.style.RegularShape);
 /** Cool stuff to get the image symbol for a style
 */
 ol.style.Image.prototype.getImagePNG = function()
@@ -21815,7 +22785,7 @@ ol.style.Photo = function(options)
 	if (typeof(options.rotation)=='number') this.setRotation(options.rotation);
 	this.renderPhoto_();
 };
-ol.inherits(ol.style.Photo, ol.style.RegularShape);
+ol.ext.inherits(ol.style.Photo, ol.style.RegularShape);
 /**
  * Clones the style. 
  * @return {ol.style.Photo}
@@ -22143,7 +23113,7 @@ ol.style.TextPath = function(options)
 	this.textOverflow_ = typeof(options.textOverflow)!="undefined" ?  options.textOverflow : "visible";
 	this.minWidth_ = options.minWidth || 0;
 }
-ol.inherits(ol.style.TextPath, ol.style.Text);
+ol.ext.inherits(ol.style.TextPath, ol.style.Text);
 ol.style.TextPath.prototype.getTextOverflow = function()
 {	return this.textOverflow_; 
 };
@@ -22280,7 +23250,7 @@ ol.style.Shadow = function(options)
 	this.offset_ = [options.offsetX ? options.offsetX : 0, options.offsetY ? options.offsetY : 0];
 	this.renderShadow_();
 };
-ol.inherits(ol.style.Shadow, ol.style.RegularShape);
+ol.ext.inherits(ol.style.Shadow, ol.style.RegularShape);
 /**
  * Clones the style. 
  * @return {ol.style.Shadow}
@@ -22475,7 +23445,7 @@ ol.style.StrokePattern = function(options)
 	options.color = pattern;
 	ol.style.Stroke.call (this, options);
 };
-ol.inherits(ol.style.StrokePattern, ol.style.Stroke);
+ol.ext.inherits(ol.style.StrokePattern, ol.style.Stroke);
 /**
  * Clones the style. 
  * @return {ol.style.StrokePattern}
