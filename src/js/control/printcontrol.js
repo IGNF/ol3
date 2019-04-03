@@ -13,7 +13,7 @@
  *	@param {portrait|landscape} options.orientation
 *	@param {bool} options.extended extended mode
 */
-ol.control.Print = function(options) {
+ol.control.PrintPage = function(options) {
   options = options || {};
   var self = this;
 
@@ -45,14 +45,16 @@ ol.control.Print = function(options) {
   this.set('name', options.name);
   this.setPaperSize(options.paperSize||'a4');
 
+  this.titles = options.titles;
+
   this.page2 = $('<div>').addClass('ol-print-page').appendTo('body');
 };
-ol.inherits(ol.control.Print, ol.control.Control);
+ol.inherits(ol.control.PrintPage, ol.control.Control);
 
 /** Test if copy is OK
 * @param {function} cback callback with cbak
 */
-ol.control.Print.prototype.testCORS = function(cback) {
+ol.control.PrintPage.prototype.testCORS = function(cback) {
   this.getMap().once('precompose', function(e) {
     try {
       var canvas = e.context.canvas;
@@ -68,10 +70,13 @@ ol.control.Print.prototype.testCORS = function(cback) {
 /** Show preview
 *	@param {bool} false to close the preview, default true
 */
-ol.control.Print.prototype.preview = function(b, extended) {	// Set the control bar
+ol.control.PrintPage.prototype.preview = function(b, extended) {	// Set the control bar
   this.setControlBar_();
   var legendCtrl = this.getControl_(ol.control.Legend);
-  var titleCtrl = this.getControl_(ol.control.CanvasTitle);
+  var titleCtrl = this.titles[0];
+  this.titles.forEach(function(c) {
+    c.setVisible(true);
+  });
 
   var map = this.getMap();
   if (b===false) {
@@ -84,7 +89,9 @@ ol.control.Print.prototype.preview = function(b, extended) {	// Set the control 
         legendCtrl.setVisible(this.saveCtrl_.legend);
         legendCtrl.drawInMap(this.saveCtrl_.inMap);
       }
-      if (titleCtrl) titleCtrl.setVisible(this.saveCtrl_.title);
+      this.titles.forEach(function(c) {
+        c.setVisible(false);
+      });
       map.updateSize();
       this.dispatchEvent({type: 'close'});
     }
@@ -100,7 +107,6 @@ ol.control.Print.prototype.preview = function(b, extended) {	// Set the control 
       this.saveCtrl_.inMap = legendCtrl.inMap();
       legendCtrl.drawInMap(true);
     }
-    if (titleCtrl) this.saveCtrl_.title = titleCtrl.getVisible();
     if ((typeof(extended)=='undefined' && this.get('extended')) || extended) $('body').addClass('ol-extended');
     $(map.getViewport()).parent().addClass('olmap-print-preview');
     // map.updateSize();
@@ -112,7 +118,7 @@ ol.control.Print.prototype.preview = function(b, extended) {	// Set the control 
 /** Set visiblity
  * @param {boolean} b
  */
-ol.control.Print.prototype.setVisible = function(b) {
+ol.control.PrintPage.prototype.setVisible = function(b) {
   if (b) ol.ext.element.show(this.element);
   else ol.ext.element.hide(this.element);
 };
@@ -120,11 +126,11 @@ ol.control.Print.prototype.setVisible = function(b) {
 /** Show preview
 *	@param {bool} false to close the preview, default true
 */
-ol.control.Print.prototype.setControlBar_ = function() {
+ol.control.PrintPage.prototype.setControlBar_ = function() {
   var self = this;
 
   // Map controls to modify
-  var titleCtrl = this.getControl_(ol.control.CanvasTitle);
+  var titleCtrl = this.titles[0];
   var legendCtrl = this.getControl_(ol.control.Legend);
   var bar = this.bar;
 
@@ -246,16 +252,8 @@ ol.control.Print.prototype.setControlBar_ = function() {
     var bdiv;
     // Title
     bdiv = $('<div>').addClass('title extended').appendTo(bar);
-    if (titleCtrl) {
-      $('<input type=\'checkbox\'>')
-        .on('change', function() {
-          titleCtrl.setVisible($(this).prop('checked'));
-        })
-        .appendTo(bdiv);
-    }
-    $('<label>').text('Afficher le titre de la carte').click(function() {
-      $(this).prev().click();
-    }).appendTo(bdiv);
+
+    $('<label>').text('Titre de la carte').appendTo(bdiv);
     $('<input type=\'text\'>')
       .attr('placeholder', 'sans titre...')
       .on('keyup', function() {
@@ -315,7 +313,7 @@ ol.control.Print.prototype.setControlBar_ = function() {
 
 /** Get control by class
 */
-ol.control.Print.prototype.getControl_ = function(className) {
+ol.control.PrintPage.prototype.getControl_ = function(className) {
   var c = null;
   if (className) {
       this.getMap().getControls().forEach(function(ct) {
@@ -327,7 +325,7 @@ ol.control.Print.prototype.getControl_ = function(className) {
 
 /** saveCanvas
 */
-ol.control.Print.prototype.saveCanvas_ = function(canvas, options) {
+ol.control.PrintPage.prototype.saveCanvas_ = function(canvas, options) {
   if (!options) options={};
   var format = options.format || 'jpeg';
   var img;
@@ -415,7 +413,7 @@ ol.control.Print.prototype.saveCanvas_ = function(canvas, options) {
 *		- format {jpeg|gif|png|pdf}, default jpeg
 *		- quality {number}
 */
-ol.control.Print.prototype.save = function(options) {
+ol.control.PrintPage.prototype.save = function(options) {
   var self = this;
   if (!options) options = {format: 'jpeg'};
   // Clear background
@@ -437,7 +435,7 @@ ol.control.Print.prototype.save = function(options) {
 
 /** Print document
 */
-ol.control.Print.prototype.print = function() {
+ol.control.PrintPage.prototype.print = function() {
   this.dispatchEvent({type: 'print'});
   window.print();
 };
@@ -445,7 +443,7 @@ ol.control.Print.prototype.print = function() {
 /** Set print orientation
 *	@param {number} margin size
 */
-ol.control.Print.prototype.setMargin = function(margin) {
+ol.control.PrintPage.prototype.setMargin = function(margin) {
   this.margin_ = typeof(margin)=='number' ? margin : 10;
   if ($('body').hasClass('ol-print-preview')) {
       this.calcPaperSize_();
@@ -455,14 +453,14 @@ ol.control.Print.prototype.setMargin = function(margin) {
 /** Set print orientation
 *	@param {number} margin size
 */
-ol.control.Print.prototype.getMargin = function() {
+ol.control.PrintPage.prototype.getMargin = function() {
   return this.margin_ || 0;
 };
 
 /** Set print orientation
 *	@param {portrait|landscape}
 */
-ol.control.Print.prototype.setOrientation = function(ori) {
+ol.control.PrintPage.prototype.setOrientation = function(ori) {
   if (ori=='landscape') {
       $('body').removeClass('portrait');
       $('body').addClass('landscape');
@@ -479,7 +477,7 @@ ol.control.Print.prototype.setOrientation = function(ori) {
 /** Get the current orientation
 *	@return {portrait|landscape}
 */
-ol.control.Print.prototype.getOrientation = function() {
+ol.control.PrintPage.prototype.getOrientation = function() {
   if ($('body').hasClass('landscape')) return 'landscape';
   $('body').addClass('portrait');
   return 'portrait';
@@ -488,13 +486,13 @@ ol.control.Print.prototype.getOrientation = function() {
 /** Get the user option div to add new components (only in extended mode)
 *	@return {HTMLElement} a DOM element
 */
-ol.control.Print.prototype.getUserDiv = function() {
+ol.control.PrintPage.prototype.getUserDiv = function() {
   return this.userOptionsDiv_.get(0);
 };
 
 /** List of paper size (mm)
 */
-ol.control.Print.prototype.paperSize =
+ol.control.PrintPage.prototype.paperSize =
 {a4: [210, 297],
   a5: [148, 210],
   b4: [257, 364],
@@ -504,7 +502,7 @@ ol.control.Print.prototype.paperSize =
 /** Set Paper size
 *	@param {a3|a4|a5|b4|b5}
 */
-ol.control.Print.prototype.setPaperSize = function(psize) {
+ol.control.PrintPage.prototype.setPaperSize = function(psize) {
   if (this.paperSize[psize]) {
       this.paperSize_ = psize;
   }
@@ -517,7 +515,7 @@ ol.control.Print.prototype.setPaperSize = function(psize) {
 *	@param {bool} true to get an array of size
 *	@return {a3|a4|a5|b4|b5|ol.size} paper size
 */
-ol.control.Print.prototype.getPaperSize = function(mm) {
+ol.control.PrintPage.prototype.getPaperSize = function(mm) {
   if (mm) {
       var ori = this.getOrientation();
       var size = this.paperSize[this.paperSize_];
@@ -526,7 +524,7 @@ ol.control.Print.prototype.getPaperSize = function(mm) {
   } else return this.paperSize_;
 };
 
-ol.control.Print.prototype.calcPaperSize_ = function() {
+ol.control.PrintPage.prototype.calcPaperSize_ = function() {
   if (!this.getMap()) return;
 
   var ori = this.getOrientation();
@@ -562,7 +560,7 @@ ol.control.Print.prototype.calcPaperSize_ = function() {
 
 /**
 */
-ol.control.Print.prototype.setMap = function(map) {
+ol.control.PrintPage.prototype.setMap = function(map) {
   ol.control.Control.prototype.setMap.call(this, map);
 };
 
