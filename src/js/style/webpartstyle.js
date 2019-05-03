@@ -293,14 +293,33 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
             if (txt) txt.setText(fstyle.label||'');
         } else {
             var libImage = (style && style.name && featureType.symbo_attribute);
-            var st = [	
-                new ol.style.Style (
-                {	text: ol.layer.Vector.Webpart.Style.Text (fstyle),
-                    image: ol.layer.Vector.Webpart.Style.Image (fstyle, libImage),
-                    fill: ol.layer.Vector.Webpart.Style.Fill (fstyle),
-                    stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle)
-                })
+            
+            var textStyleConfig = {
+                text: ol.layer.Vector.Webpart.Style.Text (fstyle)
+            };
+            if (fstyle.label)	{
+                /*Pour les multipolygones, on met le label sur le polygone dont
+                la surface est la plus grande */
+                if (feature.getGeometry().getType() === 'MultiPolygon') {
+                    textStyleConfig['geometry'] = function(feature) {
+                        var polygons = feature.getGeometry().getPolygons();
+                        polygons.sort(function (a, b) { return a.getArea()- b.getArea() });
+                        return polygons[polygons.length - 1].getInteriorPoint();
+                    };
+                }
+            }
+            var textStyle = new ol.style.Style(textStyleConfig);
+
+            var styleConfig = {
+                image: ol.layer.Vector.Webpart.Style.Image (fstyle, libImage),
+                fill: ol.layer.Vector.Webpart.Style.Fill (fstyle),
+                stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle)
+            };
+            var st = [
+                new ol.style.Style (styleConfig),
+                textStyle
             ];
+                        
             // If img don't load > draw circle
             if (fstyle.externalGraphic) {
                 var img = st[0];
