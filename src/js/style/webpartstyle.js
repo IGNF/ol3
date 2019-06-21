@@ -1,4 +1,4 @@
-﻿/** 
+﻿/**
 * @namespace ol.layer.Vector.Webpart.Style
 */
 ol.layer.Vector.Webpart.Style = {};
@@ -18,7 +18,7 @@ ol.layer.Vector.Webpart.Style.formatProperties = function (format, feature)
 };
 
 /** Format Style with pattern ${attr}
-*	@param {style} 
+*	@param {style}
 *	@param {ol.Feature} feature width properties
 */
 ol.layer.Vector.Webpart.Style.formatFeatureStyle = function (fstyle, feature){
@@ -152,12 +152,12 @@ ol.layer.Vector.Webpart.Style.Image = function (fstyle, libImage)
     } else {
         var radius = Number(fstyle.pointRadius) || 5;
         switch (fstyle.graphicName)
-        {	case "cross": 
+        {	case "cross":
             case "star":
             case "square":
             case "triangle":
             case "x":
-                var graphic = 
+                var graphic =
                     {	cross: [ 4, radius, 0, 0 ],
                         square: [ 4, radius, undefined, Math.PI/4 ],
                         triangle: [ 3, radius, undefined, 0 ],
@@ -223,11 +223,13 @@ ol.layer.Vector.Webpart.Style.cacheStyle = {};
 * @return { ol.style.function | undefined }
 */
 ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
+    // MangoParser
+    var parser = window.mongoparser;
     // Sens de circulation
     var directionStyle = new ol.style.Style ({
         text: ol.layer.Vector.Webpart.Style.Text ({
-            label: '\u203A', 
-            fontWeight: "bold", 
+            label: '\u203A',
+            fontWeight: "bold",
             fontSize: '25'
         })
     });
@@ -248,33 +250,11 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
                         fi.condition = JSON.parse(fi.condition);
                     } catch(e) {}
                 }
-                for (var k=0, cond; cond = fi.condition[k]; k++) {
-                    var val = feature.get(cond.field);
-                    switch (cond.operator) {
-                        case '>':
-                            test = test && (val > cond.value);
-                            break;
-                        case '>=':
-                            test = test && (val >= cond.value);
-                            break;
-                        case '<':
-                            test = test && (val < cond.value);
-                            break;
-                        case '<=':
-                            test = test && (val <= cond.value);
-                            break;
-                        case '==':
-                            test = test && (val == cond.value);
-                            break;
-                        case '!=':
-                            test = test && (val != cond.value);
-                            break;
-                        default: 
-                            test = false; 
-                            break;
-                    }
-                }
-                if (test) {
+                // Copy les valeurs de feature
+                var obj = Object.assign({}, feature.values_);
+                // Enleve la geometry car trop long pour mangoparser
+                delete obj[feature.geometryName_];
+                if (parser.parse(fi.condition).matches(obj)) {
                     style = fi;
                     break;
                 }
@@ -293,7 +273,7 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
             if (txt) txt.setText(fstyle.label||'');
         } else {
             var libImage = (style && style.name && featureType.symbo_attribute);
-            
+
             var textStyleConfig = {
                 text: ol.layer.Vector.Webpart.Style.Text (fstyle)
             };
@@ -319,7 +299,7 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
                 new ol.style.Style (styleConfig),
                 textStyle
             ];
-                        
+
             // If img don't load > draw circle
             if (fstyle.externalGraphic) {
                 var img = st[0];
@@ -337,13 +317,13 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
         }
         // Ajouter le sens de circulation
         var directionField = featureType.attributes[featureType.style.directionField];
-        if (res < 2 
-            && feature 
-            && directionField 
+        if (res < 2
+            && feature
+            && directionField
             && directionField.type==='Choice') {
             var direct = directionField.listOfValues[1];
             var inverse = directionField.listOfValues[0]
-            function lrot(sens, geom) 
+            function lrot(sens, geom)
             {	if (sens != direct && sens != inverse) return 0;
                 if (geom.getType()==='MultiLineString') geom = geom.getLineString(0);
                 var geo = geom.getCoordinates();
@@ -357,11 +337,11 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
                 if (sens == direct) return -Math.atan2(y,x);
                 else return Math.PI-Math.atan2(y,x);
             };
-        
+
             var sens = feature.get('sens');
             if (sens===direct || sens===inverse) {
                 directionStyle.getText().setRotation(lrot(sens, feature.getGeometry()));
-                style = style.concat([	
+                style = style.concat([
                     directionStyle
                 ]);
             }
@@ -378,18 +358,18 @@ ol.layer.Vector.Webpart.Style.Default = ol.layer.Vector.Webpart.Style.getFeature
 /** Objets mort-vivant
 */
 ol.layer.Vector.Webpart.Style.zombie = function(options)
-{	
-    function getColor(feature, opacity) 
+{
+    function getColor(feature, opacity)
     {	return ( feature.get(feature.getDetruitField()) ? [255,0,0,opacity] : [0,0,255,opacity] );
     };
 
     return function (feature, res)
-    {	var fstyle = {						
+    {	var fstyle = {
             strokeColor: getColor(feature, 1),
             strokeWidth: 2,
             fillColor: getColor(feature, 0.5)
-        }	
-        return [	
+        }
+        return [
             new ol.style.Style (
             {	text: ol.layer.Vector.Webpart.Style.Text (fstyle),
                 image: ol.layer.Vector.Webpart.Style.Image (fstyle),
@@ -405,12 +385,12 @@ ol.layer.Vector.Webpart.Style.zombie = function(options)
 ol.layer.Vector.Webpart.Style.detruit = function(options)
 {	return function (feature, res)
     {	if (!feature.get(feature.getDetruitField())) return [];
-        var fstyle = {						
+        var fstyle = {
             strokeColor: [255,0,0,1],
             strokeWidth: 2,
             strokeColor: [255,0,0,0.5]
-        }	
-        return [	
+        }
+        return [
             new ol.style.Style (
             {	text: ol.layer.Vector.Webpart.Style.Text (fstyle),
                 image: ol.layer.Vector.Webpart.Style.Image (fstyle),
@@ -426,12 +406,12 @@ ol.layer.Vector.Webpart.Style.detruit = function(options)
 ol.layer.Vector.Webpart.Style.vivant = function(options)
 {	return function (feature, res)
     {	if (feature.get(feature.getDetruitField())) return [];
-        var fstyle = {						
+        var fstyle = {
             strokeColor: [0,0,255,1],
             strokeWidth: 2,
             strokeColor: [0,0,255,0.5]
-        }	
-        return [	
+        }
+        return [
             new ol.style.Style (
             {	text: ol.layer.Vector.Webpart.Style.Text (fstyle),
                 image: ol.layer.Vector.Webpart.Style.Image (fstyle),
@@ -523,35 +503,35 @@ ol.layer.Vector.Webpart.Style.troncon_de_route = function(options)
 {	if (!options) options={};
 
     function getColor(feature)
-    {	if (options.vert && feature.get('itineraire_vert')=="Appartient") 
+    {	if (options.vert && feature.get('itineraire_vert')=="Appartient")
         {	if (feature.get('position_par_rapport_au_sol') != "0") return "#006400";
             else return "green";
         }
         if (!feature.get('importance')) return "magenta";
         if (feature.get('position_par_rapport_au_sol') != "0")
         {	switch(feature.get('importance'))
-            {	case "1": return "#B11BB1"; 
-                case "2": return "#B11B1B"; 
-                case "3": return "#D97700"; 
-                case "4": return "#FFE100"; 
-                case "5": return "#CCCCCC"; 
+            {	case "1": return "#B11BB1";
+                case "2": return "#B11B1B";
+                case "3": return "#D97700";
+                case "4": return "#FFE100";
+                case "5": return "#CCCCCC";
                 default: return "#D3D3D3";
             }
         }
-        else 
+        else
         {	switch(feature.get('importance'))
-            {	case "1": return "#FF00FF"; 
-                case "2": return "red"; 
-                case "3": return "#FFA500"; 
-                case "4": return "yellow"; 
-                case "5": return "white"; 
+            {	case "1": return "#FF00FF";
+                case "2": return "red";
+                case "3": return "#FFA500";
+                case "4": return "yellow";
+                case "5": return "white";
                 default: return "#D3D3D3";
             }
         }
         return "#808080";
     };
 
-    function getWidth(feature) 
+    function getWidth(feature)
     {	return Math.max ( Number(feature.get('largeur_de_chaussee'))||2 , 2 );
         /*
         if (feature.get('largeur_de_chaussee')) return Math.max (Number(feature.get('largeur_de_chaussee')),2);
@@ -559,7 +539,7 @@ ol.layer.Vector.Webpart.Style.troncon_de_route = function(options)
         */
     };
 
-    function getZindex(feature) 
+    function getZindex(feature)
     {	if (!feature.get('position_par_rapport_au_sol')) return 100;
         var pos = Number(feature.get('position_par_rapport_au_sol'));
         if (pos>0) return 10 + pos*10 - (Number(feature.get('importance')) || 10);
@@ -569,11 +549,11 @@ ol.layer.Vector.Webpart.Style.troncon_de_route = function(options)
     };
 
     return function (feature, res)
-    {	var fstyle = {						
+    {	var fstyle = {
             strokeColor: getColor(feature),
             strokeWidth: getWidth(feature)
-        }	
-        return [	
+        }
+        return [
             new ol.style.Style (
             {	stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle),
                 zIndex: getZindex(feature)-100
@@ -586,18 +566,18 @@ ol.layer.Vector.Webpart.Style.troncon_de_route = function(options)
 *	@param {Object} attribute (attribut a tester), glyph (lettre), size, direct (valeur), inverse (valeur)
 */
 ol.layer.Vector.Webpart.Style.sens = function(options)
-{	if (!options) options = 
-    {	attribute:'sens_de_circulation', 
+{	if (!options) options =
+    {	attribute:'sens_de_circulation',
         glyph: '\u203A', // '>',
         size: "20px",
-        direct:'Sens direct', 
-        inverse:'Sens inverse' 
+        direct:'Sens direct',
+        inverse:'Sens inverse'
     };
     function fleche(sens)
     {	if (sens == options.direct || sens == options.inverse) return options.glyph;
         return '';
     };
-    function lrot(sens, geom) 
+    function lrot(sens, geom)
     {	if (sens != options.direct && sens != options.inverse) return 0;
         if (geom.getType()==='MultiLineString') geom = geom.getLineString(0);
         var geo = geom.getCoordinates();
@@ -614,13 +594,13 @@ ol.layer.Vector.Webpart.Style.sens = function(options)
 
     return function (feature, res)
     {	var sens = feature.get(options.attribute)
-        var fstyle = 
-        {	label: fleche (sens), 
-            fontWeight: "bold", 
-            fontSize: options.size, 
+        var fstyle =
+        {	label: fleche (sens),
+            fontWeight: "bold",
+            fontSize: options.size,
             labelRotation: lrot(sens, feature.getGeometry())
         }
-        return [	
+        return [
             new ol.style.Style (
             {	text: ol.layer.Vector.Webpart.Style.Text (fstyle)
             })
@@ -632,8 +612,8 @@ ol.layer.Vector.Webpart.Style.sens = function(options)
 *	@param {Object} attribute (attribut a afficher), weight, size, minResolution, maxResolution
 */
 ol.layer.Vector.Webpart.Style.toponyme = function(options)
-{	if (!options) options = 
-    {	attribute:'nom', 
+{	if (!options) options =
+    {	attribute:'nom',
         size: "12px"
     };
     if (!options.minResolution) options.minResolution = 0;
@@ -641,12 +621,12 @@ ol.layer.Vector.Webpart.Style.toponyme = function(options)
 
     return function (feature, res)
     {	if (res > options.maxResolution || res < options.minResolution) return [];
-        var fstyle = 
-        {	label: feature.get(options.attribute), 
-            fontWeight: options.weight, 
+        var fstyle =
+        {	label: feature.get(options.attribute),
+            fontWeight: options.weight,
             fontSize: options.size
         }
-        return [	
+        return [
             new ol.style.Style (
             {	text: ol.layer.Vector.Webpart.Style.Text (fstyle)
             })
@@ -655,16 +635,16 @@ ol.layer.Vector.Webpart.Style.toponyme = function(options)
 };
 
 /** Affichage de la couche batiment
-*	@param {Object} symbol (affiche un symbole Fontawesome), color (couleur du symbol) 
+*	@param {Object} symbol (affiche un symbole Fontawesome), color (couleur du symbol)
 */
 ol.layer.Vector.Webpart.Style.batiment = function(options)
 {	if (!options) options = {};
 
-    function getColor(feature, opacity) 
+    function getColor(feature, opacity)
     {	switch (feature.get('nature'))
         {	case "Industriel, agricole ou commercial": return [51, 102, 153,opacity];
             case "Remarquable": return [0,192,0,opacity];
-            default: 
+            default:
                 switch ( feature.get('fonction') )
                 {	case "Indifférenciée": return [128,128,128,opacity];
                     case "Sportive": return [51,153,102,opacity];
@@ -674,7 +654,7 @@ ol.layer.Vector.Webpart.Style.batiment = function(options)
         }
     };
 
-    function getSymbol(feature, opacity) 
+    function getSymbol(feature, opacity)
     {	switch ( feature.get('fonction') )
         {	case "Commerciale": return "\uf217";
             case "Sportive": return "\uf1e3";
@@ -684,14 +664,14 @@ ol.layer.Vector.Webpart.Style.batiment = function(options)
             default: return null;
         }
     };
-    
+
     return function (feature, res)
     {	if (feature.get(feature.getDetruitField())) return [];
-        var fstyle = 
+        var fstyle =
         {	strokeColor: getColor(feature, 1),
             fillColor: getColor(feature, 0.5)
         }
-        if (feature.get('etat_de_l_objet')) 
+        if (feature.get('etat_de_l_objet'))
         {	fstyle.dash = true;
             fstyle.fillColor = [0,0,0,0];
         }
