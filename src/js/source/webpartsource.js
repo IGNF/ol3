@@ -253,6 +253,11 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
             throw "Update with no changes !!";
         }
 
+        // Base historisee
+        if (feature.values_['gcms_fingerprint']) {
+            changes.push('gcms_fingerprint');
+        }
+
         // Get changes
         var changedProperties = {};
         changedProperties[idName] = properties[idName];
@@ -336,7 +341,7 @@ ol.source.Vector.Webpart.prototype.countActions = function()
     return res;
 };
 
-/** Get the created/deleted/modified features 
+/** Get the created/deleted/modified features
  * @return {*}
  */
 ol.source.Vector.Webpart.prototype.getModifications = function() {
@@ -362,8 +367,8 @@ ol.source.Vector.Webpart.prototype.save = function(actions)
 {	var self = this;
 
 	var actions = actions || [];
-	
-	
+
+
     try{
       if (actions.length == 0){
 	  	actions = this.getSaveActions().actions;
