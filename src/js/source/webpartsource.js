@@ -254,7 +254,7 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
         }
 
         // Base historisee
-        if (feature.values_['gcms_fingerprint']) {
+        if (typeof feature.values_ !== 'undefined' && feature.values_['gcms_fingerprint']) {
             changes.push('gcms_fingerprint');
         }
 
