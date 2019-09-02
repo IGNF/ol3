@@ -251,7 +251,7 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
                     } catch(e) {}
                 }
                 // Copy les valeurs de feature
-                var obj = Object.assign({}, feature.values_);
+                var obj = Object.assign({}, feature.getProperties());
                 // Enleve la geometry car trop long pour mangoparser
                 delete obj[feature.geometryName_];
                 if (parser.parse(fi.condition).matches(obj)) {
