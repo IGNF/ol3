@@ -300,17 +300,24 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
                             delete properties[gcms_fields[j]];
                         }
                     }
-                }
-                // Pour un update, on ne garde que les champs modifies
-				if (state === ol.Feature.State.UPDATE) {
-                    properties = getPropertiesToUpdate(f);
-                } else {
+                    // Geometrie
                     var g = properties.geometry.clone();
                     g.transform (self.projection_, self.srsName_);
 
                     delete properties.geometry;
                     properties[geometryAttribute] = wkt.writeGeometry(g);
-                }
+                } else if (state === ol.Feature.State.DELETE) {
+                    // Pour un delete, on ne garde que l'id et gcms_fingerprint
+                    var prop = {};
+                    prop[idName] = properties[idName];
+                    if ('gcms_fingerprint' in properties) {
+                        prop['gcms_fingerprint'] = properties['gcms_fingerprint'];
+                    }
+                    properties = prop;
+                } else if (state === ol.Feature.State.UPDATE) {
+                    // Pour un update, on ne garde que les champs modifies
+                    properties = getPropertiesToUpdate(f);
+                } 
 
 				// delete a.feature._id;
 				actions.push({
