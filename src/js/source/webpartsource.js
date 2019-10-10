@@ -291,17 +291,33 @@ ol.source.Vector.Webpart.prototype.getSaveActions = function()
 		for (var i=0; i<t.length; i++)	{
 			var f = t[i];
 			if (f.getState() === state)	{
-				// Pour un update, on ne garde que les champs modifies
 				var properties = f.getProperties();
-				if (state === ol.Feature.State.UPDATE) {
-                    properties = getPropertiesToUpdate(f);
-                } else {
+                if (state === ol.Feature.State.INSERT) {
+                    // GCMS fields
+                    var gcms_fields = ['gcms_detruit', 'gcms_date_creation', 'gcms_date_modification', 'gcms_date_destruction'];
+                    for (var j=0; j<gcms_fields.length; j++) {
+                        if (gcms_fields[j] in properties) {
+                            delete properties[gcms_fields[j]];
+                        }
+                    }
+                    // Geometrie
                     var g = properties.geometry.clone();
                     g.transform (self.projection_, self.srsName_);
 
                     delete properties.geometry;
                     properties[geometryAttribute] = wkt.writeGeometry(g);
-                }
+                } else if (state === ol.Feature.State.DELETE) {
+                    // Pour un delete, on ne garde que l'id et gcms_fingerprint
+                    var prop = {};
+                    prop[idName] = properties[idName];
+                    if ('gcms_fingerprint' in properties) {
+                        prop['gcms_fingerprint'] = properties['gcms_fingerprint'];
+                    }
+                    properties = prop;
+                } else if (state === ol.Feature.State.UPDATE) {
+                    // Pour un update, on ne garde que les champs modifies
+                    properties = getPropertiesToUpdate(f);
+                } 
 
 				// delete a.feature._id;
 				actions.push({
