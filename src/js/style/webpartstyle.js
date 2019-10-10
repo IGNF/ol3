@@ -357,10 +357,10 @@ ol.layer.Vector.Webpart.Style.Default = ol.layer.Vector.Webpart.Style.getFeature
 
 /** Objets mort-vivant
 */
-ol.layer.Vector.Webpart.Style.zombie = function(options)
+ol.layer.Vector.Webpart.Style.zombie = function(zombieStyleColors)
 {
     function getColor(feature, opacity)
-    {	return ( feature.get(feature.getDetruitField()) ? [255,0,0,opacity] : [0,0,255,opacity] );
+    {	return ( feature.get(feature.getDetruitField()) ? (zombieStyleColors.dead).concat([opacity]) : (zombieStyleColors.alive).concat([opacity]) );
     };
 
     return function (feature, res)
