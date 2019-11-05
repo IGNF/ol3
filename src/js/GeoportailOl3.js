@@ -281,17 +281,25 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
 
         case 'WFS':
             var self = this;
+            var format = new ol.format.GeoJSON();
+            // switch(geoservice.format){
+            //     case 'GML2':
+            //         format = new ol.format.GML2();
+            //         break;
+            //     case 'GML3':
+            //         format = new ol.format.GML3();
+            //         break;
+            // }
 
             // Ajout Redmine #7753 (en cours, pourrait nécessiter l'usage du proxy)
             var vectorSource = new ol.source.Vector({
-                format: new ol.format.GeoJSON(),
+                format: format,
                 loader: function(extent) {
                     var url = geoservice.url + '?service=WFS';
                     var bbox = extent;
                     if (geoservice.version == '1.0.0') {
                         // BBOX avec 4 paramètres : coordonnées
                         // pas de SRSNAME car prend le Default SRS/CRS
-                        // TODO utiliser le proxy
                         bbox = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',');
                         url += '&version=' + geoservice.version +
                         '&request=GetFeature&typeName=' + geoservice.layers +
