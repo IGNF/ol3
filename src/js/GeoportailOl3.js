@@ -281,7 +281,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
 
         case 'WFS':
             var self = this;
-            
+
             // Ajout Redmine #7753 (en cours, pourrait nécessiter l'usage du proxy)
             var vectorSource = new ol.source.Vector({
                 format: new ol.format.GeoJSON(),
@@ -306,11 +306,11 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                             '&request=GetFeature&typeName=' + geoservice.layers +
                             '&outputFormat=' + geoservice.format + '&srsname=EPSG:3857&bbox=' + bbox;
                     }
-                    
+
                     if (self.proxyUrl_) {
                         url = self.proxyUrl_ + encodeURIComponent(url);
                     }
-                    
+
                     var xhr = new XMLHttpRequest();
                     xhr.open('GET', url);
                     xhr.onload = function() {
@@ -327,12 +327,6 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                 strategy: ol.loadingstrategy.bbox
             });
 
-            // Regex des code couleurs
-            var colorHex = new RegExp(/(^#[0-9A-F]{6}$)|(^#[0-9A-F]{3}$)/);
-            var colorRgbA = new RegExp(/([r][g][b][a]?[(]\s*([01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])\s*,\s*([01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])\s*,\s*([01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])(\s*,\s*((0\.[0-9]{1})|(1\.0)|(1)))?[)])/);
-
-            var style = JSON.parse('{"strokeColor" : "rgba(0, 0, 255, 1)","strokeWidth" : 2}');
-
             var vectorDefaultStyle = new ol.style.Style({
                 stroke: new ol.style.Stroke({
                     color: "rgba(0, 0, 255, 1)",
@@ -342,41 +336,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
 
             newLayer = new ol.layer.Vector({
                 source: vectorSource,
-                style: function(feature) {
-                    if (geoservice.json_style) {
-                        // Parsage du json
-                        var geoserviceStyle = JSON.parse(geoservice.json_style);
-                        var reg = new RegExp(/\$\{([^\}]*)\}/);
-                        // Si la couleur depend d'un champ contenant une valeur de couleur
-                        if (reg.exec(geoserviceStyle.strokeColor)) {
-
-                            // Recuperation de la valeur
-                            var level = feature.get(reg.exec(geoserviceStyle.strokeColor)[1]);
-                            // Si valeur vide ou la valeur ne correspond pas a un code couleur
-                            if ( !level || (!colorRgbA.exec(level) && !colorHex.exec(level)) ) {
-                                // On applique le style par defaut
-                                return [vectorDefaultStyle];
-                            }
-                            // Style avec la couleur du champs
-                            return [new ol.style.Style({
-                                  stroke: new ol.style.Stroke({
-                                      color: level,
-                                      width: Number(geoserviceStyle.strokeWidth) || 2,
-                                  })
-                              })];
-                        } else {
-                            // Fusion des styles
-                            $.extend(style, style, geoserviceStyle);
-                            return [new ol.style.Style({
-                                stroke: new ol.style.Stroke({
-                                    color: style.strokeColor,
-                                    width: Number(style.strokeWidth)
-                                })
-                            })];
-                        }
-                    }
-                    return [vectorDefaultStyle];
-                },
+                style: vectorDefaultStyle,
                 visible: options.visible,
                 opacity: options.opacity,
                 minResolution: this.getResolutionFromZoom(geoservice.max_zoom),
