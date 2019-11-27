@@ -223,7 +223,7 @@ ol.layer.Vector.Webpart.Style.cacheStyle = {};
 * @return { ol.style.function | undefined }
 */
 ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
-    // MangoParser
+    // mongoParser
     var parser = window.mongoparser;
     // Sens de circulation
     var directionStyle = new ol.style.Style ({
@@ -252,7 +252,7 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
                 }
                 // Copy les valeurs de feature
                 var obj = Object.assign({}, feature.getProperties());
-                // Enleve la geometry car trop long pour mangoparser
+                // Enleve la geometry car trop long pour mongoparser
                 delete obj[feature.geometryName_];
                 if (parser.parse(fi.condition).matches(obj)) {
                     style = fi;
