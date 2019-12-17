@@ -94,7 +94,7 @@ Object.defineProperty(DotNotationPointer.prototype, 'val', {
           }
 
           this.propertyInfo.obj[this.propertyInfo.last] = value
-        }    
+        }
     }
 })
 
@@ -160,10 +160,10 @@ var mapValues = module.exports = function(parts, callback, prefix) {
                     })
                 } else {
                     var value = callback(field, part.operand)
-                }   
-                             
+                }
+
                 addOperator(result,part.field, part.operator, value)
-                
+
             } else if(part.operator in arrayOperators) {
                 addOperator(result,part.field, part.operator, part.operand.map(function(v) {
                     return callback(part.field, v)
@@ -325,8 +325,8 @@ var compoundOperatorComparators = {
 }
 
 var matches = module.exports = function(parts, document, validate) {
-    if(validate !== false)
-        validateDocumentObject(document)
+    // if(validate !== false)
+        // validateDocumentObject(document)
 
     return parts.every(function(part) { return partMatches(part, document, validate)});
 }
