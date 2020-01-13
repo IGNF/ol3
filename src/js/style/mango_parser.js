@@ -325,8 +325,8 @@ var compoundOperatorComparators = {
 }
 
 var matches = module.exports = function(parts, document, validate) {
-    if(validate !== false)
-        validateDocumentObject(document)
+    // if(validate !== false)
+    //     validateDocumentObject(document)
 
     return parts.every(function(part) { return partMatches(part, document, validate)});
 }
