@@ -35,7 +35,7 @@ ol.Map.Geoportail = function(opt_options) {
     this._resolutionInit    = 156543.03392804097 ;
 
     // Ajout du layerSwitcher
-    this._layerSwitcher = new ol.control.LayerSwitcher({options: {collapsed:false}});
+    this._layerSwitcher = options.layerSwitcher ? options.layerSwitcher : new ol.control.LayerSwitcher({options: {collapsed:false}});
     this.addControl(this._layerSwitcher);
 
     // Ajout des layers par defaut
