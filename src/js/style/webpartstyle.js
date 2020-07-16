@@ -120,19 +120,15 @@ ol.layer.Vector.Webpart.Style.Fill = function (fstyle)
 
 /** Get Image style from featureType.style
 *	@param {featureType.style |  undefined}
-*	@param {boolean} libImage
 *	@return ol.style.Image
 */
-ol.layer.Vector.Webpart.Style.Image = function (fstyle, libImage)
+ol.layer.Vector.Webpart.Style.Image = function (fstyle)
 {	var image;
     //externalGraphic
     if (fstyle.externalGraphic) {
         // Gestion d'une bibliotheque de symboles
-        if (libImage) {
-            src = urlLibraryImg + "./../../" + fstyle.name + "/" + fstyle.externalGraphic;
-        } else {
-            src = urlImgAlone + "./../" + fstyle.externalGraphic ;
-        }
+        src = urlImgAlone + "./../" + fstyle.externalGraphic ;
+
         if (fstyle.graphicWidth && fstyle.graphicHeight) {
             src += "?width="+fstyle.graphicWidth+"&height="+fstyle.graphicHeight;
         }
@@ -272,8 +268,6 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
             var txt = style[style.length-1].getText();
             if (txt) txt.setText(fstyle.label||'');
         } else {
-            var libImage = (style && style.name && featureType.symbo_attribute);
-
             var textStyleConfig = {
                 text: ol.layer.Vector.Webpart.Style.Text (fstyle)
             };
@@ -291,7 +285,7 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
             var textStyle = new ol.style.Style(textStyleConfig);
 
             var styleConfig = {
-                image: ol.layer.Vector.Webpart.Style.Image (fstyle, libImage),
+                image: ol.layer.Vector.Webpart.Style.Image (fstyle),
                 fill: ol.layer.Vector.Webpart.Style.Fill (fstyle),
                 stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle)
             };
