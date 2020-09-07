@@ -1,20 +1,20 @@
 /*
-	Copyright (c) 2015 Jean-Marc VIGLINO, 
+	Copyright (c) 2015 Jean-Marc VIGLINO,
 	released under the CeCILL-B license (http://www.cecill.info/).
-	
+
 	ol.interaction.SelectCluster is an interaction for selecting vector features in a cluster.
-	
+
 */
 /**
  * @classdesc
- * Interaction for selecting vector features in a cluster. 
- * It can be used as an ol.interaction.Select. 
+ * Interaction for selecting vector features in a cluster.
+ * It can be used as an ol.interaction.Select.
  * When clicking on a cluster, it springs apart to reveal the features in the cluster.
  * Revealed features are selectable and you can pick the one you meant.
  * Revealed features are themselves a cluster with an attribute features that contain the original feature.
- * 
+ *
  * Additionnal options
- * - 'featureStyle' {ol.style} option is used to style the revealed features 
+ * - 'featureStyle' {ol.style} option is used to style the revealed features
  *    as the 'style' option is used by the Select interaction.
  * - 'PointRadius' {Number} option is used to calculate distance between the features
  * - 'spiral' {bool} option mean you want the feature to be placed on a spiral (or a circle)
@@ -29,7 +29,7 @@
  * @fires ol.interaction.SelectEvent
  * @api stable
  */
-ol.interaction.SelectCluster = function(options) 
+ol.interaction.SelectCluster = function(options)
 {	options = options || {};
 
 	this.pointRadius = options.pointRadius || 12;
@@ -39,7 +39,7 @@ ol.interaction.SelectCluster = function(options)
 	this.animate = options.animate;
 	this.animationDuration = options.animationDuration || 500;
 
-	// Create a new overlay layer for 
+	// Create a new overlay layer for
 	var overlay = this.overlayLayer_ = new ol.layer.Vector(
 		{	source: new ol.source.Vector({
 				features: new ol.Collection(),
@@ -74,9 +74,9 @@ ol.interaction.SelectCluster = function(options)
 			else return fn(f,l);
 		}
 	}
-	else options.filter = function(f,l) 
-	{	//if (l===overlay && f.get("selectclusterlink")) return false; 
-		if (!l && f.get("selectclusterlink")) return false; 
+	else options.filter = function(f,l)
+	{	//if (l===overlay && f.get("selectclusterlink")) return false;
+		if (!l && f.get("selectclusterlink")) return false;
 		else return true;
 	};
 	this.filter_ = options.filter;
@@ -94,12 +94,12 @@ ol.inherits(ol.interaction.SelectCluster, ol.interaction.Select);
  * @param {ol.Map} map Map.
  * @api stable
  */
-ol.interaction.SelectCluster.prototype.setMap = function(map) 
+ol.interaction.SelectCluster.prototype.setMap = function(map)
 {	ol.interaction.Select.prototype.setMap.call (this, map);
 	var self = this;
 
-	if (this.map_ && this.map_.getView()) 
-	{	map.getView().un('change:resolution', this.clear, this);
+	if (this.map_ && this.map_.getView())
+	{	this.map_.getView().un('change:resolution', this.clear, this);
 	}
 	if (this.map_) this.map_.removeLayer(this.overlayLayer_);
 
@@ -107,7 +107,7 @@ ol.interaction.SelectCluster.prototype.setMap = function(map)
 	this.overlayLayer_.setMap(map);
 	// map.addLayer(this.overlayLayer_);
 
-	if (map && map.getView()) 
+	if (map && map.getView())
 	{	map.getView().on('change:resolution', this.clear, this);
 	}
 };
@@ -116,28 +116,28 @@ ol.interaction.SelectCluster.prototype.setMap = function(map)
  * Clear the selection, close the cluster and remove revealed features (if any features are selected)
  * @api stable
  */
-ol.interaction.SelectCluster.prototype.clear = function() 
+ol.interaction.SelectCluster.prototype.clear = function()
 {
   if(this.getFeatures().getArray().length === 0){
     this.getFeatures().clear();
     this.overlayLayer_.getSource().clear();
-  }	
+  }
 }
 
 /**
  * Get the layer for the revealed features
  * @api stable
  */
-ol.interaction.SelectCluster.prototype.getLayer = function() 
+ol.interaction.SelectCluster.prototype.getLayer = function()
 {	return this.overlayLayer_;
 }
 
 /**
- * Select a cluster 
+ * Select a cluster
  * @param {ol.Feature} a cluster feature ie. a feature with a 'features' attribute.
  * @api stable
  */
-ol.interaction.SelectCluster.prototype.selectCluster = function (e) 
+ol.interaction.SelectCluster.prototype.selectCluster = function (e)
 {	// Nothing selected
 	if (!e.selected.length)
 	{	this.clear();
@@ -148,7 +148,7 @@ ol.interaction.SelectCluster.prototype.selectCluster = function (e)
 	var feature = e.selected[0];
 	// It's one of ours
 	if (feature.get('selectclusterfeature')) return;
-	
+
 	// Clic out of the cluster => close it
 	var source = this.overlayLayer_.getSource();
 	source.clear();
@@ -156,7 +156,7 @@ ol.interaction.SelectCluster.prototype.selectCluster = function (e)
 	var cluster = feature.get('features');
 	// Not a cluster (or just one feature)
 	if (!cluster || cluster.length==1) return;
-	
+
 	// Remove cluster from selection
 	this.getFeatures().clear();
 
@@ -197,7 +197,7 @@ ol.interaction.SelectCluster.prototype.selectCluster = function (e)
 			var dy = pix*r*Math.cos(a)
 			var p = [ center[0]+dx, center[1]+dy ];
 			var cf = new ol.Feature({ 'selectclusterfeature':true, 'features':[cluster[i]], geometry: new ol.geom.Point(p) });
-			cf.setStyle(cluster[i].getStyle()); 
+			cf.setStyle(cluster[i].getStyle());
 			source.addFeature(cf);
 			var lk = new ol.Feature({ 'selectclusterlink':true, geometry: new ol.geom.LineString([center,p]) });
 			source.addFeature(lk);
@@ -217,19 +217,19 @@ ol.interaction.SelectCluster.prototype.animateCluster_ = function(center)
 	{	this.overlayLayer_.setVisible(true);
 		ol.Observable.unByKey(this.listenerKey_);
 	}
-	
+
 	// Features to animate
 	var features = this.overlayLayer_.getSource().getFeatures();
 	if (!features.length) return;
-	
+
 	this.overlayLayer_.setVisible(false);
 	var style = this.overlayLayer_.getStyle();
 	var stylefn = (typeof(style) == 'function') ? style : style.length ? function(){ return style; } : function(){ return [style]; } ;
 	var duration = this.animationDuration || 500;
 	var start = new Date().getTime();
-	
+
 	// Animate function
-	function animate(event) 
+	function animate(event)
 	{	var vectorContext = event.vectorContext;
 		// Retina device
 		var ratio = event.frameState.pixelRatio;
@@ -260,7 +260,7 @@ ol.interaction.SelectCluster.prototype.animateCluster_ = function(center)
 			}
 		}
 		// Stop animation and restore cluster visibility
-		if (e > 1.0) 
+		if (e > 1.0)
 		{	ol.Observable.unByKey(this.listenerKey_);
 			this.overlayLayer_.setVisible(true);
 			this.overlayLayer_.changed();
