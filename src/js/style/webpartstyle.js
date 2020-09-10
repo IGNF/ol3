@@ -693,3 +693,27 @@ ol.layer.Vector.Webpart.Style.batiment = function(options)
         }
     };
 };
+
+/**
+ * Applique le style defini dans le featureType s'il existe pour les layers dont le style est predefini (en dur dans le code)
+ * Les feature types concernes sont troncon_de_route,batiment et toponymie
+ * @param {ol.layer.Vector} layer 
+ * @param {ol.style} style 
+ */
+ol.layer.Vector.Webpart.Style.applyStyleToPredefined = function(layer) {
+    if (! layer.get('type') == 'feature-type') {
+        return;
+    }
+
+    var featureType = layer.get('feature-type');
+    if (['troncon_de_route','batiment','toponymie'].indexOf(featureType.name) < 0) {
+        return;
+    }
+    if (! featureType.style) {
+        return;
+    }
+    
+    var clone = Object.assign({}, featureType);
+    $.extend(clone, { name: '_clone_', style: featureType.style });
+	layer.setStyle(ol.layer.Vector.Webpart.Style.getFeatureStyleFn(clone));
+}
