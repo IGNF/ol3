@@ -243,7 +243,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             this.updateEyeInLayerSwitcher(newLayer,options.visible);
 
             // GetCapabilities
-            var url = geoservice.url + "?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities";
+            var url = geoservice.url + (geoservice.url.match(/[\?]/g) ? '&' : '?') + "SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities";
             if (this.proxyUrl_) {
                 url = this.proxyUrl_ + encodeURIComponent(url);
             }
@@ -295,7 +295,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             var vectorSource = new ol.source.Vector({
                 format: format,
                 loader: function(extent) {
-                    var url = geoservice.url + '?service=WFS';
+                    var url = geoservice.url + (geoservice.url.match(/[\?]/g) ? '&' : '?') + 'service=WFS';
                     var bbox = extent;
                     if (geoservice.version == '1.0.0') {
                         // BBOX avec 4 paramètres : coordonnées
