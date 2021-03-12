@@ -47,6 +47,12 @@ ol.Map.Geoportail = function(opt_options) {
             }
         }));
         this.addLayer(new ol.layer.GeoportalWMTS({
+            layer: 'GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2',
+            olParams: {
+                name: 'GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2'
+            }
+        }));
+        this.addLayer(new ol.layer.GeoportalWMTS({
             layer: 'ORTHOIMAGERY.ORTHOPHOTOS',
             olParams: {
                 name: 'ORTHOIMAGERY.ORTHOPHOTOS',
