@@ -342,9 +342,18 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             });
 
             var vectorDefaultStyle = new ol.style.Style({
+                fill: new ol.style.Fill({color: "rgba(0, 0, 255, 0.5)"}),
                 stroke: new ol.style.Stroke({
                     color: "rgba(0, 0, 255, 1)",
                     width: 2
+                }),
+                image: new ol.style.Circle({
+                    radius: 5,
+                    fill: new ol.style.Fill({color: "rgba(0, 0, 255, 0.5)"}),
+                    stroke: new ol.style.Stroke({
+                        color: "rgba(0, 0, 255, 1)",
+                        width: 2
+                    })
                 })
             });
 
