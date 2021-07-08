@@ -701,11 +701,11 @@ ol.layer.Vector.Webpart.Style.batiment = function(options)
  * @param {ol.style} style 
  */
 ol.layer.Vector.Webpart.Style.applyStyleToPredefined = function(layer) {
-    if (! layer.get('type') == 'feature_type') {
+    if (! layer.get('type') == 'feature-type') {
         return;
     }
 
-    var featureType = layer.get('feature_type');
+    var featureType = layer.get('feature-type');
     if (['troncon_de_route','batiment','toponymie'].indexOf(featureType.name) < 0) {
         return;
     }

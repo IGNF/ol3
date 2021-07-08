@@ -118,7 +118,7 @@ ol.Map.Geoportail.prototype.addRipartLayer = function(layer)
     var service = layer[layer.type];
     if (layer.type === 'geoservice') {
         return this.addGeoservice(service, options);
-    } else if (layer.type === 'feature_type') {
+    } else if (layer.type === 'feature-type') {
         return this.addFeatureType(service, options);
     }
 
@@ -443,8 +443,8 @@ ol.Map.Geoportail.prototype.addFeatureType = function (featureType, opt, source_
         maxResolution: this.getResolutionFromZoom(featureType.minZoomLevel)
     },src_options);
 
-    vectorLayer.set('type', 'feature_type');
-    vectorLayer.set('feature_type', featureType);
+    vectorLayer.set('type', 'feature-type');
+    vectorLayer.set('feature-type', featureType);
     this.addLayer(vectorLayer);
 
     var lsOptions = {
