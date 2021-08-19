@@ -704,7 +704,7 @@ ol.layer.Vector.Webpart.Style.batiment = function(options)
  * @param {ol.style} style 
  */
 ol.layer.Vector.Webpart.Style.applyStyleToPredefined = function(layer) {
-    if (! layer.get('type') == 'feature-type') {
+    if (layer.get('type') !== 'feature-type') {
         return;
     }
 
