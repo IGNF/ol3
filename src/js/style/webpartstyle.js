@@ -310,36 +310,39 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
             style = ol.layer.Vector.Webpart.Style.cacheStyle[cacheId] = st;
         }
         // Ajouter le sens de circulation
-        var directionField = featureType.attributes[featureType.style.directionField];
-        if (res < 2
-            && feature
-            && directionField
-            && directionField.type==='Choice') {
-            var direct = directionField.listOfValues[1];
-            var inverse = directionField.listOfValues[0]
-            function lrot(sens, geom)
-            {	if (sens != direct && sens != inverse) return 0;
-                if (geom.getType()==='MultiLineString') geom = geom.getLineString(0);
-                var geo = geom.getCoordinates();
-                var x, y, dl=0, l = geom.getLength();
-                for (var i=0; i<geo.length-1; i++){
-                    x = geo[i+1][0]-geo[i][0];
-                    y = geo[i+1][1]-geo[i][1];
-                    dl += Math.sqrt(x*x+y*y);
-                    if (dl>=l/2) break;
-                }
-                if (sens == direct) return -Math.atan2(y,x);
-                else return Math.PI-Math.atan2(y,x);
-            };
-
-            var sens = feature.get('sens');
-            if (sens===direct || sens===inverse) {
-                directionStyle.getText().setRotation(lrot(sens, feature.getGeometry()));
-                style = style.concat([
-                    directionStyle
-                ]);
-            }
+        let directionField;
+        if (featureType.style && featureType.style.directionField) {
+            directionField = JSON.parse(featureType.style.directionField);
         }
+        
+        if (res < 2 && directionField instanceof Object) {
+			if ('attribute' in directionField && 'sensDirect' in directionField && 'sensInverse' in directionField) {
+				let direct  = directionField.sensDirect;
+				let inverse = directionField.sensInverse;
+				
+				function lrot(sens, geom)	{	
+					if (sens != direct && sens != inverse) return 0;
+					if (geom.getType()==='MultiLineString') geom = geom.getLineString(0);
+					var geo = geom.getCoordinates();
+					var x, y, dl=0, l = geom.getLength();
+					for (var i=0; i<geo.length-1; i++){
+						x = geo[i+1][0]-geo[i][0];
+						y = geo[i+1][1]-geo[i][1];
+						dl += Math.sqrt(x*x+y*y);
+						if (dl>=l/2) break;
+					}
+					if (sens == direct) return -Math.atan2(y,x);
+					else return Math.PI-Math.atan2(y,x);
+				};
+			
+				let sens = feature.get(directionField.attribute);
+				if (sens===direct || sens===inverse) {
+					directionStyle.getText().setRotation(lrot(sens, feature.getGeometry()));
+					style = style.concat([directionStyle]);
+				}
+			}
+		}
+
         return style;
     }
 };
