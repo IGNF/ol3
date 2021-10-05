@@ -1,22 +1,14 @@
-/*var listTerritories = {
-    "FXX": { lon:1.7, lat:46.95, ech:5, bbox: [-16.82294921875, 37.19502456685295, 20.222949218750003, 55.203734032646594] },
-    "GLP": { lon:-61.42, lat:16.17, ech:9, bbox: [-62.57768432617188, 15.377060580206361, -60.26231567382814, 16.95977023145332] },
-    "GUF": { lon:-53, lat:4.8, ech:8, bbox: [-55.31536865234374, 3.156078098640947, -50.68463134765625, 6.439970953751896] },
-    "MTQ": { lon:-61, lat:14.65, ech:10, bbox: [-61.578842163085945, 14.251047449405135, -60.421157836914055, 15.04822768949532] },
-    "MYT": { lon:45.13, lat:-12.82, ech:11, bbox:[44.84057891845704, -13.020778127142378, 45.41942108154297, -12.619061638722968] },
-    "NCL": { lon:165.9, lat:-21.2, ech:8, bbox: [161.2692626953125, -24.239669753584337, 170.53073730468748, -18.096482567466012] },
-    "PYF": { lon:-149.5, lat:-17.66, ech:10, bbox: [-150.07884216308594, -18.052140861060508, -148.9211578369141, -17.26700280808282] },
-    "REU": { lon:55.53, lat:-21.13, ech:10, bbox: [54.95115783691405, -21.513786808590666, 56.10884216308593, -20.74521710539878] },
-    "SPM": { lon:-56.3,  lat:46.94,  ech:10, bbox: [-56.87884216308594, 46.65797089542582, -55.72115783691406, 47.22055130644134] },
-    "WLF": { lon:-176.2, lat:-13.285,ech:12, bbox: [-176.34471054077147, -13.385219782637407, -176.0552894592285, -13.184738809337162] },
-    "ATF": { lon:140, lat:-66.7, ech:9, bbox: [139.99, -66.8, 140.1, -66.6] },
-    "KER": { lon:69.7, lat:-49.25,  ech:8, bbox:[67.38463134765627, -50.31401860644216, 72.01536865234375, -48.16254495202611] },
-    "CRZ": { lon:51.28, lat:-46.35,  ech:8, bbox:[48.964631347656244, -47.47567139483367, 53.595368652343744, -45.20065867477615] },
-    "SMA": { lon:-63.08, lat:18.07,  ech:12, bbox: [-63.224710540771476, 17.97205589937103, -62.93528945922851, 18.16788950346654] },
-    "SBA": { lon:-62.85, lat:17.91, ech:12, bbox:[-62.9947105407715, 17.811967276654542, -62.705289459228524, 18.00797854458071] },
-    "ANF": { lon:-64.34, lat:15.78, ech:6, bbox: [-64.40, 15.70, -64.30, 15.80] },
-    "EUE": { lon:9.4, lat:48.94, ech:2, bbox: [9.3, 48.9, 9.5, 49.0] }
-};*/
+// const _getcap = ol.source.WMTS.optionsFromCapabilities;
+// ol.source.WMTS.optionsFromCapabilities = function(wmtsCap, config) {
+	// let options = _getcap.apply(this, [wmtsCap, config]);
+	
+	// let layers = wmtsCap['Contents']['Layer'];
+	// let layer = ol.array.find(layers, function(elt, index, array) {
+		// return elt['Identifier'] == config['layer'];
+	// });
+	// options['title'] = layer.Title;
+	// return options; 
+// };
 
 /**
  * @constructor IGN's Geoportail Map definition
@@ -24,12 +16,11 @@
  * @param options {ol.Map.options}
  * @returns {ol.Map.Geoportail}
  */
-ol.Map.Geoportail = function(opt_options) {
+ ol.Map.Geoportail = function(opt_options) {
     var options = opt_options ? opt_options : {};
-
     ol.Map.call(this, options);
 
-    this.proxyUrl_ = null;
+    this.proxyUrl_ = options.proxy || null;
 
     // Valeur de resolution pour un niveau de zoom de valeur 0
     this._resolutionInit    = 156543.03392804097 ;
@@ -37,15 +28,9 @@ ol.Map.Geoportail = function(opt_options) {
     // Ajout du layerSwitcher
     this._layerSwitcher = options.layerSwitcher ? options.layerSwitcher : new ol.control.LayerSwitcher({options: {collapsed:false}});
     this.addControl(this._layerSwitcher);
-
-    // Ajout des layers par defaut
+	
+    // Ajout des layers par defaut	
     if (options.addBaseLayer) {
-        this.addLayer(new ol.layer.GeoportalWMTS({
-            layer: 'GEOGRAPHICALGRIDSYSTEMS.MAPS',
-            olParams: {
-                name: 'GEOGRAPHICALGRIDSYSTEMS.MAPS'
-            }
-        }));
         this.addLayer(new ol.layer.GeoportalWMTS({
             layer: 'GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2',
             olParams: {
@@ -63,17 +48,6 @@ ol.Map.Geoportail = function(opt_options) {
 };
 
 ol.inherits(ol.Map.Geoportail, ol.Map);
-
-/**
- *
- * @param {string} url
- * @returns {undefined}
- */
-ol.Map.Geoportail.prototype.setProxyUrl = function(url)
-{
-    this.proxyUrl_ = url;
-};
-
 
 /**
  * get layer switcher
@@ -142,50 +116,23 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
         var options = {visible: true, opacity: 1};
     }
 
-    var extent = geoservice.map_extent.split(",");
+	let ign = geoservice.url.includes('wxs.ign.fr');
+	let name;
+
+    let extent = geoservice.map_extent.split(",");
     extent = extent.map(function (x) {
         return parseInt(x, 10);
     });
 
-    var bbox = ol.proj.transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
-
+    let bbox = ol.proj.transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
+	let version = geoservice.version;
+	
     var newLayer = null;
     switch(geoservice.type){
-        case 'GeoPortail':
-        case 'GeoPortail-WMS':
-            var olParams = {
-                name: geoservice.title,
-                visible: options.visible,
-                opacity: options.opacity,
-                minResolution: this.getResolutionFromZoom(geoservice.max_zoom),
-                maxResolution: this.getResolutionFromZoom(geoservice.min_zoom),
-                sourceParams: {crossOrigin: 'anonymous'},
-                extent: bbox,
-                useInterimTilesOnError: false
-            };
-            if (geoservice.type === 'GeoPortail') {
-                newLayer = new ol.layer.GeoportalWMTS({
-                    layer: geoservice.title,
-                    olParams: olParams
-                });
-            } else {    // GeoPortail-WMS
-                newLayer = new ol.layer.GeoportalWMS({
-                    layer: geoservice.title,
-                    olParams: olParams
-                });
-            }
-
-            newLayer.set('type', 'geoservice');
-            newLayer.set('geoservice', geoservice);
-            this.addLayer(newLayer);
-
-            this.getLayerSwitcher().setRemovable(newLayer, false);
-            this.updateEyeInLayerSwitcher(newLayer, options.visible);
-            break;
-
         case 'WMS':
+			name = ign ? geoservice.layers : geoservice.title;
             newLayer = new ol.layer.Tile({
-                name: geoservice.title,
+                name: name,
                 source: new ol.source.TileWMS({
                     url: geoservice.url,
                     attributions: [new ol.Attribution({
@@ -194,7 +141,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
                     params: {
                         LAYERS: geoservice.layers,
                         FORMAT: geoservice.format,
-                        VERSION: geoservice.version || '1.3.0'
+                        VERSION: version || '1.3.0'
                     }/*,
                     projection: 'EPSG:4326'*/
                 }),
@@ -222,8 +169,9 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             break;
 
         case 'WMTS':
+			name = ign ? geoservice.layers : geoservice.title;
             newLayer = new ol.layer.Tile({
-                name: geoservice.title,
+                name: name,
                 source:new ol.source.WMTS({}),
                 attribution:[new ol.Attribution({html: 'Some copyright info.'})],
                 visible: options.visible,
@@ -249,30 +197,19 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
             this.updateEyeInLayerSwitcher(newLayer,options.visible);
 
             // GetCapabilities
-            var url = geoservice.url + (geoservice.url.match(/[\?]/g) ? '&' : '?') + "SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities";
-            if (this.proxyUrl_) {
-                url = this.proxyUrl_ + encodeURIComponent(url);
-            }
-
-            var parser = new ol.format.WMTSCapabilities();
-
+            var url = geoservice.url + (geoservice.url.match(/[\?]/g) ? '&' : '?') + `SERVICE=WMTS&VERSION=${version}&REQUEST=GetCapabilities`;
+			if (this.proxyUrl_) {
+				url = this.proxyUrl_ + encodeURIComponent(url);
+			}
+				
             $.ajax({
                 url: url,
                 type: "GET"
-            }).done(function(response){
+            }).done(function(response) {
+				let parser = new ol.format.WMTSCapabilities();
+
                 // Ajout de la couche a la carte
                 var wmtsCap = parser.read(response);
-
-                // ol3 veut les epsg en uppercase !!!!
-                // TODO SUPPRIMER APRES LA CORRECTION DANS L'EAS
-                var matrixSets = [];
-                $.each(wmtsCap['Contents']['TileMatrixSet'], function(index, matrixSet) {
-                    var ms = matrixSet;
-                    ms['SupportedCRS'] = ms['SupportedCRS'].toUpperCase();
-                    matrixSets.push(ms);
-                });
-                wmtsCap['Contents']['TileMatrixSet'] = matrixSets;
-
                 var wmtsOptions = ol.source.WMTS.optionsFromCapabilities(wmtsCap, {
                     layer: geoservice.layers,
                     matrixSet: 'epsg:3857',
@@ -288,14 +225,6 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
         case 'WFS':
             var self = this;
             var format = new ol.format.GeoJSON();
-            // switch(geoservice.format){
-            //     case 'GML2':
-            //         format = new ol.format.GML2();
-            //         break;
-            //     case 'GML3':
-            //         format = new ol.format.GML3();
-            //         break;
-            // }
 
             // Ajout Redmine #7753 (en cours, pourrait nécessiter l'usage du proxy)
             var vectorSource = new ol.source.Vector({
