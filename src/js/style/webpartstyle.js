@@ -312,7 +312,12 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
         // Ajouter le sens de circulation
         let directionField;
         if (featureType.style && featureType.style.directionField) {
-            directionField = JSON.parse(featureType.style.directionField);
+            try {
+                directionField = JSON.parse(featureType.style.directionField);
+            } catch (e) {
+                directionField = null;
+                console.log("bad json direction field for style " + featureType.style.name);
+            }
         }
         
         if (res < 2 && directionField instanceof Object) {
