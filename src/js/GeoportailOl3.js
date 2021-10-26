@@ -122,8 +122,7 @@ ol.Map.Geoportail.prototype.getLayersByName = function(name)
 		.then(capabilities => {
 			// Mise en place de la source de la couche
 			let wmtsOptions = ol.source.WMTS.optionsFromCapabilities(capabilities, {
-				layer: layer,
-				matrixSet: 'EPSG:3857'
+				layer: layer
 			});
 			if (! wmtsOptions)
 				throw new Error(`Layer [${layer}] does not exist`);
@@ -136,9 +135,10 @@ ol.Map.Geoportail.prototype.getLayersByName = function(name)
 			// Min et Max et extent
 			var bbox = ol.proj.transformExtent(descLayer.WGS84BoundingBox, 'EPSG:4326', 'EPSG:3857');
 			
-			let tileMatrix = descLayer.TileMatrixSetLink[0].TileMatrixSetLimits;
-			let minZoom = parseInt(tileMatrix[0].TileMatrix, 10);
-			let maxZoom = parseInt(tileMatrix.at(-1).TileMatrix, 10);
+			let matrixIds = wmtsOptions.tileGrid.matrixIds_;
+			let minZoom = parseInt(matrixIds[0], 10);
+			let maxZoom = parseInt(matrixIds.slice(-1)[0], 10);
+
 			newLayer.setMinResolution(_self.getResolutionFromZoom(maxZoom));
 			newLayer.setMaxResolution(_self.getResolutionFromZoom(minZoom));
 			newLayer.setExtent(bbox);
