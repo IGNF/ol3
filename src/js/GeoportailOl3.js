@@ -217,7 +217,7 @@ ol.Map.Geoportail.prototype.addGeoservice = function (geoservice, options)
 			newLayer = this.addWMTSGeoservice(geoservice, options);
 			break;
         case 'WFS':
-			newLayer = this.addWMFSGeoservice(geoservice, options);
+			newLayer = this.addWFSGeoservice(geoservice, options);
 			break;
         default : throw "Geoservice type unknown";
     }
