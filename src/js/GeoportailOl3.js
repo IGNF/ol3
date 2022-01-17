@@ -453,9 +453,11 @@ ol.Map.Geoportail.prototype.addWFSGeoservice = function (geoservice, options)
 					throw Error("Bad response from server");
 				return response.text();
 			}).then(response => {
-				source.getFormat().readFeatures(response,{
-					featureProjection: 'EPSG:3857'
-				});
+				source.addFeatures (
+					source.getFormat().readFeatures(response,{
+						featureProjection: 'EPSG:3857'
+					})
+				);
 			});
 		},
 		crossOriginKeyword: 'anonymous',
