@@ -1,11 +1,7 @@
 /**
  * @constructor Gestion des GetCapabilities
- * @param {string} proxyUrl Proxy
- * @param {string} apiKey Geoservice key access
  */
- GPConfig = function(proxyUrl, apiKey) {
-	this._proxyUrl 	= proxyUrl || null;
-	this._apiKey 	= apiKey || null;
+ GPConfig = function() {
 	this._capabilities = {};
 };
 
@@ -56,12 +52,52 @@ ol.Map.Geoportail = function(opt_options)
     this._layerSwitcher = options.layerSwitcher ? options.layerSwitcher : new ol.control.LayerSwitcher({options: {collapsed:false}});
     this.addControl(this._layerSwitcher);
 		
-	this._gpConfig = new GPConfig(this._proxyUrl, this._apiKey);
+	this._gpConfig = new GPConfig();
 	if (options.addBaseLayer) {
 		if (this._apiKey) this.addGeoportalLayer(this._apiKey, "GEOGRAPHICALGRIDSYSTEMS.MAPS");
 		this.addGeoportalLayer("ortho", "ORTHOIMAGERY.ORTHOPHOTOS");
 		this.addGeoportalLayer("cartes", "GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2"); 
 	}
+
+	/**
+	 * Retourne l'attribution en fonction des parametres d'attributions
+	 * @param {Object} geoservice 
+	 * @returns 
+	 */
+	 this._getAttribution = function(geoservice) {
+		let result = null;
+		
+		let name 	= geoservice.attribution_name;
+		let url 	= geoservice.attribution_logo_url;
+		let logoUrl = geoservice.attribution_logo_url;
+		if (! name && !url && !logoUrl) return null;
+
+		if (url && logoUrl && name) {
+			result = `<a target="_blank" href="${url}"><img class="gp-control-attribution-image" src="${logoUrl}" title="${name}"></a>`;
+		} else if (url && logoUrl) {
+			result = `<a target="_blank" href="${url}"><img class="gp-control-attribution-image" src="${logoUrl}"></a>`;	
+		} else if (url && name) {
+			result = `<a target="_blank" href="${url}" title="${name}">${url}</a>`;	
+		} else if (logoUrl && name) {
+			result = `<img class="gp-control-attribution-image" src="${logoUrl}" title="${name}"></img>`;
+		} else if (logoUrl) {
+			result = `<img class="gp-control-attribution-image" src="${logoUrl}"></img>`;	
+		} else if (name) {
+			result = name;	
+		}
+		
+		return result;
+	};
+
+	// Metadonnees et attribution IGN
+	this._metadataIGN = 'https://geoservices.ign.fr/';
+	let attribution = this._getAttribution({ 
+		'attribution_name': "Institut national de l'information géographique et forestière",
+		'attribution_url' : 'https://www.ign.fr/',
+		'attribution_logo_url': 'https://wxs.ign.fr/static/logos/IGN/IGN.gif'
+
+	});
+	this._attributionIGN = new ol.Attribution({ html: attribution });
 };
 ol.inherits(ol.Map.Geoportail, ol.Map);
 
@@ -124,9 +160,11 @@ ol.Map.Geoportail.prototype.getLayersByName = function(name)
 			let wmtsOptions = ol.source.WMTS.optionsFromCapabilities(capabilities, {
 				layer: layer
 			});
-			if (! wmtsOptions)
+			if (! wmtsOptions) {
 				throw new Error(`Layer [${layer}] does not exist`);
-
+			}
+			wmtsOptions['attributions'] = this._attributionIGN;
+			
 			let layers = capabilities['Contents']['Layer'];
 			const descLayer = layers.find(element => {
 				return element['Identifier'] == layer;
@@ -147,7 +185,8 @@ ol.Map.Geoportail.prototype.getLayersByName = function(name)
 			// Mise a jour de la couche dans le layer switcher
 			_self.getLayerSwitcher().addLayer(newLayer, {
 				title: descLayer.Title,
-				description: descLayer.Abstract
+				description: descLayer.Abstract,
+				metadata: [{ url: this._metadataIGN }]
 			});
 			_self.getLayerSwitcher().setRemovable(newLayer, false);
 			_self.updateEyeInLayerSwitcher(newLayer, options.visible);
@@ -314,17 +353,19 @@ ol.Map.Geoportail.prototype.addFeatureType = function (featureType, opt, source_
  */
 ol.Map.Geoportail.prototype.addWMSGeoservice = function (geoservice, options) 
 {
+	let isIGN = new RegExp(/https:\/\/wxs.ign.fr\//).test(geoservice.url);
+
 	let bbox = this.getExtent(geoservice.map_extent);
-	
+
 	let newLayer = new ol.layer.Tile({
 		name: geoservice.title,
 		type:  'geoservice',
 		geoservice: geoservice,
 		source: new ol.source.TileWMS({
 			url: geoservice.url,
-			attributions: [new ol.Attribution({
-				html: geoservice.description
-			})],
+			attributions: new ol.Attribution({
+				html: this._getAttribution(geoservice)
+			}),
 			params: {
 				LAYERS: geoservice.layers,
 				FORMAT: geoservice.format,
@@ -338,13 +379,12 @@ ol.Map.Geoportail.prototype.addWMSGeoservice = function (geoservice, options)
 		extent: bbox
 	});
 	
+	let metadata = isIGN ? { url: this._metadataIGN } : { url: geoservice.link };
 	this.addNewLayer(newLayer, {
 		title: geoservice.title,
 		visible: options.visible,
 		description: geoservice.description,
-		quicklookUrl: null,
-		legends: [],
-		metadata: [{url: geoservice.link}]
+		metadata: [metadata]
 	});
 	
 	return newLayer;
@@ -359,14 +399,14 @@ ol.Map.Geoportail.prototype.addWMSGeoservice = function (geoservice, options)
 ol.Map.Geoportail.prototype.addWMTSGeoservice = function (geoservice, options) 
 {
 	let _self = this;
-	
+	let isIGN = new RegExp(/https:\/\/wxs.ign.fr\//).test(geoservice.url);
+
 	let bbox = this.getExtent(geoservice.map_extent);
 	let newLayer = new ol.layer.Tile({
 		name: geoservice.layers,
 		type: 'geoservice',
 		geoservice: geoservice,
 		source:new ol.source.WMTS({}),
-		attribution:[new ol.Attribution({html: 'Some copyright info.'})],
 		visible: options.visible,
 		opacity: options.opacity,
 		minResolution: this.getResolutionFromZoom(geoservice.max_zoom),
@@ -374,17 +414,16 @@ ol.Map.Geoportail.prototype.addWMTSGeoservice = function (geoservice, options)
 		extent: bbox
 	});
 	
+	let metadata = isIGN ? { url: this._metadataIGN } : { url: geoservice.link };
 	this.addNewLayer(newLayer, {
 		title:geoservice.title,
 		description: geoservice.description,
-		quicklookUrl : null,
-		legends: [],
-		metadata: [{url:geoservice.link}]
+		metadata: [metadata]
 	});
 
 	// GetCapabilities
 	let version = geoservice.version;
-	let url = geoservice.url + (geoservice.url.match(/[\?]/g) ? '&' : '?') + `SERVICE=WMTS&VERSION=${version}&REQUEST=GetCapabilities`;
+	let url = geoservice.url + (new RegExp(/[\?]/g).test(geoservice.url) ? '&' : '?') + `SERVICE=WMTS&VERSION=${version}&REQUEST=GetCapabilities`;
 	
 	this._gpConfig.getCapabilities(url)
 		.then(capabilities => {
@@ -392,9 +431,14 @@ ol.Map.Geoportail.prototype.addWMTSGeoservice = function (geoservice, options)
 				layer: geoservice.layers,
 				matrixSet: 'EPSG:3857'
 			});
-			if (! wmtsOptions)
+			if (! wmtsOptions) {
 				throw new Error(`Layer [${layer}] does not exist`);
+			}
 			
+			let attributions = new ol.Attribution({
+				html: this._getAttribution(geoservice)
+			});
+			wmtsOptions['attributions'] = attributions;
 			newLayer.setSource(new ol.source.WMTS(wmtsOptions));
 		}).catch(error => {
 			_self.removeLayer(layer);
@@ -415,7 +459,7 @@ ol.Map.Geoportail.prototype.addWMTSGeoservice = function (geoservice, options)
  */
 ol.Map.Geoportail.prototype.addWFSGeoservice = function (geoservice, options) 
 {
-	let self = this;
+	let self = this;	
 	let format = new ol.format.GeoJSON();
 
 	let extent = geoservice.map_extent.split(",");
@@ -427,7 +471,7 @@ ol.Map.Geoportail.prototype.addWFSGeoservice = function (geoservice, options)
 	let source = new ol.source.Vector({
 		format: format,
 		loader: function(extent) {
-			let url = geoservice.url + (geoservice.url.match(/[\?]/g) ? '&' : '?') + 'service=WFS';
+			let url = geoservice.url + (new RegExp(/[\?]/g).test(geoservice.url) ? '&' : '?') + 'service=WFS';
 			let bbox = extent;
 			
 			if (geoservice.version == '1.0.0') {
@@ -460,6 +504,9 @@ ol.Map.Geoportail.prototype.addWFSGeoservice = function (geoservice, options)
 				);
 			});
 		},
+		attributions: new ol.Attribution({
+			html: this._getAttribution(geoservice)
+		}),
 		crossOriginKeyword: 'anonymous',
 		strategy: ol.loadingstrategy.bbox
 	});
@@ -496,8 +543,6 @@ ol.Map.Geoportail.prototype.addWFSGeoservice = function (geoservice, options)
 		title: geoservice.title,
 		visible: options.visible,
 		description: geoservice.description,
-		quicklookUrl : null,
-		legends: [],
 		metadata: [{url:geoservice.link}]
 	});
 };
