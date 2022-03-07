@@ -417,6 +417,7 @@ ol.Map.Geoportail.prototype.addWMTSGeoservice = function (geoservice, options)
 	let metadata = isIGN ? { url: this._metadataIGN } : { url: geoservice.link };
 	this.addNewLayer(newLayer, {
 		title:geoservice.title,
+		visible: options.visible,
 		description: geoservice.description,
 		metadata: [metadata]
 	});
