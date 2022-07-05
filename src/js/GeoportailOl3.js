@@ -180,6 +180,7 @@ ol.Map.Geoportail.prototype.getLayersByName = function(name)
 			newLayer.setMinResolution(_self.getResolutionFromZoom(maxZoom));
 			newLayer.setMaxResolution(_self.getResolutionFromZoom(minZoom));
 			newLayer.setExtent(bbox);
+			wmtsOptions['crossOrigin'] = 'Anonymous';
 			newLayer.setSource(new ol.source.WMTS(wmtsOptions));
 			
 			// Mise a jour de la couche dans le layer switcher
@@ -406,7 +407,9 @@ ol.Map.Geoportail.prototype.addWMTSGeoservice = function (geoservice, options)
 		name: geoservice.layers,
 		type: 'geoservice',
 		geoservice: geoservice,
-		source:new ol.source.WMTS({}),
+		source:new ol.source.WMTS({
+			"crossOrigin": "Anonymous"
+		}),
 		visible: options.visible,
 		opacity: options.opacity,
 		minResolution: this.getResolutionFromZoom(geoservice.max_zoom),
@@ -440,6 +443,7 @@ ol.Map.Geoportail.prototype.addWMTSGeoservice = function (geoservice, options)
 				html: this._getAttribution(geoservice)
 			});
 			wmtsOptions['attributions'] = attributions;
+			wmtsOptions['crossOrigin'] = 'Anonymous';
 			newLayer.setSource(new ol.source.WMTS(wmtsOptions));
 		}).catch(error => {
 			_self.removeLayer(layer);
