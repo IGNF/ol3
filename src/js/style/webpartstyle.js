@@ -221,6 +221,7 @@ ol.layer.Vector.Webpart.Style.cacheStyle = {};
 ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
     // mongoParser
     var parser = window.mongoparser;
+	
     // Sens de circulation
     var directionStyle = new ol.style.Style ({
         text: ol.layer.Vector.Webpart.Style.Text ({
@@ -236,11 +237,18 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
     }
     else return function(feature, res) {
         if (!feature) return [];
-        var style = featureType.style;
+        var style = featureType.style
+		
+		let resUtils = new ol.utils.resolutions();
+		
+		let minZoom = 0;
+        if (featureType.name) {
+			minZoom = featureType.minZoomLevel;
+        }
+		
         // Conditionnal style
         if (featureType.style && featureType.style.children) {
             for (var i=0, fi; fi=featureType.style.children[i]; i++) {
-                var test = true;
                 if (typeof (fi.condition) ==='string') {
                     try {
                         fi.condition = JSON.parse(fi.condition);
@@ -258,42 +266,56 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
         }
 
         var fstyle = ol.layer.Vector.Webpart.Style.formatFeatureStyle (style, feature);
+					
+		let displayText = true;
+		if (fstyle.labelMinZoom !== null) {
+			let zoom = Math.max(minZoom, fstyle.labelMinZoom);
+			let resolution = resUtils.getResolution(zoom);
+			displayText = (res <= resolution);
+		}
+			
         var cacheId = fstyle.name;
-        for (var i in style) if (i!=='label') {
-            if (style[i] !== fstyle[i]) cacheId += '-'+i+':'+fstyle[i];
+        for (var i in style) if (i !== 'label') {
+            if (style[i] !== fstyle[i]) cacheId += '-' + i + ':' + fstyle[i];
         }
         var style = ol.layer.Vector.Webpart.Style.cacheStyle[cacheId];
         if (style) {
             var style = ol.layer.Vector.Webpart.Style.cacheStyle[cacheId];
-            var txt = style[style.length-1].getText();
-            if (txt) txt.setText(fstyle.label||'');
+            var textStyle = style[style.length-1].getText();
+			
+			let text = '';
+			if (fstyle.label && displayText) text = fstyle.label;
+            if (textStyle) textStyle.setText(text);
         } else {
-            var textStyleConfig = {
-                text: ol.layer.Vector.Webpart.Style.Text (fstyle)
-            };
-            if (fstyle.label)	{
-                /*Pour les multipolygones, on met le label sur le polygone dont
-                la surface est la plus grande */
-                if (feature.getGeometry().getType() === 'MultiPolygon') {
-                    textStyleConfig['geometry'] = function(feature) {
-                        var polygons = feature.getGeometry().getPolygons();
-                        polygons.sort(function (a, b) { return a.getArea()- b.getArea() });
-                        return polygons[polygons.length - 1].getInteriorPoint();
-                    };
-                }
-            }
-            var textStyle = new ol.style.Style(textStyleConfig);
+			// L'etiquette
+			let textStyleConfig = {
+				text: ol.layer.Vector.Webpart.Style.Text (fstyle)
+			};
+			if (fstyle.label)	{
+				/* Pour les multipolygones, on met le label sur le polygone dont
+				la surface est la plus grande */
+				if (feature.getGeometry().getType() === 'MultiPolygon') {
+					textStyleConfig['geometry'] = function(feature) {
+						var polygons = feature.getGeometry().getPolygons();
+						polygons.sort(function (a, b) { return a.getArea()- b.getArea() });
+						return polygons[polygons.length - 1].getInteriorPoint();
+					};
+				}
+			}
+				
+			if (! displayText) { 
+				textStyleConfig.text.setText('');
+			}
 
-            var styleConfig = {
+			let textStyle = new ol.style.Style(textStyleConfig);
+			var styleConfig = {
                 image: ol.layer.Vector.Webpart.Style.Image (fstyle),
                 fill: ol.layer.Vector.Webpart.Style.Fill (fstyle),
                 stroke: ol.layer.Vector.Webpart.Style.Stroke(fstyle)
             };
-            var st = [
-                new ol.style.Style (styleConfig),
-                textStyle
-            ];
-
+			
+			let st = [new ol.style.Style (styleConfig), textStyle];
+			
             // If img don't load > draw circle
             if (fstyle.externalGraphic) {
                 var img = st[0];
@@ -309,6 +331,7 @@ ol.layer.Vector.Webpart.Style.getFeatureStyleFn = function(featureType) {
             }
             style = ol.layer.Vector.Webpart.Style.cacheStyle[cacheId] = st;
         }
+		
         // Ajouter le sens de circulation
         let directionField;
         if (featureType.style && featureType.style.directionField) {
