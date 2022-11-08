@@ -328,7 +328,7 @@ ol.Map.Geoportail.prototype.addFeatureType = function (featureType, opt, source_
     },src_options);
 
 	var lsOptions = {
-        title:featureType.name,
+        title:featureType.title,
 		visible: options.visible
     };
     if (featureType.description) {
