@@ -436,7 +436,7 @@ ol.Map.Geoportail.prototype.addWMTSGeoservice = function (geoservice, options)
 				matrixSet: 'EPSG:3857'
 			});
 			if (! wmtsOptions) {
-				throw new Error(`Layer [${layer}] does not exist`);
+				throw new Error(`Layer [${geoservice.layers}] does not exist`);
 			}
 			
 			let attributions = new ol.Attribution({
@@ -446,7 +446,7 @@ ol.Map.Geoportail.prototype.addWMTSGeoservice = function (geoservice, options)
 			wmtsOptions['crossOrigin'] = 'Anonymous';
 			newLayer.setSource(new ol.source.WMTS(wmtsOptions));
 		}).catch(error => {
-			_self.removeLayer(layer);
+			_self.removeLayer(newLayer);
 			if (error instanceof TypeError)
 				console.error(error.message);
 			else console.error(error);
