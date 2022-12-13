@@ -11,7 +11,7 @@
   "dependencies": {
     "jspdf": "^2.1.1",
     "mongo-parse": "^2.1.0",
-    "ol-ext": "^3.1.16",
-    "openlayers": "^4.6.5"
+    "ol-6.9.0": "npm:ol@6.9.0",
+    "ol-ext": "^4.0.4"
   }
 }
