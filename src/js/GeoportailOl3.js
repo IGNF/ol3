@@ -1,13 +1,13 @@
 import GPConfig from './GPConfig';
-import Map from 'ol-6.9.0/Map';
-import TileLayer from 'ol-6.9.0/layer/Tile';
-import WMTS from 'ol-6.9.0/source/WMTS';
-import { optionsFromCapabilities } from 'ol-6.9.0/source/WMTS';
-import { transformExtent } from 'ol-6.9.0/proj';
-import { ol_control_LayerSwitcher as LayerSwitcher }  from "ol-ext/control/LayerSwitcher";
+import Map from 'ol/Map';
+import TileLayer from 'ol/layer/Tile';
+import WMTS from 'ol/source/WMTS';
+import { transformExtent } from 'ol/proj';
+import { optionsFromCapabilities } from 'ol/source/WMTS';
+import ol_control_LayerSwitcher from "ol-ext/control/LayerSwitcher";
 
 
-export class ol_Map_Geoportail extends Map 
+class ol_Map_Geoportail extends Map 
 {
 	/**
 	 * 
@@ -23,7 +23,10 @@ export class ol_Map_Geoportail extends Map
     	this._resolutionInit = 156543.03392804097 ;
 
 		// Ajout du layerSwitcher
-		this._layerSwitcher = options.layerSwitcher ? options.layerSwitcher : new LayerSwitcher({options: {collapsed:false}});
+		this._layerSwitcher = options.layerSwitcher ? options.layerSwitcher : new ol_control_LayerSwitcher({
+			collapsed:false,
+			// trash: true
+		});
 		this.addControl(this._layerSwitcher);
 			   
 		this._gpConfig = new GPConfig();
@@ -34,14 +37,12 @@ export class ol_Map_Geoportail extends Map
 		}
 	   
 		// Metadonnees et attribution IGN
-		let attribution = this._getAttribution({ 
+		this._metadataIGN = 'https://geoservices.ign.fr/';
+		this._attributionIGN = this._getAttribution({ 
 			'attribution_name': "Institut national de l'information géographique et forestière",
 			'attribution_url' : 'https://www.ign.fr/',
 			'attribution_logo_url': 'https://wxs.ign.fr/static/logos/IGN/IGN.gif'
-	
 		});
-		this._metadataIGN = 'https://geoservices.ign.fr/';
-		this._attributionIGN = new ol.Attribution({ html: attribution });
 	}
 
 	/**
@@ -53,13 +54,14 @@ export class ol_Map_Geoportail extends Map
 	 */
 	addGeoportalLayer(key, layer, opt_options) {	
 		let options = opt_options || { visible: true, opacity: 1 };
-		let visible = options.visible || true;
-		let opacity = options.opacity || 1;
+		let visible = ('visible' in options) ? options.visible : true;
+		let opacity = ('opacity' in options) ? options.opacity : 1;
 		
 		let newLayer = new TileLayer({
 			name: layer,
 			visible: visible,
-			opacity: opacity
+			opacity: opacity,
+			// noSwitcherDelete: true
 		});
 		this.addLayer(newLayer);
 	  
@@ -78,7 +80,8 @@ export class ol_Map_Geoportail extends Map
 					throw new Error(`Layer [${layer}] does not exist`);
 				}
 				wmtsOptions['attributions'] = this._attributionIGN;
-				
+				wmtsOptions['crossOrigin'] = 'Anonymous';
+
 				let layers = capabilities['Contents']['Layer'];
 				const descLayer = layers.find(element => {
 					return element['Identifier'] == layer;
@@ -91,20 +94,11 @@ export class ol_Map_Geoportail extends Map
 				let minZoom = parseInt(matrixIds[0], 10);
 				let maxZoom = parseInt(matrixIds.slice(-1)[0], 10);
 	
-				newLayer.setMinResolution(_self.getResolutionFromZoom(maxZoom));
-				newLayer.setMaxResolution(_self.getResolutionFromZoom(minZoom));
+				newLayer.set('title', descLayer.Title);
+				newLayer.setMinResolution(this._getResolutionFromZoom(maxZoom));
+				newLayer.setMaxResolution(this._getResolutionFromZoom(minZoom));
 				newLayer.setExtent(bbox);
-				wmtsOptions['crossOrigin'] = 'Anonymous';
-				newLayer.setSource(newWMTS(wmtsOptions));
-				
-				// Mise a jour de la couche dans le layer switcher
-				this.getLayerSwitcher().addLayer(newLayer, {
-					title: descLayer.Title,
-					description: descLayer.Abstract,
-					metadata: [{ url: this._metadataIGN }]
-				});
-				this.getLayerSwitcher().setRemovable(newLayer, false);
-				this._updateEyeInLayerSwitcher(newLayer, options.visible);
+				newLayer.setSource(new WMTS(wmtsOptions));
 			}).catch(error => {
 				this.removeLayer(newLayer);
 				if (error instanceof TypeError)
@@ -144,7 +138,7 @@ export class ol_Map_Geoportail extends Map
 		let result = null;
 		
 		let name 	= geoservice.attribution_name;
-		let url 	= geoservice.attribution_logo_url;
+		let url 	= geoservice.attribution_url;
 		let logoUrl = geoservice.attribution_logo_url;
 		if (! name && !url && !logoUrl) return null;
 
@@ -164,4 +158,16 @@ export class ol_Map_Geoportail extends Map
 		
 		return result;	
 	}
+
+	/**
+	 * Retourne la resolution pour un niveau de zoom donne
+	 * @param {integer} zoom
+	 * @returns {float} resolution
+	 */
+	_getResolutionFromZoom = function (zoom){
+		return this._resolutionInit / Math.pow(2,zoom) ;
+	};
+
 }
+
+export default ol_Map_Geoportail;
