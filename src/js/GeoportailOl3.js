@@ -109,11 +109,152 @@ class ol_Map_Geoportail extends Map
 		return newLayer;
 	}
 
-	getLayerSwitcher() {
+	/**
+	 * Ajout d'un layer ripart a la map
+	 * Geoportail, WMS, WMTS
+	 * @param {Object} layer
+	 * @returns {layer}
+	 */
+	addRipartLayer (layer)	{
+		let options = {
+			visible: layer.visibility,
+			opacity: layer.opacity
+		};
+
+		let service = layer[layer.type];
+		if (layer.type === 'geoservice') {
+			return this.addGeoservice(service, options);
+		} else if (layer.type === 'feature-type') {
+			return this.addFeatureType(service, options);
+		}
+
+		throw 'Must be a ripart layer';
+	}
+
+	/**
+	 * Ajout d'un geoservice a la map
+	 * Geoportail, WMS, WMTS
+	 * @param {Object} geoservice
+	 * @param {Object} options (visible, opacity)
+	 * @returns {layer}
+	 */
+	addGeoservice(geoservice, options) {
+		if (! geoservice) {
+			throw 'geoservice must be defined';
+		}
+
+		let options = options || { visible: true, opacity: 1 };
+		
+		let extent = geoservice.map_extent.split(",");
+		extent = extent.map(function (x) {
+			return parseInt(x, 10);
+		});
+
+		let bbox = transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
+
+		var newLayer = null;
+		switch(geoservice.type){
+			case 'WMS':	
+				newLayer = this.addWMSGeoservice(geoservice, options, bbox);
+				break;
+			case 'WMTS':
+				newLayer = this.addWMTSGeoservice(geoservice, options, bbox);
+				break;
+			case 'WFS':
+				newLayer = this.addWFSGeoservice(geoservice, options, bbox);
+				break;
+			default : throw "Geoservice type unknown";
+		}
+
+		return newLayer;
+	}
+
+	/**
+	 * Ajout d'une couche vecteur a la map
+	 * @param {Object} featureType
+	 * @param {Object} opt (visible, opacity, filter ...)
+	 * @returns {layer}
+	 */
+	addFeatureType(featureType, opt, source_options)	{
+		let options     = $.extend({visible:true, opacity: 1}, opt);
+		let src_options = source_options || {};
+		if (featureType.tileZoomLevel) {
+			src_options.tileZoom = featureType.tileZoomLevel;
+		}
+		src_options = $.extend({ featureType: featureType }, src_options);
+		
+		/*let style=null;
+		if (featureType.style){
+			if (ol.layer.Vector.Webpart.Style !== "undefined"){
+				var style = new ol.layer.Vector.Webpart.Style.getFeatureStyleFn(featureType);
+			} else {
+				var hexColor = featureType.style.fillColor;
+				if (!hexColor) {hexColor="#ee9900";}
+				var color = ol.color.asArray(hexColor);
+				color = color.slice();
+				color[3] = 0.2;
+				style = new ol.style.Style({
+					fill: new ol.style.Fill({
+						color:color
+					}),
+					stroke: new ol.style.Stroke({
+						color:featureType.style.strokeColor,
+						width:featureType.style.strokeWidth
+					}),
+					image: new ol.style.Circle({
+						radius: 5,
+						fill: new ol.style.Fill({color:[238,153,0,0.5]}),
+						stroke: new ol.style.Stroke({color:[238,153,0,1],width:2})
+					})
+				});
+		}
+		} else {
+			style = new ol.style.Style({
+				fill: new ol.style.Fill({color:[238,153,0,0.5]}),
+				stroke: new ol.style.Stroke({color:[238,153,0,1],width:2}),
+				image: new ol.style.Circle({
+					radius: 5,
+					fill: new ol.style.Fill({color:[238,153,0,0.5]}),
+					stroke: new ol.style.Stroke({color:[238,153,0,1],width:2})
+				})
+			});
+		}
+		
+		var vectorLayer = new ol.layer.Vector.Webpart({
+			name: featureType.name,
+			type: 'feature-type',
+			'feature-type': featureType,
+			visible: options.visible,
+			opacity: options.opacity,
+			style: style,
+			minResolution: this.getResolutionFromZoom(featureType.maxZoomLevel),
+			maxResolution: this.getResolutionFromZoom(featureType.minZoomLevel)
+		},src_options);
+
+		var lsOptions = {
+			title:featureType.title,
+			visible: options.visible
+		};
+		if (featureType.description) {
+			lsOptions.description = featureType.description;
+		} else {
+			lsOptions.description = 'Pas de description';
+		}
+		if (typeof(Routing) !== 'undefined') {
+			lsOptions.metadata = [{
+				url: Routing.generate('gcms_feature_type_view', {databaseName: featureType.database, typeName: featureType.name })
+			}];
+		}
+		
+		this.addNewLayer(vectorLayer, lsOptions);
+		return vectorLayer;*/
+	}
+
+	_getLayerSwitcher() {
     	return this._layerSwitcher;
 	}
 
-	getLayersByName(name) {
+	_getLayersByName(name) {
 		let mapLayers = this.getLayers().getArray();
 		return mapLayers.filter(layer => {
 			return layer.get('name') === name;
@@ -127,7 +268,7 @@ class ol_Map_Geoportail extends Map
 	 * @returns {undefined}
 	 */
 	_updateEyeInLayerSwitcher(olLayer, visibility){
-		var idlayer = this.getLayerSwitcher().getLayerDOMId(olLayer);
+		var idlayer = this._getLayerSwitcher().getLayerDOMId(olLayer);
 
 		var n = idlayer.indexOf('_');
 		var id = idlayer.substr(n + 1);

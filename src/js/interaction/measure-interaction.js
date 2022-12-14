@@ -1,10 +1,17 @@
-/**
- * Generate unique ? id
- * @returns {String}
- */
-function generateUid() {
-	return Math.random().toString(36).substr(2, 9);
-}
+import VectorSource from 'ol/source/Vector';
+import VectorLayer from 'ol/layer/Vector';
+import Draw from 'ol/interaction/Draw';
+import Style from 'ol/style/Style';
+import Stroke from 'ol/style/Stroke';
+import Fill from 'ol/style/Fill';
+import CircleStyle from 'ol/style/Circle';
+import Point from 'ol/geom/Point';
+import LineString from 'ol/geom/Point';
+import { transform } from 'ol/proj';
+import { getArea, getDistance } from 'ol/sphere';
+import { ign_utils_generateUid } from './../Utils';
+import { ign_utils_getMeasureText, ol_style_Label } from './../Style/labelstyle';
+
 
 /**
  * @classdesc
@@ -13,191 +20,188 @@ function generateUid() {
  * Additionnal options
  * - multiple {bool} possibility to make many measures
  * - drawStyle {ol.style} option is used to style the features (measures)
- * - defStyle {ol.style} interaction style
  *
  * @constructor
  * @extends {ol.interaction.Draw}
  * @param {olx.interaction.DrawOptions=} options Options.
  */
-ol.interaction.Measure = function(options)	{
-	if (!options) options = {};
-	
-    var self_           = this;
-	this.listener       = null;
-	this.measureOverlay = null;
-	this.multiple       = options.multiple || false;
-	this.wgs84Sphere    = new ol.Sphere(6378137);
-	this.currentFeature = null;
-
-    var authorizedTypes = new Array('LineString','Polygon','Circle');
-    
-    /**
-     * Type is authorized ?
-     * @param {ol.geom.GeometryType} type
-     * @returns {Boolean}
-     */
-    function isAuthorized(type) {
-        var index = authorizedTypes.indexOf(type);
-        return (index !== -1);
-    }
-    
-    /**
-     * interaction default style
-     * @type ol.style.Style
-     */
-	var defStyle = new ol.style.Style({
-		fill: new ol.style.Fill({
-			color: 'rgba(255, 165, 0, 0.3)'
-		}),
-		stroke: new ol.style.Stroke({
-			color: '#ffa500',
-			width: 2
-		}),
-		image: new ol.style.Circle({
-			radius: 3,
-			stroke: new ol.style.Stroke({
-				color: '#ffa500'
-			}),
-			fill: new ol.style.Fill({
-				color:  '#ffa500'
-			})
-		})
-	});
-	
-	/**
-     * 
-     * @param {ol.Feature} feature
-     * @returns {ol.style.Style}
-     */
-    function getMeasureStyle(feature) {
-        var margin      = 5;
-        var strokeWidth = 1;
-        var font        = '14px "Helvetica Neue",Helvetica,Arial,sans-serif';
-        
-        var w = ol.utils.getMeasureText(font,feature.get('measure'));
-        var offsetX = 0;
-		if (feature.getGeometry() instanceof ol.geom.LineString) {
-			offsetX = w/2 + margin + strokeWidth + 2;
+class ol_interaction_Measure extends Draw
+{
+	constructor(options) {
+		if (!options) options = {};
+		
+		let type = options.type ?? 'LineString';
+		if (! ['LineString','Polygon','Circle'].includes(type)) {
+			throw `Type ${type} is not authorized.`; 
 		}
 		
-        return new ol.style.Style({
-            geometry: function(feature) {
-                var geometry = feature.getGeometry();
-                switch(geometry.getType()) {
-                    case 'LineString':
-                        return new ol.geom.Point(geometry.getLastCoordinate());
-                    case 'Circle':
-                        return new ol.geom.Point(geometry.getCenter());
-                    case 'Polygon':
-                        return geometry.getInteriorPoint();
-                }
-            },
-            image: new ol.style.Label({
-                label:feature.get('measure'),
-                offsetX: offsetX,
-                fill: new ol.style.Fill({color:'#000'})
-            },
-            {
-                stroke: new ol.style.Stroke({
-                    color: '#fff',
-                    width: strokeWidth
-                }),
-                fill: new ol.style.Fill({color:'#ffcc33'})
-            })
-        });
-    }
-	
-	/**
-     * 
-     * @param {ol.Feature} feature
-     * @param {numeric} resolution
-     * @returns {Array}
-     */
-	function styleFunction(feature, resolution) {
-		var style = new ol.style.Style({
+		let style = options.drawStyle ?? new Style({
 			fill: new ol.style.Fill({
-				color: 'rgba(255, 165, 0, 0.2)'
+				color: 'rgba(255, 165, 0, 0.3)'
 			}),
-			stroke: new ol.style.Stroke({
+			stroke: new Stroke({
 				color: '#ffa500',
 				width: 2
+			}),
+			image: new CircleStyle({
+				radius: 3,
+				stroke: new Stroke({
+					color: '#ffa500'
+				}),
+				fill: new Fill({
+					color:  '#ffa500'
+				})
 			})
 		});
-		return [style, getMeasureStyle(feature)];
+		
+		let layer = new VectorLayer({ 
+			source: new VectorSource(),
+			style: (feature, resolution) => {
+				let style = new Style({
+					stroke: new Stroke({
+						color: '#ffa500',
+						width: 2
+					}),
+					fill: new Fill({
+						color: 'rgba(255, 165, 0, 0.2)'
+					})
+				});
+				
+				let margin = 5;
+				let strokeWidth = 1;
+				let font = '14px "Helvetica Neue",Helvetica,Arial,sans-serif';
+        
+				let w = ign_utils_getMeasureText(font,feature.get('measure'));
+				let offsetX = 0;
+				if (feature.getGeometry() instanceof ol.geom.LineString) {
+					offsetX = w/2 + margin + strokeWidth + 2;
+				}
+		
+				let measureStyle = new Style({
+					geometry: feature => {
+						let geometry = feature.getGeometry();
+						switch(geometry.getType()) {
+							case 'LineString':
+								return new Point(geometry.getLastCoordinate());
+							case 'Circle':
+								return new Point(geometry.getCenter());
+							case 'Polygon':
+								return geometry.getInteriorPoint();
+						}
+					},
+					image: new ol_style_Label({
+						label: feature.get('measure'),
+						offsetX: offsetX,
+						fill: new Fill({color:'#000'})
+					}),
+					stroke: new Stroke({
+						color: '#fff',
+						width: strokeWidth
+					}),
+					fill: new Fill({color:'#ffcc33'})
+				});
+				
+				return [style, measureStyle];
+			}
+		});
+		
+		options.style  = style;
+		options.source = this.layer.getSource();
+		super(options);
+		
+		this._layer 	= layer;
+		this._multiple  = options.multiple ?? false;
+		this._listener;
+		
+		// Tooltip overlay creation
+		let elt = document.createElement('div');
+		elt.className = 'tooltip-' + ign_utils_generateUid() + ' tooltip-measure';
+		this._measureOverlay = new ol.Overlay({
+			element: elt,
+			offset: [0, -15],
+			positioning: 'bottom-center'
+		});
+		
+		this.on('drawstart', evt => {
+			this._onDrawStart(evt);
+		});
+		
+		this.on('drawend', evt => {
+			this._onDrawEnd(evt);
+		});
+	}
+	
+	/**
+	 * Override ol.interaction.Draw.setMap
+	 * @param {ol.Map} map
+	 */
+	setMap(map) {
+		super.setMap(map);
+	
+		if (this.getMap())	{
+			this.getMap().removeLayer(this.layer);
+			this.getMap().removeOverlay(this.measureOverlay);
+		}
+
+		this._layer.setMap(map);
+		map.addOverlay(this._measureOverlay);
 	}
 
-	this.layer =  new ol.layer.Vector({ 
-		source: new ol.source.Vector(),
-		style: styleFunction
-	});
-	
-	if (! options.style) {
-		options.style = defStyle;
+	/**
+	 * Override ol.interaction.Draw.setActive
+	 * @param {type} active
+	 */
+	setActive(active)	{
+		super.setActive(active);
+		this._layer.getSource().clear();
 	}
-    options.source = this.layer.getSource();
-    
-	/*if (options.type == ol.geom.GeometryType.LINE_STRING)	{
-		options.maxPoints = 2;
-	}*/
-    if (! options.type) {
-        options.type = 'LineString';
-    } else if (! isAuthorized(options.type)) {
-        throw 'Type ' + options.type + ' is not authorized.'; 
-    }
-	
-	ol.interaction.Draw.call(this, options);
 
-    /**
-     * Format length ouput
-     * @param {ol.geom.LineString} line
-     * @return {object} The formatted length.
-     */
-	this.formatLength = function(line) {
-        var length = 0;
+	_formatLength() {
+		let length = 0;
        
-		var coordinates = line.getCoordinates();
-		var sourceProj = this.getMap().getView().getProjection();
+		let coordinates = line.getCoordinates();
+		let sourceProj = this.getMap().getView().getProjection();
 		for (var i = 0, ii = coordinates.length - 1; i < ii; ++i) {
-			var c1 = ol.proj.transform(coordinates[i], sourceProj, 'EPSG:4326');
-			var c2 = ol.proj.transform(coordinates[i + 1], sourceProj, 'EPSG:4326');
-			length += this.wgs84Sphere.haversineDistance(c1, c2);
+			var c1 = transform(coordinates[i], sourceProj, 'EPSG:4326');
+			var c2 = transform(coordinates[i + 1], sourceProj, 'EPSG:4326');
+			length += getDistance(c1, c2);
 		}
         
-        var output = {};
+        let output = {};
         if (length > 100) {
 			output.html = output.measure = (Math.round(length / 1000 * 100) / 100) + ' km';
         } else {
 			output.html = output.measure = (Math.round(length * 100) / 100) + ' m';
         }
 		return output;
-	};
+	}
 	
-    /**
+	/**
      * Format area output.
      * @param {inherits ol.geom} geometry
      * @return {object} Formatted area.
      */
-	this.formatArea = function(geometry) {
-		var area;
+	_formatArea(geometry) {
+		let area;
         
-        var sourceProj = this.getMap().getView().getProjection();
-        var geom = geometry.clone().transform(sourceProj, 'EPSG:4326');
+        let sourceProj = this.getMap().getView().getProjection();
+        let geom = geometry.clone().transform(sourceProj, 'EPSG:4326');
 		
 		switch(geom.getType()) {
 			case 'Circle':
-				var radius = this.wgs84Sphere.haversineDistance(
+				var radius = getDistance(
 					geom.getFirstCoordinate(),
 					geom.getLastCoordinate()
 				);
 				area = Math.PI * Math.pow(radius, 2);
 				break;
 			case 'Polygon':
-				var coordinates = geom.getLinearRing(0).getCoordinates();
-				area = Math.abs(this.wgs84Sphere.geodesicArea(coordinates));
+				let coordinates = geom.getLinearRing(0).getCoordinates();
+				area = Math.abs(getArea(coordinates));
 				break;
 		}
 		
-        var output = {};
+        let output = {};
         if (area > 10000) {
 			area = (Math.round(area / 1000000 * 100) / 100);
 			output.html = area + ' km<sup>2</sup>';
@@ -209,82 +213,39 @@ ol.interaction.Measure = function(options)	{
         }
         return output;
 	};
-    
-    /**
-     * Tooltip overlay creation
-     */
-	var elt = document.createElement('div');
-	elt.className = 'tooltip-' + generateUid() + ' tooltip-measure';
-	this.measureOverlay = new ol.Overlay({
-		element: elt,
-		offset: [0, -15],
-		positioning: 'bottom-center'
-	});
 	
-    /**
+	/**
      * Manage drawstart event
      */
-	this.on('drawstart', function(evt) {
+	_onDrawStart(evt) {
 		if (! this.multiple) {
-			self_.layer.getSource().clear();
+			this._layer.getSource().clear();
 		}
-		
-		var ttPos;
-		self_.currentFeature = evt.feature;
-		
-		/**
-		 * Listener on geometry change
-		 */
-		self_.listener = evt.feature.getGeometry().on('change', function(evt) {
-			var geom = evt.target;
+				
+		// Listener on geometry change
+		this._listener = evt.feature.getGeometry().on('change', evt => {
+			let geom = evt.target;
 			
-			var output;
-            if (geom instanceof ol.geom.LineString) {
-				output = self_.formatLength(geom);
+			let output;
+            if (geom instanceof LineString) {
+				output = this._formatLength(geom);
 			} else {
-				output = self_.formatArea(geom);
+				output = this._formatArea(geom);
 			}
-			ttPos = geom.getLastCoordinate();
+			let ttPos = geom.getLastCoordinate();
 			
-			var elt = self_.measureOverlay.getElement();
+			let elt = self_.measureOverlay.getElement();
 			elt.innerHTML = output.html;
-			self_.currentFeature.set('measure', output.measure);
-			self_.measureOverlay.setPosition(ttPos);	
+			evt.feature.set('measure', output.measure);
+			this._measureOverlay.setPosition(ttPos);	
 		});
-	}, this);
+	}
 	
-     /**
+	/**
      * Manage drawend event
      */
-	this.on('drawend', function(evt) {
-		self_.measureOverlay.setPosition(undefined);
-		ol.Observable.unByKey(self_.listener);
-	}, this);
-};
-
-ol.inherits(ol.interaction.Measure, ol.interaction.Draw);
-
-/**
- * Override ol.interaction.Draw.setMap
- * @param {ol.Map} map
- */
-ol.interaction.Measure.prototype.setMap = function (map) {
-	ol.interaction.Draw.prototype.setMap.call(this, map);
-
-	if (this.getMap())	{
-		this.getMap().removeLayer(this.layer);
-		this.getMap().removeOverlay(this.measureOverlay);
-    }
-
-    this.layer.setMap(map);
-	map.addOverlay(this.measureOverlay);
-};
-
-/**
- * Override ol.interaction.Draw.setActive
- * @param {type} active
- */
-ol.interaction.Measure.prototype.setActive = function(active)	{
-	ol.interaction.Draw.prototype.setActive.call(this, active);
-	this.layer.getSource().clear();
-};
+	_onDrawEnd(evt) {
+		this._measureOverlay.setPosition(undefined);
+		ol.Observable.unByKey(this.listener);
+	}
+}
