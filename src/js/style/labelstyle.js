@@ -1,10 +1,11 @@
+import { asString } from 'ol/color';
 import RegularShape from 'ol/style/RegularShape';
 
 /* 
  * font {string} font
  * label {string} text
  */
-ign_utils_getMeasureText = function(font, text)	{
+export function ign_utils_getMeasureText(font, text) {
 	let canvas = document.createElement('CANVAS');
 	let  ctx = canvas.getContext('2d');
 	
@@ -40,34 +41,34 @@ ign_utils_getMeasureText = function(font, text)	{
 class ol_style_Label extends RegularShape
 {
 	constructor(opt_options, rect_options) {
-		let options = opt_options || {};
-		let rect_options = rect_options || {};
+		let options = opt_options ?? {};
+		let rectOptions = rect_options ?? {};
 	
 		super({ radius: 1, rotation: options.rotation || 0 });
-		this._drawLabel(options, rect_options);	
+		this._drawLabel(options, rectOptions);	
 	}
 
 	/**
 	 * Render the rectangle with label
 	 * @private
 	 */
-	_drawLabel(options, rect_options) {
+	_drawLabel(options, rectOptions) {
 		let margin  = options.margin || 5;
 		let offsetX = options.offsetX || 0;
 		let offsetY = options.offsetY || 0;
 		
 		// Rectangle
-		let fillColor 	= rect_options.fill ? ol.color.asString(rect_options.fill.getColor()) : 'rgba(0,0,0,0.5)';
-		let strokeColor = rect_options.stroke ? ol.color.asString(rect_options.stroke.getColor()) : '#fff';
-		let strokeWidth = rect_options.stroke ? rect_options.stroke.getWidth() : 0;
+		let fillColor 	= rectOptions.fill ? asString(rectOptions.fill.getColor()) : 'rgba(0,0,0,0.5)';
+		let strokeColor = rectOptions.stroke ? asString(rectOptions.stroke.getColor()) : '#fff';
+		let strokeWidth = rectOptions.stroke ? rectOptions.stroke.getWidth() : 0;
 	
 		// Text
 		let font 			= options.font || '10px sans-serif';
 		let strokeTextWidth = options.stroke ? options.stroke.getWidth() : 0;
-		let strokeTextColor	= options.stroke ? ol.color.asString(options.stroke.getColor()) : '#fff';
-		let fillTextColor	= options.fill ? ol.color.asString(options.fill.getColor()) : '#fff';
+		let strokeTextColor	= options.stroke ? asString(options.stroke.getColor()) : '#fff';
+		let fillTextColor	= options.fill ? asString(options.fill.getColor()) : '#fff';
 		
-		canvas = this.getImage();
+		let canvas = this.getImage();
 		let ctx = canvas.getContext('2d');
 	
 		ctx.font = font;
@@ -113,4 +114,4 @@ class ol_style_Label extends RegularShape
 	}
 }
 
-export { ign_utils_getMeasureText, ol_style_Label };
+export default ol_style_Label;

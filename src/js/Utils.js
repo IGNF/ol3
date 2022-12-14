@@ -2,7 +2,7 @@
  * Returns france center in WGS84 Web Mercator (EPSG:3857)
  * @returns {ol.Coordinate}
  */
-ign_utils_getFranceCenter = function() {
+export function ign_utils_getFranceCenter() {
     return [ 251936.04517352092, 5916836.764449345 ];
 };
 
@@ -10,7 +10,7 @@ ign_utils_getFranceCenter = function() {
  * Generate unique ? id
  * @returns {String}
  */
-function ign_utils_generateUid() {
+export function ign_utils_generateUid() {
 	return Math.random().toString(36).substr(2, 9);
 }
 
@@ -32,4 +32,4 @@ class ign_utils_resolutions
     }
 }
 
-export { ign_utils_getFranceCenter, ign_utils_generateUid, ign_utils_resolutions };
+export default ign_utils_resolutions;

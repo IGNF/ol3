@@ -143,7 +143,7 @@ class ol_Map_Geoportail extends Map
 			throw 'geoservice must be defined';
 		}
 
-		let options = options || { visible: true, opacity: 1 };
+		options = options ?? { visible: true, opacity: 1 };
 		
 		let extent = geoservice.map_extent.split(",");
 		extent = extent.map(function (x) {

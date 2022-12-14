@@ -1,16 +1,18 @@
 import VectorSource from 'ol/source/Vector';
 import VectorLayer from 'ol/layer/Vector';
+import Overlay from 'ol/Overlay';
 import Draw from 'ol/interaction/Draw';
 import Style from 'ol/style/Style';
 import Stroke from 'ol/style/Stroke';
 import Fill from 'ol/style/Fill';
 import CircleStyle from 'ol/style/Circle';
 import Point from 'ol/geom/Point';
-import LineString from 'ol/geom/Point';
+import LineString from 'ol/geom/LineString';
 import { transform } from 'ol/proj';
 import { getArea, getDistance } from 'ol/sphere';
+import { unByKey } from 'ol/Observable';
 import { ign_utils_generateUid } from './../Utils';
-import { ign_utils_getMeasureText, ol_style_Label } from './../Style/labelstyle';
+import ol_style_Label, { ign_utils_getMeasureText } from './../Style/labelstyle';
 
 
 /**
@@ -28,7 +30,7 @@ import { ign_utils_getMeasureText, ol_style_Label } from './../Style/labelstyle'
 class ol_interaction_Measure extends Draw
 {
 	constructor(options) {
-		if (!options) options = {};
+		options = options ?? {};
 		
 		let type = options.type ?? 'LineString';
 		if (! ['LineString','Polygon','Circle'].includes(type)) {
@@ -36,7 +38,7 @@ class ol_interaction_Measure extends Draw
 		}
 		
 		let style = options.drawStyle ?? new Style({
-			fill: new ol.style.Fill({
+			fill: new Fill({
 				color: 'rgba(255, 165, 0, 0.3)'
 			}),
 			stroke: new Stroke({
@@ -73,13 +75,13 @@ class ol_interaction_Measure extends Draw
         
 				let w = ign_utils_getMeasureText(font,feature.get('measure'));
 				let offsetX = 0;
-				if (feature.getGeometry() instanceof ol.geom.LineString) {
+				if (feature.getGeometry() instanceof LineString) {
 					offsetX = w/2 + margin + strokeWidth + 2;
 				}
 		
 				let measureStyle = new Style({
-					geometry: feature => {
-						let geometry = feature.getGeometry();
+					geometry: function(feature) {
+						var geometry = feature.getGeometry();
 						switch(geometry.getType()) {
 							case 'LineString':
 								return new Point(geometry.getLastCoordinate());
@@ -93,12 +95,14 @@ class ol_interaction_Measure extends Draw
 						label: feature.get('measure'),
 						offsetX: offsetX,
 						fill: new Fill({color:'#000'})
-					}),
-					stroke: new Stroke({
-						color: '#fff',
-						width: strokeWidth
-					}),
-					fill: new Fill({color:'#ffcc33'})
+					},
+					{
+						stroke: new Stroke({
+							color: '#fff',
+							width: strokeWidth
+						}),
+						fill: new Fill({color:'#ffcc33'})
+					})
 				});
 				
 				return [style, measureStyle];
@@ -106,7 +110,7 @@ class ol_interaction_Measure extends Draw
 		});
 		
 		options.style  = style;
-		options.source = this.layer.getSource();
+		options.source = layer.getSource();
 		super(options);
 		
 		this._layer 	= layer;
@@ -116,7 +120,7 @@ class ol_interaction_Measure extends Draw
 		// Tooltip overlay creation
 		let elt = document.createElement('div');
 		elt.className = 'tooltip-' + ign_utils_generateUid() + ' tooltip-measure';
-		this._measureOverlay = new ol.Overlay({
+		this._measureOverlay = new Overlay({
 			element: elt,
 			offset: [0, -15],
 			positioning: 'bottom-center'
@@ -140,7 +144,7 @@ class ol_interaction_Measure extends Draw
 	
 		if (this.getMap())	{
 			this.getMap().removeLayer(this.layer);
-			this.getMap().removeOverlay(this.measureOverlay);
+			this.getMap().removeOverlay(this._measureOverlay);
 		}
 
 		this._layer.setMap(map);
@@ -153,14 +157,16 @@ class ol_interaction_Measure extends Draw
 	 */
 	setActive(active)	{
 		super.setActive(active);
-		this._layer.getSource().clear();
+		if (this._layer) this._layer.getSource().clear();
 	}
 
-	_formatLength() {
-		let length = 0;
-       
+	_formatLength(line) {       
 		let coordinates = line.getCoordinates();
+		if (coordinates.length < 2) return 0;
+
 		let sourceProj = this.getMap().getView().getProjection();
+
+		let length = 0;
 		for (var i = 0, ii = coordinates.length - 1; i < ii; ++i) {
 			var c1 = transform(coordinates[i], sourceProj, 'EPSG:4326');
 			var c2 = transform(coordinates[i + 1], sourceProj, 'EPSG:4326');
@@ -181,22 +187,21 @@ class ol_interaction_Measure extends Draw
      * @param {inherits ol.geom} geometry
      * @return {object} Formatted area.
      */
-	_formatArea(geometry) {
-		let area;
-        
+	_formatArea(geometry) {        
         let sourceProj = this.getMap().getView().getProjection();
         let geom = geometry.clone().transform(sourceProj, 'EPSG:4326');
 		
+		let coordinates, area;
 		switch(geom.getType()) {
 			case 'Circle':
-				var radius = getDistance(
+				let radius = getDistance(
 					geom.getFirstCoordinate(),
 					geom.getLastCoordinate()
 				);
 				area = Math.PI * Math.pow(radius, 2);
 				break;
 			case 'Polygon':
-				let coordinates = geom.getLinearRing(0).getCoordinates();
+				coordinates = geom.getLinearRing(0).getCoordinates();
 				area = Math.abs(getArea(coordinates));
 				break;
 		}
@@ -217,14 +222,14 @@ class ol_interaction_Measure extends Draw
 	/**
      * Manage drawstart event
      */
-	_onDrawStart(evt) {
-		if (! this.multiple) {
+	_onDrawStart(event) {
+		if (! this._multiple) {
 			this._layer.getSource().clear();
 		}
 				
 		// Listener on geometry change
-		this._listener = evt.feature.getGeometry().on('change', evt => {
-			let geom = evt.target;
+		this._listener = event.feature.getGeometry().on('change', e => {
+			let geom = e.target;
 			
 			let output;
             if (geom instanceof LineString) {
@@ -234,9 +239,9 @@ class ol_interaction_Measure extends Draw
 			}
 			let ttPos = geom.getLastCoordinate();
 			
-			let elt = self_.measureOverlay.getElement();
+			let elt = this._measureOverlay.getElement();
 			elt.innerHTML = output.html;
-			evt.feature.set('measure', output.measure);
+			event.feature.set('measure', output.measure);
 			this._measureOverlay.setPosition(ttPos);	
 		});
 	}
@@ -246,6 +251,8 @@ class ol_interaction_Measure extends Draw
      */
 	_onDrawEnd(evt) {
 		this._measureOverlay.setPosition(undefined);
-		ol.Observable.unByKey(this.listener);
+		unByKey(this._listener);
 	}
 }
+
+export default ol_interaction_Measure;
