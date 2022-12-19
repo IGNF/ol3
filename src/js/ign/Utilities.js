@@ -11,7 +11,7 @@ class Utilities {
      * Generate unique ? id
      * @returns {String}
      */
-    generateUid() {
+    static generateUid() {
         return Math.random().toString(36).substring(2, 9);
     }
 }
@@ -35,4 +35,4 @@ class MapResolutions
     }
 }
 
-export { Utilities, MapResolutions }
+export { Utilities, MapResolutions };

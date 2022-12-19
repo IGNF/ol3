@@ -9,10 +9,10 @@ import Text from 'ol/style/Text';
 import CircleStyle from 'ol/style/Circle';
 import Point from 'ol/geom/Point';
 import LineString from 'ol/geom/LineString';
-import { transform } from 'ol/proj';
-import { getArea, getDistance } from 'ol/sphere';
-import { unByKey } from 'ol/Observable';
-import { Utilities } from './../../Utilities';
+import { fromCircle } from 'ol/geom/Polygon';
+import { getLength as ol_sphere_getLength, getArea as ol_sphere_getArea} from 'ol/sphere';
+import { unByKey as ol_Observable_unByKey } from 'ol/Observable.js'
+import { Utilities } from '../../Utilities';
 
 
 /**
@@ -163,20 +163,9 @@ class MeasureInteraction extends Draw
 		if (this._layer) this._layer.getSource().clear();
 	}
 
-	_formatLength(line) {       
-		let coordinates = line.getCoordinates();
-		if (coordinates.length < 2) return 0;
-
-		let sourceProj = this.getMap().getView().getProjection();
-
-		let length = 0;
-		for (var i = 0, ii = coordinates.length - 1; i < ii; ++i) {
-			var c1 = transform(coordinates[i], sourceProj, 'EPSG:4326');
-			var c2 = transform(coordinates[i + 1], sourceProj, 'EPSG:4326');
-			length += getDistance(c1, c2);
-		}
-        
-        let output = {};
+	_formatLength(line) {
+		let output = {};    
+		let length = ol_sphere_getLength(line, this._projection);
         if (length > 100) {
 			output.html = output.measure = (Math.round(length / 1000 * 100) / 100) + ' km';
         } else {
@@ -190,26 +179,11 @@ class MeasureInteraction extends Draw
      * @param {inherits ol.geom} geometry
      * @return {object} Formatted area.
      */
-	_formatArea(geometry) {        
-        let sourceProj = this.getMap().getView().getProjection();
-        let geom = geometry.clone().transform(sourceProj, 'EPSG:4326');
-		
-		let coordinates, area;
-		switch(geom.getType()) {
-			case 'Circle':
-				let radius = getDistance(
-					geom.getFirstCoordinate(),
-					geom.getLastCoordinate()
-				);
-				area = Math.PI * Math.pow(radius, 2);
-				break;
-			case 'Polygon':
-				coordinates = geom.getLinearRing(0).getCoordinates();
-				area = Math.abs(getArea(coordinates));
-				break;
-		}
-		
-        let output = {};
+	_formatArea(geometry) { 
+		let g = (geometry.getType() === 'Circle') ? fromCircle(geometry) : geometry.clone();
+		let area = ol_sphere_getArea(g, this._projection);
+
+		let output = {};    
         if (area > 10000) {
 			area = (Math.round(area / 1000000 * 100) / 100);
 			output.html = area + ' km<sup>2</sup>';
@@ -254,7 +228,7 @@ class MeasureInteraction extends Draw
      */
 	_onDrawEnd(evt) {
 		this._measureOverlay.setPosition(undefined);
-		unByKey(this._listener);
+		ol_Observable_unByKey(this._listener);
 	}
 }
 
