@@ -1,231 +1,15 @@
-import Stroke from 'ol/style/Stroke';
-import Fill from 'ol/style/Fill';
-import Text from 'ol/style/Text';
 import Style from 'ol/style/Style';
-import { asArray } from 'ol/color';
-import { ign_utils_resolutions } from './Utils.js';
-import {default as FillPattern} from 'ol-ext-4.0.4/style/FillPattern';
+import { MapResolutions } from './../../Utilities';
+import WebpartStyleUtilities from './webpartstyleUtilities';
 
 
-class ol_layer_Vector_Webpart_Style
-{
+class WebpartStyle
+{	
 	static _styleCache = {};
 	static _predefined = ['troncon_de_route','batiment','toponymie'];
 
-	/** Format string with pattern ${attr}
-	 *	@param {String} pattern
-	 *	@param {ol.Feature} feature width properties
-	 */
-	static formatProperties(format, feature)	{	
-		if (!format || !format.replace || !feature) return format;
-		let str = format.replace(/.*\$\{([^\}]*)\}.*/, "$1");
-		if (str === format) {
-			return format;
-		} else {
-			return this.formatProperties(format.replace("${" + str +"}", feature.get(str) || ''), feature);
-		}
-	}
-	
-	/** Format Style with pattern ${attr}
-	 *	@param {style}
-	 *	@param {ol.Feature} feature width properties
-	 */
-	static formatFeatureStyle(fstyle, feature)	{
-		if (!fstyle) return {};
-		
-		let fs = {};
-		for (let i in fstyle) {
-			fs[i] = this.formatProperties (fstyle[i], feature)
-		}
-		return fs;
-	}
-	
-	/** Get stroke LineDash style from featureType.style
-	 * @param {style}
-	 * @return Array
-	 */
-	static getStrokeLineDash(style) {
-		let width = Number(style.strokeWidth) || 2;
-		switch (style.strokeDashstyle) {
-			case 'dot': return [1,2*width];
-			case 'dash': return [2*width,2*width];
-			case 'dashdot': return [2*width, 4*width, 1, 4*width];
-			case 'longdash': return [4*width,2*width];
-			case 'longdashdot': return [4*width, 4*width, 1, 4*width];
-			default: return undefined;
-		}
-	}
-
-	/** Get stroke style from featureType.style
-	 *	@param {featureType.style | {color,width} | undefined}
-	 *	@return Stroke
-	 */
-	static getStroke = function (fstyle) {
-		if (fstyle.strokeOpacity === 0) return;
-		
-		let stroke = new Stroke({
-			color: fstyle.strokeColor || "#00f",
-			width: Number(fstyle.strokeWidth) || 1,
-			lineDash: this.getStrokeLineDash(fstyle),
-			lineCap: fstyle.strokeLinecap || "round"
-		});
-		if (fstyle.strokeOpacity < 1)	{
-			var a = asArray(stroke.getColor());
-			if (a.length){
-				a[4] = fstyle.strokeOpacity;
-				stroke.setColor(a);
-			}
-		}
-		return stroke;
-	}
-
-	/** Get stroke border style from featureType.style
-	 *	@param {featureType.style | {color,width} | undefined}
-	 *	@return Stroke
-	 */
-	static getStrokeBorder = function (fstyle)	{	
-		if (fstyle.strokeOpacity === 0) return;
-		
-		let stroke = new Stroke({
-			color: fstyle.strokeBorderColor || "#000",
-			width: (Number(fstyle.strokeWidth) || 1) + 3,
-			lineDash: this.getStrokeLineDash(fstyle),
-			lineCap: fstyle.strokeLinecap || "round"
-		});
-		if (fstyle.strokeOpacity < 1){
-			var a = asArray(stroke.getColor());
-			if (a.length){
-				a[4] = fstyle.strokeOpacity;
-				stroke.setColor(a);
-			}
-		}
-		return stroke;
-	}
-
-	/** Get fill style from featureType.style
-	 *	@param {featureType.style | undefined}
-	 *	@return Fill
-	 */
-	static getFill = function (fstyle) {	
-		if (fstyle.fillOpacity === 0) return;
-		
-		let fill = new Fill({
-			color: fstyle.fillColor || "rgba(255,255,255,0.5)",
-		});
-		if (fstyle.fillOpacity < 1)	{
-			let a = asArray(fill.getColor());
-			if (a.length)	{
-				a[3] = Number(fstyle.fillOpacity);
-				fill.setColor(a);
-			}
-		}
-		
-		if (! fstyle.fillPattern) return fill;
-
-		return new FillPattern({
-			fill: fill,
-			pattern: fstyle.fillPattern,
-			color: fstyle.patternColor,
-			angle: 45
-		});
-	}
-	
-	/** Get Image style from featureType.style
-	 *	@param {featureType.style |  undefined}
-	 *	@return ol.style.Image
-	 */
-	static getImage(fstyle)	{
-		let image;	
-		
-		// externalGraphic
-		if (fstyle.externalGraphic) {
-			// Gestion d'une bibliotheque de symboles
-			src = urlImgAlone + "./../" + fstyle.externalGraphic ;
-
-			if (fstyle.graphicWidth && fstyle.graphicHeight) {
-				src += "?width="+fstyle.graphicWidth+"&height="+fstyle.graphicHeight;
-			}
-
-			let image = new ol.style.Icon({
-				scale: 1,
-				src: src,
-				opacity: fstyle.graphicOpacity,
-				rotation:Number(fstyle.rotation)* (2 * Math.PI  / 180) || 0,
-				//permet de centrer le picto
-				offset: [0.5, 0.5],
-				anchor: [0.5, 0.5],
-				anchorXUnits: 'fraction',
-				anchorYUnits: 'fraction'
-			});
-			image.load();
-			return image;
-		}
-		
-		let radius = Number(fstyle.pointRadius) || 5;
-		switch (fstyle.graphicName)	{
-			case "cross":
-			case "star":
-			case "square":
-			case "triangle":
-			case "x":
-				let graphic = {
-					cross: [ 4, radius, 0, 0 ],
-					square: [ 4, radius, undefined, Math.PI/4 ],
-					triangle: [ 3, radius, undefined, 0 ],
-					star: [ 5, radius, radius/2, 0 ],
-					x: [ 4, radius, 0, Math.PI/4 ]
-				};
-				let g = graphic[fstyle.graphicName] || graphic.square;
-				image = new ol.style.RegularShape({
-					points: g[0],
-					radius: g[1],
-					radius2: g[2],
-					rotation: g[3],
-					stroke: this.getStroke(fstyle),
-					fill: this.getFill(fstyle)
-				});
-				break;
-			default:
-				image = new ol.style.Circle({
-					radius: radius,
-					stroke: this.getStroke(fstyle),
-					fill: this.getFill(fstyle)
-				});
-				break;
-		}
-
-		return image;
-	}
-	
-	/** Get Text style from featureType.style
-	 *	@param {featureType.style | undefined}
-	 *	@return ol.style.Text
-	 */
-	static getText(fstyle) {
-		if (fstyle.label === null) return undefined;
-		
-		let s = {
-			font: (fstyle.fontWeight || '')
-				+ " "
-				+ (fstyle.fontSize || "12") +'px'
-				+ " "
-				+ (fstyle.fontFamily || 'Sans-serif'),
-			text: fstyle.label,
-			rotation: (fstyle.labelRotation || 0),
-			textAlign: "left",
-			textBaseline: "middle",
-			offsetX: fstyle.labelXOffset||0,
-			offsetY: -fstyle.labelYOffset||0,
-			stroke: new Stroke({
-				color: fstyle.labelOutlineColor || "#fff",
-				width: Number(fstyle.labelOutlineWidth) || 2
-			}),
-			fill: new Fill({
-				color: fstyle.fontColor
-			})
-		};
-		return new Text(s);
-	}
+	// Utilitaires pour le style Webpart
+	static _utilities = new WebpartStyleUtilities();
 
 	/** Get ol.style.function as defined in featureType
 	 * @param {featureType}
@@ -237,7 +21,7 @@ class ol_layer_Vector_Webpart_Style
 		
 		// Sens de circulation
 		let directionStyle = new Style ({
-			text: this.getText ({
+			text: _utilities.getText ({
 				label: '\u203A',
 				fontWeight: "bold",
 				fontSize: '25'
@@ -245,8 +29,8 @@ class ol_layer_Vector_Webpart_Style
 		});
 		
 		// Fonction de style
-		if (!featureType) featureType = {};
-		if (featureType.name && this._predefined.includes(featureType.name) {
+		if (! featureType) featureType = {};
+		if (featureType.name && this._predefined.includes(featureType.name)) {
 			return this[featureType.name]();
 		}
 		
@@ -254,7 +38,7 @@ class ol_layer_Vector_Webpart_Style
 			if (!feature) return [];
 			var style = featureType.style
 			
-			let resUtils = new ign_utils_resolutions();
+			let resUtils = new MapResolutions();
 			
 			let minZoom = 0;
 			if (featureType.name) {
@@ -281,7 +65,7 @@ class ol_layer_Vector_Webpart_Style
 				}
 			}
 
-			let fstyle = this.formatFeatureStyle (style, feature);
+			let fstyle = _utilities.formatFeatureStyle (style, feature);
 						
 			let displayText = true;
 			if (fstyle.labelMinZoom !== null) {
@@ -306,7 +90,7 @@ class ol_layer_Vector_Webpart_Style
 			} else {
 				// L'etiquette
 				let textStyleConfig = {
-					text: this.getText (fstyle)
+					text: _utilities.getText (fstyle)
 				};
 				if (fstyle.label)	{
 					/* Pour les multipolygones, on met le label sur le polygone dont
@@ -326,9 +110,9 @@ class ol_layer_Vector_Webpart_Style
 
 				let textStyle = new Style(textStyleConfig);
 				let styleConfig = {
-					image: this.getImage (fstyle),
-					fill: this.getFill (fstyle),
-					stroke: this.getStroke(fstyle)
+					image: _utilities.getImage (fstyle),
+					fill: _utilities.getFill (fstyle),
+					stroke: _utilities.getStroke(fstyle)
 				};
 				
 				let st = [new Style (styleConfig), textStyle];
@@ -337,12 +121,12 @@ class ol_layer_Vector_Webpart_Style
 				if (fstyle.externalGraphic) {
 					var img = st[0];
 					img.getImage().getImage().onerror = function () {
-						img.setImage(this.getImage({}));
+						img.setImage(_utilities.getImage({}));
 					}
 				}
 				if (fstyle.strokeBorderColor) {
 					st.unshift( new ol.style.Style ({
-						stroke: this.getStrokeBorder(fstyle),
+						stroke: _utilities.getStrokeBorder(fstyle),
 						zIndex: -1
 					}));
 				}
@@ -415,10 +199,10 @@ class ol_layer_Vector_Webpart_Style
 			}
 			return [
 				new Style ({
-					text: this.getText (fstyle),
-					image: this.getImage (fstyle),
-					fill: this.getFill (fstyle),
-					stroke: this.getStroke(fstyle)
+					text: _utilities.getText (fstyle),
+					image: _utilities.getImage (fstyle),
+					fill: _utilities.getFill (fstyle),
+					stroke: _utilities.getStroke(fstyle)
 				})
 			];
 		};
@@ -437,10 +221,10 @@ class ol_layer_Vector_Webpart_Style
 			}
 			return [
 				new Style ({
-					text: this.getText (fstyle),
-					image: this.getImage (fstyle),
-					fill: this.getFill (fstyle),
-					stroke: this.getStroke(fstyle)
+					text: _utilities.getText (fstyle),
+					image: _utilities.getImage (fstyle),
+					fill: _utilities.getFill (fstyle),
+					stroke: _utilities.getStroke(fstyle)
 				})
 			];
 		};
@@ -458,10 +242,10 @@ class ol_layer_Vector_Webpart_Style
 			}
 			return [
 				new ol.style.Style ({
-					text: this.getText (fstyle),
-					image: this.getImage (fstyle),
-					fill: this.getFill (fstyle),
-					stroke: this.getStroke(fstyle)
+					text: _utilities.getText (fstyle),
+					image: _utilities.getImage (fstyle),
+					fill: _utilities.getFill (fstyle),
+					stroke: _utilities.getStroke(fstyle)
 				})
 			];
 		};
@@ -515,10 +299,10 @@ class ol_layer_Vector_Webpart_Style
 			};
 			return [
 				new ol.style.Style({
-					text: this.getText(fstyle),
-					image: this.getImage(fstyle),
-					fill: this.getFill(fstyle),
-					stroke: this.getStroke(fstyle)
+					text: _utilities.getText(fstyle),
+					image: _utilities.getImage(fstyle),
+					fill: _utilities.getFill(fstyle),
+					stroke: _utilities.getStroke(fstyle)
 				})
 			];
 		};
@@ -595,7 +379,7 @@ class ol_layer_Vector_Webpart_Style
 			}
 			return [
 				new Style ({
-					stroke: this.getStroke(fstyle),
+					stroke: _utilities.getStroke(fstyle),
 					zIndex: getZindex(feature)-100
 				})
 			];
@@ -620,7 +404,7 @@ class ol_layer_Vector_Webpart_Style
 			}
 			return [
 				new Style ({
-					text: this.getText (fstyle)
+					text: _utilities.getText (fstyle)
 				})
 			];
 		};
@@ -677,20 +461,19 @@ class ol_layer_Vector_Webpart_Style
 			if (fstyle.label) {
 				return [
 					new ol.style.Style ({
-						text: this.getText (fstyle),
-						stroke: this.getStroke (fstyle),
-						fill: this.getFill (fstyle)
+						text: _utilities.getText (fstyle),
+						stroke: _utilities.getStroke (fstyle),
+						fill: _utilities.getFill (fstyle)
 					})
 				];
 			}
 			
 			return [
 				new ol.style.Style ({
-					stroke: this.getStroke (fstyle),
-					fill: this.getFill (fstyle)
+					stroke: _utilities.getStroke (fstyle),
+					fill: _utilities.getFill (fstyle)
 				})
 			];
-			}
 		};
 	};
 	
@@ -765,4 +548,4 @@ class ol_layer_Vector_Webpart_Style
 	}
 }
 
-export default ol_layer_Vector_Webpart_Style;
+export default WebpartStyle;

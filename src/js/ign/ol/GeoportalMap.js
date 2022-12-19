@@ -7,7 +7,7 @@ import { optionsFromCapabilities } from 'ol/source/WMTS';
 import ol_control_LayerSwitcher from "ol-ext/control/LayerSwitcher";
 
 
-class ol_Map_Geoportail extends Map 
+class GeoportalMap extends Map 
 {
 	/**
 	 * 
@@ -311,4 +311,4 @@ class ol_Map_Geoportail extends Map
 
 }
 
-export default ol_Map_Geoportail;
+export default GeoportalMap;

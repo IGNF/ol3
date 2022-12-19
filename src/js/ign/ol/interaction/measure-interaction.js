@@ -5,14 +5,14 @@ import Draw from 'ol/interaction/Draw';
 import Style from 'ol/style/Style';
 import Stroke from 'ol/style/Stroke';
 import Fill from 'ol/style/Fill';
+import Text from 'ol/style/Text';
 import CircleStyle from 'ol/style/Circle';
 import Point from 'ol/geom/Point';
 import LineString from 'ol/geom/LineString';
 import { transform } from 'ol/proj';
 import { getArea, getDistance } from 'ol/sphere';
 import { unByKey } from 'ol/Observable';
-import { ign_utils_generateUid } from './../Utils';
-import ol_style_Label, { ign_utils_getMeasureText } from './../Style/labelstyle';
+import { Utilities } from './../../Utilities';
 
 
 /**
@@ -27,7 +27,7 @@ import ol_style_Label, { ign_utils_getMeasureText } from './../Style/labelstyle'
  * @extends {ol.interaction.Draw}
  * @param {olx.interaction.DrawOptions=} options Options.
  */
-class ol_interaction_Measure extends Draw
+class MeasureInteraction extends Draw
 {
 	constructor(options) {
 		options = options ?? {};
@@ -59,6 +59,11 @@ class ol_interaction_Measure extends Draw
 		let layer = new VectorLayer({ 
 			source: new VectorSource(),
 			style: (feature, resolution) => {
+				let geometry = feature.getGeometry();
+				let geometryType = geometry.getType();
+
+				let textAlign = (geometryType === 'LineString') ? 'left' : 'middle';
+				let offsetX   = (geometryType === 'LineString') ? 10 : 0;
 				let style = new Style({
 					stroke: new Stroke({
 						color: '#ffa500',
@@ -68,21 +73,10 @@ class ol_interaction_Measure extends Draw
 						color: 'rgba(255, 165, 0, 0.2)'
 					})
 				});
-				
-				let margin = 5;
-				let strokeWidth = 1;
-				let font = '14px "Helvetica Neue",Helvetica,Arial,sans-serif';
-        
-				let w = ign_utils_getMeasureText(font,feature.get('measure'));
-				let offsetX = 0;
-				if (feature.getGeometry() instanceof LineString) {
-					offsetX = w/2 + margin + strokeWidth + 2;
-				}
-		
+
 				let measureStyle = new Style({
 					geometry: function(feature) {
-						var geometry = feature.getGeometry();
-						switch(geometry.getType()) {
+						switch(type) {
 							case 'LineString':
 								return new Point(geometry.getLastCoordinate());
 							case 'Circle':
@@ -91,17 +85,17 @@ class ol_interaction_Measure extends Draw
 								return geometry.getInteriorPoint();
 						}
 					},
-					image: new ol_style_Label({
-						label: feature.get('measure'),
+					text: new Text({
+						text: feature.get('measure'), 
+						fill: new Fill({ color: '#000' }),
+						textAlign: textAlign,
 						offsetX: offsetX,
-						fill: new Fill({color:'#000'})
-					},
-					{
-						stroke: new Stroke({
+						backgroundFill: new Fill({ color: '#ffcc33' }),
+						backgroundStroke: new Stroke({
 							color: '#fff',
-							width: strokeWidth
+							width: 0.5
 						}),
-						fill: new Fill({color:'#ffcc33'})
+						padding: [5, 5, 5, 5]
 					})
 				});
 				
@@ -113,13 +107,22 @@ class ol_interaction_Measure extends Draw
 		options.source = layer.getSource();
 		super(options);
 		
+		this._style = new Style({
+			stroke: new Stroke({
+				color: '#ffa500',
+				width: 2
+			}),
+			fill: new Fill({
+				color: 'rgba(255, 165, 0, 0.2)'
+			})
+		});
 		this._layer 	= layer;
 		this._multiple  = options.multiple ?? false;
 		this._listener;
 		
 		// Tooltip overlay creation
 		let elt = document.createElement('div');
-		elt.className = 'tooltip-' + ign_utils_generateUid() + ' tooltip-measure';
+		elt.className = 'tooltip-' + Utilities.generateUid() + ' tooltip-measure';
 		this._measureOverlay = new Overlay({
 			element: elt,
 			offset: [0, -15],
@@ -255,4 +258,4 @@ class ol_interaction_Measure extends Draw
 	}
 }
 
-export default ol_interaction_Measure;
+export default MeasureInteraction;
