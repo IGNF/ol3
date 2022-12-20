@@ -4,8 +4,10 @@ import TileLayer from 'ol/layer/Tile';
 import WMTS from 'ol/source/WMTS';
 import { transformExtent } from 'ol/proj';
 import { optionsFromCapabilities } from 'ol/source/WMTS';
+import { Style, Circle, Stroke, Fill } from 'ol/style';
 import ol_control_LayerSwitcher from "ol-ext/control/LayerSwitcher";
-
+import WebpartStyle from './style/webpartstyle';
+import WebpartLayer from './layer/webpartlayer';
 
 class GeoportalMap extends Map 
 {
@@ -176,51 +178,30 @@ class GeoportalMap extends Map
 	 * @returns {layer}
 	 */
 	addFeatureType(featureType, opt, source_options)	{
-		let options     = $.extend({visible:true, opacity: 1}, opt);
-		let src_options = source_options || {};
+		let options     = $.extend({ visible: true, opacity: 1 }, opt);
+		let src_options = source_options?? {};
+		
 		if (featureType.tileZoomLevel) {
 			src_options.tileZoom = featureType.tileZoomLevel;
 		}
 		src_options = $.extend({ featureType: featureType }, src_options);
 		
-		/*let style=null;
-		if (featureType.style){
-			if (ol.layer.Vector.Webpart.Style !== "undefined"){
-				var style = new ol.layer.Vector.Webpart.Style.getFeatureStyleFn(featureType);
-			} else {
-				var hexColor = featureType.style.fillColor;
-				if (!hexColor) {hexColor="#ee9900";}
-				var color = ol.color.asArray(hexColor);
-				color = color.slice();
-				color[3] = 0.2;
-				style = new ol.style.Style({
-					fill: new ol.style.Fill({
-						color:color
-					}),
-					stroke: new ol.style.Stroke({
-						color:featureType.style.strokeColor,
-						width:featureType.style.strokeWidth
-					}),
-					image: new ol.style.Circle({
-						radius: 5,
-						fill: new ol.style.Fill({color:[238,153,0,0.5]}),
-						stroke: new ol.style.Stroke({color:[238,153,0,1],width:2})
-					})
-				});
-		}
+		let style = null;
+		if (featureType.style) {
+			style = WebpartStyle.getFeatureStyleFn(featureType);	
 		} else {
-			style = new ol.style.Style({
-				fill: new ol.style.Fill({color:[238,153,0,0.5]}),
-				stroke: new ol.style.Stroke({color:[238,153,0,1],width:2}),
-				image: new ol.style.Circle({
+			style = new Style({
+				fill: new Fill({ color:[238,153,0,0.5] }),
+				stroke: new Stroke({ color:[238,153,0,1], width:2 }),
+				image: new Circle({
 					radius: 5,
-					fill: new ol.style.Fill({color:[238,153,0,0.5]}),
-					stroke: new ol.style.Stroke({color:[238,153,0,1],width:2})
+					fill: new Fill({ color:[238,153,0,0.5] }),
+					stroke: new Stroke({ color:[238,153,0,1], width:2 })
 				})
 			});
 		}
 		
-		var vectorLayer = new ol.layer.Vector.Webpart({
+		let Layer = new WebpartLayer({
 			name: featureType.name,
 			type: 'feature-type',
 			'feature-type': featureType,
@@ -229,10 +210,10 @@ class GeoportalMap extends Map
 			style: style,
 			minResolution: this.getResolutionFromZoom(featureType.maxZoomLevel),
 			maxResolution: this.getResolutionFromZoom(featureType.minZoomLevel)
-		},src_options);
+		}, src_options);
 
 		var lsOptions = {
-			title:featureType.title,
+			title: featureType.title,
 			visible: options.visible
 		};
 		if (featureType.description) {
@@ -246,8 +227,8 @@ class GeoportalMap extends Map
 			}];
 		}
 		
-		this.addNewLayer(vectorLayer, lsOptions);
-		return vectorLayer;*/
+		this.addNewLayer(Layer, lsOptions);
+		return Layer;
 	}
 
 	_getLayerSwitcher() {

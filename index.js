@@ -12,6 +12,7 @@ import WMSGetFeatureInfo from './src/js/ign/ol/interaction/WmsGetFeatureInfo';
 
 // Divers
 import addProjectionsToProj4 from './src/js/ign/proj4_epsg';
+import WebpartLayer from './src/js/ign/ol/layer/webpartlayer';
 
 export { 
     GeoportalMap, 
@@ -20,5 +21,6 @@ export {
     DisplayCenter, 
     MeasureInteraction, 
     WMSGetFeatureInfo,
-    addProjectionsToProj4
+    addProjectionsToProj4,
+    WebpartLayer
 };
