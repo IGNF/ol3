@@ -3,8 +3,7 @@ import Collection from 'ol/Collection';
 import { tile as tile_strategy } from 'ol/loadingstrategy';
 import { createXYZ } from 'ol/tilegrid';
 import Feature from 'ol/Feature';
-import { WKT as format_WKT } from 'ol/format/WKT';
-import Feature from 'ol/Feature';
+import  format_WKT from 'ol/format/WKT';
 import { Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon } from 'ol/geom';
 
 	
@@ -558,7 +557,7 @@ class WebpartSource extends VectorSource
 		// Save projection for writing
 		this.projection_ = projection;
 
-		let bbox = ol.proj.transformExtent(extent, projection, this.getParameter('srsName');
+		let bbox = ol.proj.transformExtent(extent, projection, this.getParameter('srsName'));
 		let bboxStr = bbox.join(',');
 
 		// WFS parameters

@@ -36,7 +36,7 @@ class WebpartStyle
 		
 		return function(feature, res) {
 			if (!feature) return [];
-			var style = featureType.style
+			let style = featureType.style
 			
 			let resUtils = new MapResolutions();
 			
@@ -47,14 +47,14 @@ class WebpartStyle
 			
 			// Conditionnal style
 			if (featureType.style && featureType.style.children) {
-				for (var i=0, fi; fi=featureType.style.children[i]; i++) {
+				for (let i=0, fi; fi=featureType.style.children[i]; i++) {
 					if (typeof (fi.condition) ==='string') {
 						try {
 							fi.condition = JSON.parse(fi.condition);
 						} catch(e) {}
 					}
 					// Copy les valeurs de feature
-					var obj = Object.assign({}, feature.getProperties());
+					let obj = Object.assign({}, feature.getProperties());
 					
 					// Enleve la geometry car trop long pour mongoparser
 					delete obj[feature.geometryName_];
@@ -79,9 +79,9 @@ class WebpartStyle
 				if (style[i] !== fstyle[i]) cacheId += '-' + i + ':' + fstyle[i];
 			}
 			
-			let style = this._styleCache[cacheId];
+			style = this._styleCache[cacheId];
 			if (style) {
-				var style = this._styleCache[cacheId];
+				style = this._styleCache[cacheId];
 				var textStyle = style[style.length-1].getText();
 				
 				let text = '';

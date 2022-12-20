@@ -2,7 +2,6 @@ import Stroke from 'ol/style/Stroke';
 import Fill from 'ol/style/Fill';
 import Text from 'ol/style/Text';
 import { asArray } from 'ol/color';
-import WebpartStyleUtilities from './webpartstyleUtilities';
 import { default as FillPattern } from 'ol-ext-4.0.4/style/FillPattern';
 
 

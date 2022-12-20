@@ -2,7 +2,7 @@ import Interaction from 'ol/interaction/Interaction';
 import TileLayer from 'ol/layer/Tile';
 import TileWMS from 'ol/source/TileWMS';
 import { singleClick } from 'ol/events/condition';
-import WMSGetFeatureInfo from 'ol/format/WMSGetFeatureInfo';
+import ol_WMSGetFeatureInfo from 'ol/format/WMSGetFeatureInfo';
 
 
 class WMSGetFeatureInfo extends Interaction
@@ -79,7 +79,7 @@ class WMSGetFeatureInfo extends Interaction
 
             newEvent['data'] = data; 
             if ('GML' === this._format) {
-                let format = new WMSGetFeatureInfo();
+                let format = new ol_WMSGetFeatureInfo();
                 let features = format.readFeatures(data, {
                     dataProjection: 'EPSG:4326',
                     featureProjection: this.getMap().getView().getProjection()
