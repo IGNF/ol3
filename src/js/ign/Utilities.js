@@ -7,6 +7,14 @@ class Utilities {
         return [ 251936.04517352092, 5916836.764449345 ];    
     }
 
+    static getMaxExtent4326() {
+        return [-180, -90, 180, 90];
+    }
+
+    static getMaxExtent3857() {
+        [-20037508.342789244, -238107693.26496765, 20037508.342789244, 238107693.26496765];
+    }
+
     /**
      * Generate unique ? id
      * @returns {String}

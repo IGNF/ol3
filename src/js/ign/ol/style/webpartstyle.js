@@ -21,7 +21,7 @@ class WebpartStyle
 		
 		// Sens de circulation
 		let directionStyle = new Style ({
-			text: _utilities.getText ({
+			text: this._utilities.getText ({
 				label: '\u203A',
 				fontWeight: "bold",
 				fontSize: '25'
@@ -65,7 +65,7 @@ class WebpartStyle
 				}
 			}
 
-			let fstyle = _utilities.formatFeatureStyle (style, feature);
+			let fstyle = this._utilities.formatFeatureStyle (style, feature);
 						
 			let displayText = true;
 			if (fstyle.labelMinZoom !== null) {
@@ -90,7 +90,7 @@ class WebpartStyle
 			} else {
 				// L'etiquette
 				let textStyleConfig = {
-					text: _utilities.getText (fstyle)
+					text: this._utilities.getText (fstyle)
 				};
 				if (fstyle.label)	{
 					/* Pour les multipolygones, on met le label sur le polygone dont
@@ -110,9 +110,9 @@ class WebpartStyle
 
 				let textStyle = new Style(textStyleConfig);
 				let styleConfig = {
-					image: _utilities.getImage (fstyle),
-					fill: _utilities.getFill (fstyle),
-					stroke: _utilities.getStroke(fstyle)
+					image: this._utilities.getImage (fstyle),
+					fill: this._utilities.getFill (fstyle),
+					stroke: this._utilities.getStroke(fstyle)
 				};
 				
 				let st = [new Style (styleConfig), textStyle];
@@ -121,12 +121,12 @@ class WebpartStyle
 				if (fstyle.externalGraphic) {
 					var img = st[0];
 					img.getImage().getImage().onerror = function () {
-						img.setImage(_utilities.getImage({}));
+						img.setImage(this._utilities.getImage({}));
 					}
 				}
 				if (fstyle.strokeBorderColor) {
-					st.unshift( new ol.style.Style ({
-						stroke: _utilities.getStrokeBorder(fstyle),
+					st.unshift( new Style ({
+						stroke: this._utilities.getStrokeBorder(fstyle),
 						zIndex: -1
 					}));
 				}
@@ -177,7 +177,7 @@ class WebpartStyle
 	}
 
 	/** Default style
-	 *	@return {ol.style.Style}
+	 *	@return {Style}
 	 */
 	static getDefaultStyle() {
 		return this.getFeatureStyleFn()()[0];
@@ -199,10 +199,10 @@ class WebpartStyle
 			}
 			return [
 				new Style ({
-					text: _utilities.getText (fstyle),
-					image: _utilities.getImage (fstyle),
-					fill: _utilities.getFill (fstyle),
-					stroke: _utilities.getStroke(fstyle)
+					text: this._utilities.getText (fstyle),
+					image: this._utilities.getImage (fstyle),
+					fill: this._utilities.getFill (fstyle),
+					stroke: this._utilities.getStroke(fstyle)
 				})
 			];
 		};
@@ -221,10 +221,10 @@ class WebpartStyle
 			}
 			return [
 				new Style ({
-					text: _utilities.getText (fstyle),
-					image: _utilities.getImage (fstyle),
-					fill: _utilities.getFill (fstyle),
-					stroke: _utilities.getStroke(fstyle)
+					text: this._utilities.getText (fstyle),
+					image: this._utilities.getImage (fstyle),
+					fill: this._utilities.getFill (fstyle),
+					stroke: this._utilities.getStroke(fstyle)
 				})
 			];
 		};
@@ -241,11 +241,11 @@ class WebpartStyle
 				strokeColor: [0,0,255,0.5]
 			}
 			return [
-				new ol.style.Style ({
-					text: _utilities.getText (fstyle),
-					image: _utilities.getImage (fstyle),
-					fill: _utilities.getFill (fstyle),
-					stroke: _utilities.getStroke(fstyle)
+				new Style ({
+					text: this._utilities.getText (fstyle),
+					image: this._utilities.getImage (fstyle),
+					fill: this._utilities.getFill (fstyle),
+					stroke: this._utilities.getStroke(fstyle)
 				})
 			];
 		};
@@ -298,18 +298,18 @@ class WebpartStyle
 				fillOpacity: 0.5
 			};
 			return [
-				new ol.style.Style({
-					text: _utilities.getText(fstyle),
-					image: _utilities.getImage(fstyle),
-					fill: _utilities.getFill(fstyle),
-					stroke: _utilities.getStroke(fstyle)
+				new Style({
+					text: this._utilities.getText(fstyle),
+					image: this._utilities.getImage(fstyle),
+					fill: this._utilities.getFill(fstyle),
+					stroke: this._utilities.getStroke(fstyle)
 				})
 			];
 		};
 	}
 
 	/** Combinaison de style
-	 * @param {ol.style.StyleFunction | Array<ol.style.StyleFunction>}
+	 * @param {StyleFunction | Array<StyleFunction>}
 	 */
 	static combine(style) {
 		if (!(style instanceof Array)) style = [style];
@@ -379,7 +379,7 @@ class WebpartStyle
 			}
 			return [
 				new Style ({
-					stroke: _utilities.getStroke(fstyle),
+					stroke: this._utilities.getStroke(fstyle),
 					zIndex: getZindex(feature)-100
 				})
 			];
@@ -404,7 +404,7 @@ class WebpartStyle
 			}
 			return [
 				new Style ({
-					text: _utilities.getText (fstyle)
+					text: this._utilities.getText (fstyle)
 				})
 			];
 		};
@@ -460,18 +460,18 @@ class WebpartStyle
 			
 			if (fstyle.label) {
 				return [
-					new ol.style.Style ({
-						text: _utilities.getText (fstyle),
-						stroke: _utilities.getStroke (fstyle),
-						fill: _utilities.getFill (fstyle)
+					new Style ({
+						text: this._utilities.getText (fstyle),
+						stroke: this._utilities.getStroke (fstyle),
+						fill: this._utilities.getFill (fstyle)
 					})
 				];
 			}
 			
 			return [
-				new ol.style.Style ({
-					stroke: _utilities.getStroke (fstyle),
-					fill: _utilities.getFill (fstyle)
+				new Style ({
+					stroke: this._utilities.getStroke (fstyle),
+					fill: this._utilities.getFill (fstyle)
 				})
 			];
 		};
@@ -481,23 +481,25 @@ class WebpartStyle
 	*	@param {Object} attribute (attribut a tester), glyph (lettre), size, direct (valeur), inverse (valeur)
 	*/
 	static sens(options) {
-		if (!options) options =
-		{	attribute:'sens_de_circulation',
+		if (!options) options = {	
+			attribute:'sens_de_circulation',
 			glyph: '\u203A', // '>',
 			size: "20px",
 			direct:'Sens direct',
 			inverse:'Sens inverse'
 		};
-		function fleche(sens)
-		{	if (sens == options.direct || sens == options.inverse) return options.glyph;
+
+		function fleche(sens) {	
+			if (sens == options.direct || sens == options.inverse) return options.glyph;
 			return '';
 		};
-		function lrot(sens, geom)
-		{	if (sens != options.direct && sens != options.inverse) return 0;
+
+		function lrot(sens, geom) {
+			if (sens != options.direct && sens != options.inverse) return 0;
 			if (geom.getType()==='MultiLineString') geom = geom.getLineString(0);
-			var geo = geom.getCoordinates();
-			var x, y, dl=0, l = geom.getLength();
-			for (var i=0; i<geo.length-1; i++)
+			let geo = geom.getCoordinates();
+			let x, y, dl=0, l = geom.getLength();
+			for (let i=0; i<geo.length-1; i++)
 			{	x = geo[i+1][0]-geo[i][0];
 				y = geo[i+1][1]-geo[i][1];
 				dl += Math.sqrt(x*x+y*y);
@@ -507,17 +509,17 @@ class WebpartStyle
 			else return Math.PI-Math.atan2(y,x);
 		};
 
-		return function (feature, res)
-		{	var sens = feature.get(options.attribute)
-			var fstyle =
-			{	label: fleche (sens),
+		return function (feature, res) {
+			let sens = feature.get(options.attribute)
+			let fstyle = {	
+				label: fleche (sens),
 				fontWeight: "bold",
 				fontSize: options.size,
 				labelRotation: lrot(sens, feature.getGeometry())
 			}
 			return [
-				new ol.style.Style (
-				{	text: ol.layer.Vector.Webpart.Style.Text (fstyle)
+				new Style ({
+					text: this._utilities.getText(fstyle)
 				})
 			];
 		};

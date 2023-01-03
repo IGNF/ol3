@@ -1,13 +1,19 @@
 import GPConfig from './GPConfig';
 import Map from 'ol/Map';
 import TileLayer from 'ol/layer/Tile';
+import TileWMS from 'ol/source/TileWMS';
 import WMTS from 'ol/source/WMTS';
-import { transformExtent } from 'ol/proj';
+import VectorSource from 'ol/source/Vector';
 import { optionsFromCapabilities } from 'ol/source/WMTS';
+import { transformExtent } from 'ol/proj';
 import { Style, Circle, Stroke, Fill } from 'ol/style';
+import GeoJSON from 'ol/format/GeoJSON';
+import { bbox as bbox_strategy } from 'ol/loadingstrategy';
+import { equals as extent_equals } from 'ol/extent';
 import ol_control_LayerSwitcher from "ol-ext/control/LayerSwitcher";
 import WebpartStyle from './style/webpartstyle';
 import WebpartLayer from './layer/webpartlayer';
+import { Utilities } from '../Utilities';
 
 class GeoportalMap extends Map 
 {
@@ -157,13 +163,13 @@ class GeoportalMap extends Map
 		var newLayer = null;
 		switch(geoservice.type){
 			case 'WMS':	
-				newLayer = this.addWMSGeoservice(geoservice, options, bbox);
+				newLayer = this._addWMSGeoservice(geoservice, options, bbox);
 				break;
 			case 'WMTS':
-				newLayer = this.addWMTSGeoservice(geoservice, options, bbox);
+				newLayer = this._addWMTSGeoservice(geoservice, options, bbox);
 				break;
 			case 'WFS':
-				newLayer = this.addWFSGeoservice(geoservice, options, bbox);
+				newLayer = this._addWFSGeoservice(geoservice, options, bbox);
 				break;
 			default : throw "Geoservice type unknown";
 		}
@@ -179,7 +185,7 @@ class GeoportalMap extends Map
 	 */
 	addFeatureType(featureType, opt, source_options)	{
 		let options     = $.extend({ visible: true, opacity: 1 }, opt);
-		let src_options = source_options?? {};
+		let src_options = source_options ?? {};
 		
 		if (featureType.tileZoomLevel) {
 			src_options.tileZoom = featureType.tileZoomLevel;
@@ -208,8 +214,8 @@ class GeoportalMap extends Map
 			visible: options.visible,
 			opacity: options.opacity,
 			style: style,
-			minResolution: this.getResolutionFromZoom(featureType.maxZoomLevel),
-			maxResolution: this.getResolutionFromZoom(featureType.minZoomLevel)
+			minResolution: this._getResolutionFromZoom(featureType.maxZoomLevel),
+			maxResolution: this._getResolutionFromZoom(featureType.minZoomLevel)
 		}, src_options);
 
 		var lsOptions = {
@@ -227,10 +233,229 @@ class GeoportalMap extends Map
 			}];
 		}
 		
-		this.addNewLayer(Layer, lsOptions);
+		this.addLayer(Layer, lsOptions);
 		return Layer;
 	}
 
+	/**
+	 * Ajout d'un geoservice WMS a la map
+	 * @param {Object} geoservice
+	 * @param {Object} options (visible, opacity)
+	 * @returns {layer}
+	 */
+	_addWMSGeoservice(geoservice, options) {
+		let isIGN = new RegExp(/https:\/\/wxs.ign.fr\//).test(geoservice.url);
+
+		let bbox = this._getExtent(geoservice.map_extent);
+
+		let newLayer = new TileLayer({
+			name: geoservice.title,
+			type:  'geoservice',
+			geoservice: geoservice,
+			source: new TileWMS({
+				url: geoservice.url,
+				attributions: this._getAttribution(geoservice),
+				params: {
+					LAYERS: geoservice.layers,
+					FORMAT: geoservice.format,
+					VERSION: geoservice.version || '1.3.0'
+				}
+			}),
+			visible: options.visible,
+			opacity: options.opacity,
+			minResolution: this._getResolutionFromZoom(geoservice.max_zoom),
+			maxResolution: this._getResolutionFromZoom(geoservice.min_zoom),
+			extent: bbox
+		});
+		
+		let metadata = isIGN ? { url: this._metadataIGN } : { url: geoservice.link };
+		this.addLayer(newLayer, {
+			title: geoservice.title,
+			visible: options.visible,
+			description: geoservice.description,
+			metadata: [metadata]
+		});
+		
+		return newLayer;
+	};
+
+	/**
+	 * Ajout d'un geoservice WMTS a la map
+	 * @param {Object} geoservice
+	 * @param {Object} options (visible, opacity)
+	 * @returns {layer}
+	 */
+	_addWMTSGeoservice (geoservice, options) {
+		let isIGN = new RegExp(/https:\/\/wxs.ign.fr\//).test(geoservice.url);
+
+		let bbox = this._getExtent(geoservice.map_extent);
+		let newLayer = new TileLayer({
+			name: geoservice.layers,
+			type: 'geoservice',
+			geoservice: geoservice,
+			source: new WMTS({
+				"crossOrigin": "Anonymous"
+			}),
+			visible: options.visible,
+			opacity: options.opacity,
+			minResolution: this._getResolutionFromZoom(geoservice.max_zoom),
+			maxResolution: this._getResolutionFromZoom(geoservice.min_zoom),
+			extent: bbox
+		});
+		
+		let metadata = isIGN ? { url: this._metadataIGN } : { url: geoservice.link };
+		this.addLayer(newLayer, {
+			title: geoservice.title,
+			visible: options.visible,
+			description: geoservice.description,
+			metadata: [metadata]
+		});
+
+		// GetCapabilities
+		let version = geoservice.version;
+		let url = geoservice.url + (new RegExp(/[\?]/g).test(geoservice.url) ? '&' : '?') + `SERVICE=WMTS&VERSION=${version}&REQUEST=GetCapabilities`;
+		
+		this._gpConfig.getCapabilities(url)
+			.then(capabilities => {
+				let wmtsOptions = optionsFromCapabilities(capabilities, {
+					layer: geoservice.layers,
+					matrixSet: 'EPSG:3857'
+				});
+				if (! wmtsOptions) {
+					throw new Error(`Layer [${geoservice.layers}] does not exist`);
+				}
+	
+				wmtsOptions['attributions'] = this._getAttribution(geoservice);
+				wmtsOptions['crossOrigin'] = 'Anonymous';
+				newLayer.setSource(new WMTS(wmtsOptions));
+			}).catch(error => {
+				this._removeLayer(newLayer);
+				if (error instanceof TypeError)
+					console.error(error.message);
+				else console.error(error);
+			});
+		
+		return newLayer;
+	};
+		
+	/**
+	 * Ajout d'un geoservice WFS a la map
+	 * @param {Object} geoservice
+	 * @param {Object} options (visible, opacity)
+	 * @returns {layer}
+	 */
+	_addWFSGeoservice(geoservice, options) {
+		let extent = geoservice.map_extent.split(",");
+		extent = extent.map(function (x) {
+			return parseInt(x, 10);
+		});
+		
+		// Ajout Redmine #7753 (en cours, pourrait nécessiter l'usage du proxy)
+		let source = new VectorSource({
+			format: new GeoJSON(),
+			loader: (extent) => {
+				let url = geoservice.url + (new RegExp(/[\?]/g).test(geoservice.url) ? '&' : '?') + 'service=WFS';
+				let bbox = extent;
+				
+				if (geoservice.version == '1.0.0') {
+					// BBOX avec 4 paramètres : coordonnées
+					// pas de SRSNAME car prend le Default SRS/CRS
+					bbox = transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',');
+					url += '&version=' + geoservice.version + '&request=GetFeature&typeName=' + geoservice.layers + '&outputFormat=' + geoservice.format + '&bbox=' + bbox;
+				} else {
+					// BBOX avec 5 paramètres : coordonnées et SRS
+					if (geoservice.box_srid !== 'EPSG:3857') {
+						bbox = transformExtent(extent, 'EPSG:3857', 'EPSG:4326').join(',');
+					}
+					bbox += ',' + geoservice.box_srid;
+					url += '&version=' + geoservice.version + '&request=GetFeature&typeName=' + geoservice.layers +	'&outputFormat=' + geoservice.format + '&srsname=EPSG:3857&bbox=' + bbox;
+				}
+
+				if (this._proxyUrl) {
+					url = this._proxyUrl + encodeURIComponent(url);
+				}
+
+				fetch(url).then(response => {
+					if (! response.ok) throw Error("Bad response from server");
+					return response.text();
+				}).then(response => {
+					source.addFeatures (
+						source.getFormat().readFeatures(response, {
+							featureProjection: 'EPSG:3857'
+						})
+					);
+				});
+			},
+			attributions: this._getAttribution(geoservice),
+			crossOriginKeyword: 'anonymous',
+			strategy: bbox_strategy
+		});
+
+		let defaultStyle = new Style({
+			fill: new Fill({color: "rgba(0, 0, 255, 0.5)"}),
+			stroke: new Stroke({
+				color: "rgba(0, 0, 255, 1)",
+				width: 2
+			}),
+			image: new Circle({
+				radius: 5,
+				fill: new Fill({color: "rgba(0, 0, 255, 0.5)"}),
+				stroke: new Stroke({
+					color: "rgba(0, 0, 255, 1)",
+					width: 2
+				})
+			})
+		});
+
+		let newLayer = new VectorLayer({
+			name: geoservice.title,
+			type: 'geoservice',
+			geoservice: geoservice,
+			source: source,
+			style: defaultStyle,
+			visible: options.visible,
+			opacity: options.opacity,
+			minResolution: this._getResolutionFromZoom(geoservice.max_zoom),
+			maxResolution: this._getResolutionFromZoom(geoservice.min_zoom)
+		});
+
+		this.addLayer(newLayer, {
+			title: geoservice.title,
+			visible: options.visible,
+			description: geoservice.description,
+			metadata: [{ url:geoservice.link }]
+		});
+	};
+		
+	/**
+	 * @param {type} geoservice
+	 * @returns {undefined}
+	 */
+	_removeGeoservice(layername) {
+		var layers = this.getLayersByName(layername);
+		$.each(layers, function(index, layer) {
+			this.removeLayer(layer);
+		});
+	};
+
+	/**
+	 * @param {string} mapExtent
+	 * @returns {ol.Extent}
+	 */
+	_getExtent(mapExtent) {
+		let extent = mapExtent.split(",");
+		extent = extent.map(function (x) {
+			return parseInt(x, 10);
+		});
+
+		let bbox = Utilities.getMaxExtent3857();
+		if (! extent_equals(extent, Utilities.getMaxExtent4326())) {
+			bbox = transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
+		}
+		
+		return bbox;
+	};
+		
 	_getLayerSwitcher() {
     	return this._layerSwitcher;
 	}
@@ -240,20 +465,6 @@ class GeoportalMap extends Map
 		return mapLayers.filter(layer => {
 			return layer.get('name') === name;
 		});
-	}
-
-	/**
-	 * Mise a jour des de l'oeil barre ou non dans le layerswitcher apres avoir ajoute la couche dans la map
-	 * @param {ol.layer} olLayer
-	 * @param {bool} visibility
-	 * @returns {undefined}
-	 */
-	_updateEyeInLayerSwitcher(olLayer, visibility){
-		var idlayer = this._getLayerSwitcher().getLayerDOMId(olLayer);
-
-		var n = idlayer.indexOf('_');
-		var id = idlayer.substr(n + 1);
-		document.getElementById(`GPvisibility_${id}`).checked = visibility;
 	}
 
 	_getAttribution(geoservice) {
@@ -286,10 +497,9 @@ class GeoportalMap extends Map
 	 * @param {integer} zoom
 	 * @returns {float} resolution
 	 */
-	_getResolutionFromZoom = function (zoom){
-		return this._resolutionInit / Math.pow(2,zoom) ;
+	_getResolutionFromZoom = function (zoom) {
+		return this._resolutionInit / Math.pow(2, zoom) ;
 	};
-
 }
 
 export default GeoportalMap;

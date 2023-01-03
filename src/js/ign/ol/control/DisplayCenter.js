@@ -7,15 +7,15 @@ import ol_control_CanvasBase from 'ol-ext-4.0.4/control/CanvasBase';
 class DisplayCenter extends ol_control_CanvasBase
 {
     constructor(opt_options) {
-        let options = opt_options?? {}; 
+        let options = opt_options ?? {}; 
 
         let div = document.createElement('div');
         div.className = "ol-target ol-unselectable ol-control";
         super({ element: div });
 
         this._radius = options.radius;
-        this._color  = options.color?? '#000';
-        this._width  = options.width?? 1;
+        this._color  = options.color ?? '#000';
+        this._width  = options.width ?? 1;
     } 
 
     _draw(e) {     

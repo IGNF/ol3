@@ -40,7 +40,7 @@ class Locate extends Control
  	 *		- html {String} html to insert in the control
 	 */
 	constructor(opt_options) {
-		let options = opt_options?? {};
+		let options = opt_options ?? {};
 	
 		let button = document.createElement('button');
 		button.type	= 'button';

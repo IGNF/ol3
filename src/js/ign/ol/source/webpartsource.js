@@ -4,6 +4,7 @@ import { tile as tile_strategy } from 'ol/loadingstrategy';
 import { createXYZ } from 'ol/tilegrid';
 import Feature from 'ol/Feature';
 import  format_WKT from 'ol/format/WKT';
+import { transformExtent } from 'ol/proj';
 import { Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon } from 'ol/geom';
 
 	
@@ -35,7 +36,7 @@ Feature.prototype.setState = function(state)
  * Get feature detruit field
  * @return string
  */
-Feature.prototype.getDetruitField = function() {
+Feature.prototype._getDetruitField = function() {
 	let detruit = this.get("detruit");
 	return (detruit !== undefined) ? 'detruit' : 'gcms_detruit';
 }
@@ -66,11 +67,6 @@ Feature.prototype.setModifiedFields = function(name) {
 	name.forEach(n => { fields[n] = true; });
 };
 
-// TODO PAS SUR QUE CA MARCHE
-VectorSource.prototype.setStrategy = function(stategy) {
-	this._strategy = stategy;
-}
-
 class WebpartSource extends VectorSource
 {
 	/** ol.source.Vector.Webpart
@@ -90,7 +86,7 @@ class WebpartSource extends VectorSource
 	 *		- wrapX {bool}
 	 */
 	constructor(opt_options) {
-		let options = opt_options?? {};
+		let options = opt_options ?? {};
 		if (options.featureType === undefined) {
 			throw 'featureType must be defined.';
 		}
@@ -98,7 +94,7 @@ class WebpartSource extends VectorSource
 		let featureType = options.featureType;
 
 		let parameters = {
-			proxy: options.proxy?? null,	// Proxy to load features
+			proxy: options.proxy ?? null,	// Proxy to load features
 			featureType: featureType
 		};
 		
@@ -107,26 +103,27 @@ class WebpartSource extends VectorSource
 			crs = featureType.attributes[featureType.geometryName].crs;
 		}
 		
-		parameters['srsName'] = crs?? 'EPSG:4326';
-		parameters['featureFilter'] = options.filter?? {};
-		parameters['maxResolution'] = options.maxResolution?? 80;
-		parameters['resolution'] 	= options.resolution?? null;
+		parameters['srsName'] = crs ?? 'EPSG:4326';
+		parameters['featureFilter'] = options.filter ?? {};
+		parameters['maxResolution'] = options.maxResolution ?? 80;
+		parameters['resolution'] 	= options.resolution ?? null;
 		
-		this._tiled 		= false;
-		this._tileloading	= 0;
-		this._maxReload		= null;
-		
+		let tiled 		= false;
+		let maxReload 	= null;
+
 		// Strategy for loading source (bbox or tile)
 		let strategy;
 		if (options.tileZoom) {
-			this._tiled = true;
-			this._maxReload = options.maxReload?? 50000;
+			tiled = true;
+			maxReload = options.maxReload ?? 50000;
 			
 			strategy = tile_strategy(createXYZ({
-				minZoom: options.tileZoom?? 12,
-				maxZoom: options.tileZoom?? 12,
-				tileSize: options.tileSize?? 256
+				minZoom: options.tileZoom ?? 12,
+				maxZoom: options.tileZoom ?? 12,
+				tileSize: options.tileSize ?? 256
 			}));
+		} else strategy = function (extent, resolution) {
+			return this._loadingStrategyBbox(extent, resolution);
 		}
 		
 		super({
@@ -137,15 +134,15 @@ class WebpartSource extends VectorSource
 			useSpatialIndex: true, // force to true for loading strategy tile
 			wrapX: options.wrapX
 		});
-		
-		if (strategy === undefined) {
-			this.setStrategy(this._loadingStrategyBbox);	
-		}
+	
+		this._tiled 		= tiled;
+		this._tileloading	= 0;
+		this._maxReload		= maxReload;
 		this.setLoader(this._loaderFn);
 		this._parameters = parameters;
 		
 		// Collection of feature we want to preserve when reloaded
-		this.preserved_ = options.preserved?? new Collection();
+		this.preserved_ = options.preserved ?? new Collection();
 		
 		// Inserted features
 		this._insert = [];
@@ -159,94 +156,16 @@ class WebpartSource extends VectorSource
 		this._update = [];
 		this.on ('changefeature', this._onUpdateFeature);
 	}
-	
-	getParameter(name) {
-		return this._parameters.name?? null;
-	}
-	
-	setParameter(name, value) {
-		if (! (name in this._parameters)) return;
-		this._parameters.name = value;
-	}
-	
-	/**
-	 * listen/unlisten for changefeature event
-	 * @param {boolean} b
-	 * @returns {undefined}
-	 */
-	listenChanges(b) {
-		b ? this.on('changefeature', this._onUpdateFeature) : this.un('changefeature', this._onUpdateFeature);
-	};
-
-	/** 
-	 *Get the layer featureType
-	 * @return { featureType }
-	 */
-	getFeatureType() {
-		return this.getParameter('featureType');
-	};
-
-	// TODO A VOIR SI CE N'EST PAS LE CONTRAIRE
-	getDetruitField() {
-		let featureType = this.getParameter('featureType');
-		return (featureType_.database_type === 'bduni') ? 'detruit' : 'gcms_detruit';
-	};
-	
-	/**
-	 * Modify loading feature filter
-	 */
-	setFeatureFilter(filter, options) {
-		this.setParameter('featureFilter', {});
-		this.addFeatureFilter(filter, options);
-	};
-
-	addFeatureFilter(filter, options) {
-		switch (filter) {
-			case 'detruit':
-				filter = {};
-				filter[this.getDetruitField()] = true;
-				break;
-			case 'vivant':
-				filter = {};
-				filter[this.getDetruitField()] = false;
-				break;
-			case 'depuis':	
-				filter = { "daterec": {"$gt" : String(options) } }; 
-				break;
-			case 'jusqua':	
-				filter = { "daterec": {"$lt" : String(options) } }; 
-				break;
-			default: break;
-		}
-		
-		let featureFilter = this.getParameter('featureFilter');
-		$.extend(featureFilter, filter);
-		this.reload();
-	};
 
 	/*
-	 * Reset edition
+	 * _reset edition
 	 */
 	reset() {
 		this._insert = [];
 		this._delete = [];
 		this._update = [];
 		this._preserved.clear();
-		this.reload();
-	};
-
-	/** 
-	 *Force source reload
-	 * @warning use this function instead of clear() to avoid delete events on reload
-	 */
-	reload() {
-		this._isloading = true;
-		this.un ('removefeature', this._onDeleteFeature);
-
-		// Send event clear
-		this.clear(true);
-		this.on ('removefeature', this._onDeleteFeature);
-		this._isloading = true;
+		this._reload();
 	};
 
 	/** 
@@ -256,7 +175,7 @@ class WebpartSource extends VectorSource
 	getSaveActions() {
 		let self = this;
 		
-		let featureType = this.getParameter('featureType');
+		let featureType = this._getParameter('featureType');
 
 		let idName = featureType.idName;
 		let geometryAttribute = featureType.geometryName;
@@ -283,16 +202,17 @@ class WebpartSource extends VectorSource
 			// Get changes
 			let changedProperties = {};
 			changedProperties[idName] = properties[idName];
-			changes.forEach(field => {
+		
+			for (const field of changes) {
 				if (field in properties) {
 					changedProperties[field] = properties[field];
 				}
-			});
+			}
 			
 			// Get geometry changes
 			if ('geometry' in changedProperties) {
 				let g = properties.geometry.clone();
-				g.transform (self._projection, self.getParameter('srsName'));
+				g.transform (self._projection, self._getParameter('srsName'));
 
 				delete changedProperties.geometry;
 				changedProperties[geometryAttribute] = wkt.writeGeometry(g);
@@ -303,13 +223,13 @@ class WebpartSource extends VectorSource
 
 		/**
 		 *
-		 * @param {Array} array
+		 * @param {Array} features
 		 * @param {ol.Feature.State} state
 		 * @returns {Number|nb}
 		 */
-		function getActions (array, state)	{
+		function getActions (features, state)	{
 			let nb = 0;
-			array.forEach(feature => {
+			for (const feature of features) {
 				if (state !== feature.getState()) {
 					return;
 				}
@@ -318,15 +238,15 @@ class WebpartSource extends VectorSource
 				if (state === Feature.State.INSERT) {
 					// GCMS fields
 					let gcms_fields = ['gcms_detruit', 'gcms_date_creation', 'gcms_date_modification', 'gcms_date_destruction'];
-					gcms_fields.forEach(field => {
+					for (const field of gcms_fields) {
 						if (field in properties) {
 							delete properties[field];
 						}
-					});
+					}
 					
 					// Geometrie
 					let g = properties.geometry.clone();
-					g.transform (self._projection, self.getParameter('srsName'));
+					g.transform (self._projection, self._getParameter('srsName'));
 
 					delete properties.geometry;
 					properties[geometryAttribute] = wkt.writeGeometry(g);
@@ -349,7 +269,7 @@ class WebpartSource extends VectorSource
 					typeName: typeName
 				});
 				nb++;
-			});
+			}
 	
 			return nb;
 		}
@@ -403,19 +323,18 @@ class WebpartSource extends VectorSource
 		return  this._insert.length + this._delete.length + this._update.length;
 	};
 
-
 	/** 
 	 * Save changes
 	 */
 	save(actions) {	
-		actions = actions?? [];
+		actions = actions ?? [];
 
 		try {
 			if (actions.length == 0){
 				actions = this.getSaveActions().actions;
 			}
 		} catch (e) {
-			console.log("ol.source.Vector.Webpart.prototype.save " + e);
+			console.log("WebpartSource.prototype.save " + e);
 			return;
 		}
 		this.dispatchEvent({ type:"savestart" });
@@ -425,7 +344,7 @@ class WebpartSource extends VectorSource
 			return;
 		}
 
-		let featureType = this.getParameter('featureType');
+		let featureType = this._getParameter('featureType');
 		
 		let databases = {};
 		databases[featureType.database] = [featureType.name];
@@ -439,7 +358,7 @@ class WebpartSource extends VectorSource
 		};
 
 		// TODO A VOIR
-		let url = this.getParameter('proxy')?? featureType.wfs_transactions;
+		let url = this._getParameter('proxy') ?? featureType.wfs_transactions;
 		
 		fetch(url, params)
 			.then(response => {
@@ -450,11 +369,88 @@ class WebpartSource extends VectorSource
 	}
 
 	/**
+	 * Returns parameters whose name is name
+	 * @param {string} name 
+	 * @returns 
+	 */	
+	_getParameter(name) {
+		return this._parameters[name] ?? null;
+	}
+	
+	/**
+	 * Set parameter (it must exist)
+	 * @param {string} name 
+	 * @param {*} value 
+	 * @returns 
+	 */
+	_setParameter(name, value) {
+		if (! (name in this._parameters)) return;
+		this._parameters.name = value;
+	}
+	
+	// TODO A VOIR SI CE N'EST PAS LE CONTRAIRE
+	_getDetruitField() {
+		let featureType = this._getParameter('featureType');
+		return (featureType.database_type === 'bduni') ? 'detruit' : 'gcms_detruit';
+	}
+	
+	/**
+	 * Modify loading feature filter
+	 */
+	_setFeatureFilter(filter, options) {
+		this._setParameter('featureFilter', {});
+		this.addFeatureFilter(filter, options);
+	}
+
+	/**
+	 * Ajout d'un filtre
+	 * @param {string} filter 
+	 * @param {string} options 
+	 */
+	_addFeatureFilter(filter, options) {
+		switch (filter) {
+			case 'detruit':
+				filter = {};
+				filter[this._getDetruitField()] = true;
+				break;
+			case 'vivant':
+				filter = {};
+				filter[this._getDetruitField()] = false;
+				break;
+			case 'depuis':	
+				filter = { "daterec": {"$gt" : String(options) } }; 
+				break;
+			case 'jusqua':	
+				filter = { "daterec": {"$lt" : String(options) } }; 
+				break;
+			default: break;
+		}
+		
+		let featureFilter = this._getParameter('featureFilter');
+		$.extend(featureFilter, filter);
+		this._reload();
+	}
+
+	/** 
+	 *Force source reload
+	 * @warning use this function instead of clear() to avoid delete events on reload
+	 */
+	 _reload() {
+		this._isloading = true;
+		this.un ('removefeature', this._onDeleteFeature);
+
+		// Send event clear
+		this.clear(true);
+		this.on ('removefeature', this._onDeleteFeature);
+		this._isloading = true;
+	};
+
+	/**
 	 * Triggered when a feature is added / update add actions
 	 * @param {type} e
 	 */
 	_onAddFeature(e) {   
-		if (! this.getParameter('isloading')) return;
+		if (! this._getParameter('isloading')) return;
 
 		e.feature.setState(Feature.State.INSERT);
 		this._insert.push(e.feature);
@@ -466,13 +462,13 @@ class WebpartSource extends VectorSource
 	 * @param {type} e
 	 */
 	_onDeleteFeature(e) {   
-		if (! this.getParameter('isloading')) return;
+		if (! this._getParameter('isloading')) return;
 
 		switch (e.feature.getState()) {
 			case Feature.State.INSERT:
 				this._removeFeature (this._insert, e.feature);
 				break;
-			case ol.Feature.State.UPDATE:
+			case Feature.State.UPDATE:
 				this._removeFeature (this._update, e.feature);
 			default:
 				this._delete.push(e.feature);
@@ -503,10 +499,10 @@ class WebpartSource extends VectorSource
 	 * @param {ol.Feature}
 	 */
 	_findFeature(feature) {
-		let featureType = this.getParameter('featureType');
+		let featureType = this._getParameter('featureType');
 
 		let idName = featureType.idName;
-		let fid = featuer.get(idName);
+		let fid = feature.get(idName);
 
 		// Find feature in table
 		function find(features) {
@@ -552,12 +548,12 @@ class WebpartSource extends VectorSource
 	_loaderFn(extent, resolution, projection) {
 		let self = this;
 		
-		let featureType = this.getParameter('featureType');
+		let featureType = this._getParameter('featureType');
 
 		// Save projection for writing
 		this.projection_ = projection;
 
-		let bbox = ol.proj.transformExtent(extent, projection, this.getParameter('srsName'));
+		let bbox = transformExtent(extent, projection, this._getParameter('srsName'));
 		let bboxStr = bbox.join(',');
 
 		// WFS parameters
@@ -567,32 +563,31 @@ class WebpartSource extends VectorSource
 			outputFormat: 'JSON',
 			typeName: featureType.name,
 			bbox: bboxStr,
-			filter: JSON.stringify(this.getParameter('featureFilter')),
-			maxFeatures: this.getParameter('maxFeatures'),
+			filter: JSON.stringify(this._getParameter('featureFilter')),
+			maxFeatures: this._getParameter('maxFeatures'),
 			version: '1.1.0'
 		};
-		if (this._proxy) params.url = featureType.wfs;
 
 		let date = this.get('date');
 		if (date) {
-			params.date = date;
+			params['date'] = date;
 		}
 
 		// Abort existing request
 		if (this._request && !this._tiled) this._request.abort();
 
-		this.dispatchEvent({ type:"loadstart", remains: ++this._tileloading } );
-
 		// Reload all if maxFeatures
+		this.dispatchEvent({ type:"loadstart", remains: ++this._tileloading } );
 		if (this._maxReload && this._tileloading === 1 && this.getFeatures().length > this._maxReload) {
-			this.reload();
+			this._reload();
 		}
 
-		let dataProjection = this.getParameter('srsName');
+		let proxy = this._getParameter('proxy');
+		let dataProjection = this._getParameter('srsName');
 		
 		// Ajax request to get features in bbox
 		this.request_ = $.ajax({	
-			url: this.proxy_ || featureType.wfs,
+			url: proxy ?? featureType.wfs,
 			dataType: 'json',
 			data: params,
 			success: function(data) {   
@@ -600,11 +595,9 @@ class WebpartSource extends VectorSource
 				let geometryAttribute = featureType.geometryName;
 				let format = new format_WKT();
 				let r3d = /([-+]?(\d*[.])?\d+) ([-+]?(\d*[.])?\d+) ([-+]?(\d*[.])?\d+)/g;
-
 				
-				data.forEach(f => {
+				for (const f of data) {
 					let geom = f[geometryAttribute];
-					
 					if (geom.type) {
 						let g = eval(`new ${geom.type}(${geom.coordinates})`);
 						g.transform (dataProjection, projection);
@@ -624,7 +617,7 @@ class WebpartSource extends VectorSource
 					// Find preserved features
 					feature = self._findFeature(feature);
 					if (feature) features.push( feature );
-				});
+				}
 				
 				// Start replacing features
 				self._isloading = true;
@@ -663,14 +656,18 @@ class WebpartSource extends VectorSource
 	 * @returns {Array}
 	 */
 	_loadingStrategyBbox(extent, resolution) {
-		if (this.getFeatures().length >= this._maxFeatures && resolution < this.getParameter('resolution')) {
-			this.reload();
+		if (this.getFeatures().length >= this._maxFeatures && resolution < this._getParameter('resolution')) {
+			this._reload();
 		}
-		this.setParameter('resolution', resolution);
+		this._setParameter('resolution', resolution);
 		return [extent];
 	};
 	
-	_decodeXMl(data) {
+	/**
+	 * Parse transaction
+	 * @param {Element} data 
+	 */
+	_decodeXMl(data) {	// TODO VERIFIER QUE C'EST DU XML ET FAIRE PARSE A PART ?
 		let x = data.getElementsByTagName('wfs:TransactionResult')[0];
 		if (!x || x == null) {
 			x = data.getElementsByTagName('TransactionResult')[0];

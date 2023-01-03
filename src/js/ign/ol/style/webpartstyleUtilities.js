@@ -1,9 +1,6 @@
-import Stroke from 'ol/style/Stroke';
-import Fill from 'ol/style/Fill';
-import Text from 'ol/style/Text';
+import { Stroke, Fill, Text, Icon, RegularShape } from 'ol/style';
 import { asArray } from 'ol/color';
 import { default as FillPattern } from 'ol-ext-4.0.4/style/FillPattern';
-
 
 class WebpartStyleUtilities
 {
@@ -138,10 +135,11 @@ class WebpartStyleUtilities
 			src = urlImgAlone + "./../" + fstyle.externalGraphic ;
 
 			if (fstyle.graphicWidth && fstyle.graphicHeight) {
-				src += "?width="+fstyle.graphicWidth+"&height="+fstyle.graphicHeight;
+				// src += "?width="+fstyle.graphicWidth+"&height="+fstyle.graphicHeight;
+				src += `?width=${fstyle.graphicWidth}&height=${fstyle.graphicHeight}`;
 			}
 
-			let image = new ol.style.Icon({
+			let image = new Icon({
 				scale: 1,
 				src: src,
 				opacity: fstyle.graphicOpacity,
@@ -171,7 +169,7 @@ class WebpartStyleUtilities
 					x: [ 4, radius, 0, Math.PI/4 ]
 				};
 				let g = graphic[fstyle.graphicName] || graphic.square;
-				image = new ol.style.RegularShape({
+				image = new RegularShape({
 					points: g[0],
 					radius: g[1],
 					radius2: g[2],
@@ -181,7 +179,7 @@ class WebpartStyleUtilities
 				});
 				break;
 			default:
-				image = new ol.style.Circle({
+				image = new Circle({
 					radius: radius,
 					stroke: this.getStroke(fstyle),
 					fill: this.getFill(fstyle)

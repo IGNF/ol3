@@ -16,7 +16,7 @@ class WMSGetFeatureInfo extends Interaction
      * @returns {undefined}
      */
     constructor(opt_options) {
-        let options = opt_options?? {};
+        let options = opt_options ?? {};
 
         if (! options.layer) {
             throw 'layer option must be defined';

@@ -14,7 +14,7 @@ class WebpartLayer extends VectorLayer
 	 */
 	constructor(options, source_options) {
 		options = options?? {};
-		source_options = source_options?? {};
+		source_options = source_options ?? {};
 
 		if (! ('featureType' in source_options)) {
 			throw 'featureType must be defined.';	
