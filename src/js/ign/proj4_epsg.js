@@ -1,6 +1,5 @@
+import proj4 from 'proj4';
 import { register } from 'ol/proj/proj4';
-
-if (! proj4) throw ("PROJ4 is not defined!");
 
 function addProjectionsToProj4() {
     /**

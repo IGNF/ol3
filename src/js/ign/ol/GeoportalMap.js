@@ -10,7 +10,7 @@ import { Style, Circle, Stroke, Fill } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
 import { bbox as bbox_strategy } from 'ol/loadingstrategy';
 import { equals as extent_equals } from 'ol/extent';
-import ol_control_LayerSwitcher from "ol-ext/control/LayerSwitcher";
+import ol_control_LayerSwitcher from "ol-ext-4.0.4/control/LayerSwitcher";
 import WebpartStyle from './style/webpartstyle';
 import WebpartLayer from './layer/webpartlayer';
 import { Utilities } from '../Utilities';

@@ -5,7 +5,7 @@ import { createXYZ } from 'ol/tilegrid';
 import Feature from 'ol/Feature';
 import  format_WKT from 'ol/format/WKT';
 import { transformExtent } from 'ol/proj';
-import { Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon } from 'ol/geom';
+import { ol_geom_createFromType } from 'ol-ext-4.0.4/geom/GeomUtils';
 
 	
 Feature.State = {
@@ -599,7 +599,7 @@ class WebpartSource extends VectorSource
 				for (const f of data) {
 					let geom = f[geometryAttribute];
 					if (geom.type) {
-						let g = eval(`new ${geom.type}(${geom.coordinates})`);
+						let g = ol_geom_createFromType(geom.type, geom.coordinates);
 						g.transform (dataProjection, projection);
 						feature = new Feature(g);
 					} else {	// WKT
