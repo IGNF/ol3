@@ -1,4 +1,4 @@
-import GPConfig from './GPConfig';
+import { GPConfig, getWMTSLayerOptionsFromCapabilities } from './GPConfig';
 import Map from 'ol/Map';
 import TileLayer from 'ol/layer/Tile';
 import TileWMS from 'ol/source/TileWMS';
@@ -10,7 +10,6 @@ import { Style, Circle, Stroke, Fill } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
 import { bbox as bbox_strategy } from 'ol/loadingstrategy';
 import { equals as extent_equals } from 'ol/extent';
-import ol_control_LayerSwitcher from "ol-ext-4.0.4/control/LayerSwitcher";
 import WebpartStyle from './style/webpartstyle';
 import WebpartLayer from './layer/webpartlayer';
 import { Utilities } from '../Utilities';
@@ -18,24 +17,20 @@ import { Utilities } from '../Utilities';
 class GeoportalMap extends Map 
 {
 	/**
-	 * 
 	 * @param Object options 
+	 * 		- {string} apiKey default null
+	 * 		- {boolean} addBaseLayer default false
 	 */
-	constructor(options) {
-		super(options);
+	constructor(opt_options) {
+		super(opt_options);
 
-		this._proxyUrl = options.proxy || null;
-		this._apiKey   = options.apiKey || null;
+		let defOptions = { proxy: null, apiKey: null, addBaseLayer: false };
+		let options = Object.assign(defOptions, opt_options);
+		
+		this._apiKey   = options.apiKey;
 	
     	// Valeur de resolution pour un niveau de zoom de valeur 0
     	this._resolutionInit = 156543.03392804097 ;
-
-		// Ajout du layerSwitcher
-		this._layerSwitcher = options.layerSwitcher ? options.layerSwitcher : new ol_control_LayerSwitcher({
-			collapsed:false,
-			// trash: true
-		});
-		this.addControl(this._layerSwitcher);
 			   
 		this._gpConfig = new GPConfig();
 		if (options.addBaseLayer) {
@@ -74,39 +69,26 @@ class GeoportalMap extends Map
 		this.addLayer(newLayer);
 	  
 		let url = `https://wxs.ign.fr/${key}/geoportail/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
-		if (this._proxyUrl) {
-			url = this._proxyUrl + encodeURIComponent(url);
-		}
-			
 		this._gpConfig.getCapabilities(url)
 			.then(capabilities => {
-				// Mise en place de la source de la couche
-				let wmtsOptions = optionsFromCapabilities(capabilities, {
-					layer: layer
-				});
-				if (! wmtsOptions) {
-					throw new Error(`Layer [${layer}] does not exist`);
-				}
-				wmtsOptions['attributions'] = this._attributionIGN;
-				wmtsOptions['crossOrigin'] = 'Anonymous';
-
-				let layers = capabilities['Contents']['Layer'];
-				const descLayer = layers.find(element => {
-					return element['Identifier'] == layer;
-				});
-	
-				// Min et Max et extent
-				var bbox = transformExtent(descLayer.WGS84BoundingBox, 'EPSG:4326', 'EPSG:3857');
+				// Recuperation des caracteristiques de la couche dans les capabilities
+				let wmtsOptions = getWMTSLayerOptionsFromCapabilities(capabilities, layer);
 				
-				let matrixIds = wmtsOptions.tileGrid.matrixIds_;
-				let minZoom = parseInt(matrixIds[0], 10);
-				let maxZoom = parseInt(matrixIds.slice(-1)[0], 10);
-	
-				newLayer.set('title', descLayer.Title);
-				newLayer.setMinResolution(this._getResolutionFromZoom(maxZoom));
-				newLayer.setMaxResolution(this._getResolutionFromZoom(minZoom));
-				newLayer.setExtent(bbox);
-				newLayer.setSource(new WMTS(wmtsOptions));
+				let matrixIds = wmtsOptions.wmtsSourceOptions.tileGrid.getMatrixIds();
+				
+				let layerOptions = wmtsOptions.layerOptions;
+				layerOptions.minZoom = parseInt(matrixIds[0], 10);
+				layerOptions.maxZoom = parseInt(matrixIds.slice(-1)[0], 10);
+
+				let wmtsSourceOptions = wmtsOptions.wmtsSourceOptions;
+				wmtsSourceOptions.attributions = this._attributionIGN;
+
+				newLayer.set('title', layerOptions.title);
+				newLayer.set('description', layerOptions.description);
+				newLayer.setMinResolution(this._getResolutionFromZoom(layerOptions.maxZoom));
+				newLayer.setMaxResolution(this._getResolutionFromZoom(layerOptions.minZoom));
+				newLayer.setExtent(layerOptions.extent);
+				newLayer.setSource(new WMTS(wmtsSourceOptions));
 			}).catch(error => {
 				this.removeLayer(newLayer);
 				if (error instanceof TypeError)
@@ -163,13 +145,13 @@ class GeoportalMap extends Map
 		var newLayer = null;
 		switch(geoservice.type){
 			case 'WMS':	
-				newLayer = this._addWMSGeoservice(geoservice, options, bbox);
+				newLayer = this._addWMSGeoservice(geoservice, options);
 				break;
 			case 'WMTS':
-				newLayer = this._addWMTSGeoservice(geoservice, options, bbox);
+				newLayer = this._addWMTSGeoservice(geoservice, options);
 				break;
 			case 'WFS':
-				newLayer = this._addWFSGeoservice(geoservice, options, bbox);
+				newLayer = this._addWFSGeoservice(geoservice, options);
 				break;
 			default : throw "Geoservice type unknown";
 		}
@@ -207,36 +189,38 @@ class GeoportalMap extends Map
 			});
 		}
 		
+		let metadata;
+		if (typeof(Routing) !== 'undefined') {
+			metadata = [{
+				url: Routing.generate('gcms_feature_type_view', {databaseName: featureType.database, typeName: featureType.name })
+			}];
+		}
+
 		let Layer = new WebpartLayer({
 			name: featureType.name,
+			title: featureType.title,
+			description: featureType.description ?? "Pas de description",
 			type: 'feature-type',
 			'feature-type': featureType,
 			visible: options.visible,
 			opacity: options.opacity,
 			style: style,
 			minResolution: this._getResolutionFromZoom(featureType.maxZoomLevel),
-			maxResolution: this._getResolutionFromZoom(featureType.minZoomLevel)
+			maxResolution: this._getResolutionFromZoom(featureType.minZoomLevel),
+			metadata: metadata 
 		}, src_options);
 
-		var lsOptions = {
-			title: featureType.title,
-			visible: options.visible
-		};
-		if (featureType.description) {
-			lsOptions.description = featureType.description;
-		} else {
-			lsOptions.description = 'Pas de description';
-		}
-		if (typeof(Routing) !== 'undefined') {
-			lsOptions.metadata = [{
-				url: Routing.generate('gcms_feature_type_view', {databaseName: featureType.database, typeName: featureType.name })
-			}];
-		}
-		
-		this.addLayer(Layer, lsOptions);
+		this.addLayer(Layer);
 		return Layer;
 	}
 
+	getLayersByName(name) {
+		let mapLayers = this.getLayers().getArray();
+		return mapLayers.filter(layer => {
+			return layer.get('name') === name;
+		});
+	}
+	
 	/**
 	 * Ajout d'un geoservice WMS a la map
 	 * @param {Object} geoservice
@@ -245,11 +229,14 @@ class GeoportalMap extends Map
 	 */
 	_addWMSGeoservice(geoservice, options) {
 		let isIGN = new RegExp(/https:\/\/wxs.ign.fr\//).test(geoservice.url);
+		let metadata = isIGN ? { url: this._metadataIGN } : { url: geoservice.link };
 
 		let bbox = this._getExtent(geoservice.map_extent);
 
 		let newLayer = new TileLayer({
 			name: geoservice.title,
+			title: geoservice.title,
+			description: geoservice.description,
 			type:  'geoservice',
 			geoservice: geoservice,
 			source: new TileWMS({
@@ -265,17 +252,11 @@ class GeoportalMap extends Map
 			opacity: options.opacity,
 			minResolution: this._getResolutionFromZoom(geoservice.max_zoom),
 			maxResolution: this._getResolutionFromZoom(geoservice.min_zoom),
-			extent: bbox
-		});
-		
-		let metadata = isIGN ? { url: this._metadataIGN } : { url: geoservice.link };
-		this.addLayer(newLayer, {
-			title: geoservice.title,
-			visible: options.visible,
-			description: geoservice.description,
+			extent: bbox,
 			metadata: [metadata]
 		});
 		
+		this.addLayer(newLayer);
 		return newLayer;
 	};
 
@@ -287,29 +268,24 @@ class GeoportalMap extends Map
 	 */
 	_addWMTSGeoservice (geoservice, options) {
 		let isIGN = new RegExp(/https:\/\/wxs.ign.fr\//).test(geoservice.url);
+		let metadata = isIGN ? { url: this._metadataIGN } : { url: geoservice.link };
 
 		let bbox = this._getExtent(geoservice.map_extent);
 		let newLayer = new TileLayer({
 			name: geoservice.layers,
+			title: geoservice.title,
+			description: geoservice.description ?? "Pas de description",
 			type: 'geoservice',
 			geoservice: geoservice,
-			source: new WMTS({
-				"crossOrigin": "Anonymous"
-			}),
 			visible: options.visible,
 			opacity: options.opacity,
 			minResolution: this._getResolutionFromZoom(geoservice.max_zoom),
 			maxResolution: this._getResolutionFromZoom(geoservice.min_zoom),
-			extent: bbox
-		});
-		
-		let metadata = isIGN ? { url: this._metadataIGN } : { url: geoservice.link };
-		this.addLayer(newLayer, {
-			title: geoservice.title,
-			visible: options.visible,
-			description: geoservice.description,
+			extent: bbox,
 			metadata: [metadata]
 		});
+		
+		this.addLayer(newLayer);
 
 		// GetCapabilities
 		let version = geoservice.version;
@@ -369,10 +345,6 @@ class GeoportalMap extends Map
 					}
 					bbox += ',' + geoservice.box_srid;
 					url += '&version=' + geoservice.version + '&request=GetFeature&typeName=' + geoservice.layers +	'&outputFormat=' + geoservice.format + '&srsname=EPSG:3857&bbox=' + bbox;
-				}
-
-				if (this._proxyUrl) {
-					url = this._proxyUrl + encodeURIComponent(url);
 				}
 
 				fetch(url).then(response => {
@@ -456,17 +428,6 @@ class GeoportalMap extends Map
 		return bbox;
 	};
 		
-	_getLayerSwitcher() {
-    	return this._layerSwitcher;
-	}
-
-	_getLayersByName(name) {
-		let mapLayers = this.getLayers().getArray();
-		return mapLayers.filter(layer => {
-			return layer.get('name') === name;
-		});
-	}
-
 	_getAttribution(geoservice) {
 		let result = null;
 		

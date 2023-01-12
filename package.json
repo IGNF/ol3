@@ -13,9 +13,7 @@
     "jspdf": "^2.1.1",
     "mongo-parse": "^2.1.0",
     "ol": "^6.9.0",
-    "ol-ext": "^3.1.16",
     "ol-ext-4.0.4": "npm:ol-ext@4.0.4",
-    "openlayers": "4.6.5",
     "proj4": "^2.8.0"
   }
 }

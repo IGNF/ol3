@@ -26,8 +26,10 @@ function addProjectionsToProj4() {
     proj4.defs("EPSG:2972","+proj=utm +zone=22 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
     
     // St-Pierre-et-Miquelon : RGSPM06 / UTM zone 21N
+	// st barth 
     proj4.defs("EPSG:4467","+proj=utm +zone=21 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
-    
+	proj4.defs("EPSG:4559", "+proj=utm +zone=20 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
+				
     register(proj4);
 }
 
