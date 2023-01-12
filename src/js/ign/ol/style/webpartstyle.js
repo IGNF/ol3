@@ -1,5 +1,5 @@
 import Style from 'ol/style/Style';
-import { MapResolutions } from './../../Utilities';
+import { getResolutionForZoom } from './../../Utilities';
 import WebpartStyleUtilities from './webpartstyleUtilities';
 
 
@@ -37,9 +37,7 @@ class WebpartStyle
 		return function(feature, res) {
 			if (!feature) return [];
 			let style = featureType.style
-			
-			let resUtils = new MapResolutions();
-			
+						
 			let minZoom = 0;
 			if (featureType.name) {
 				minZoom = featureType.minZoomLevel;
@@ -70,7 +68,7 @@ class WebpartStyle
 			let displayText = true;
 			if (fstyle.labelMinZoom !== null) {
 				let zoom = Math.max(minZoom, fstyle.labelMinZoom);
-				let resolution = resUtils.getResolution(zoom);
+				let resolution = getResolutionForZoom(zoom);
 				displayText = (res <= resolution);
 			}
 				

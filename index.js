@@ -14,7 +14,7 @@ import WMSGetFeatureInfo from './src/js/ign/ol/interaction/WmsGetFeatureInfo';
 import addProjectionsToProj4 from './src/js/ign/proj4_epsg';
 import WebpartLayer from './src/js/ign/ol/layer/webpartlayer';
 
-import { Utilities } from './src/js/ign/Utilities';
+import { Utilities, getResolutionForZoom } from './src/js/ign/Utilities';
 
 export { 
     GeoportalMap, 
@@ -25,5 +25,6 @@ export {
     WMSGetFeatureInfo,
     addProjectionsToProj4,
     WebpartLayer,
-    Utilities
+    Utilities,
+    getResolutionForZoom
 };

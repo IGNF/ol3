@@ -24,23 +24,16 @@ class Utilities {
     }
 }
 
+let res0 = 156543.03392804097;
+const resolutions = { "0": res0 };
+for (let i = 1; i <= 20; ++i) {
+    let resolution = res0 / Math.pow(2, i) ;
+    resolutions[i.toString()] = resolution;
+}  
 
-class MapResolutions
-{
-    constructor() {
-        let res0 = 156543.03392804097;
-    
-        this._resolutions = { "0": res0 };
-        for (let i = 1; i <= 20; ++i) {
-            let resolution = res0 / Math.pow(2, i) ;
-            this._resolutions[i.toString()] = resolution;
-        }    
-    } 
-    
-    getResolution(zoomLevel) {
-        let z = zoomLevel.toString();
-        return (z in resolutions) ? resolutions[z] : null;    
-    }
+const getResolutionForZoom = (zoom) => {
+    let z = zoom.toString();
+    return (z in resolutions) ? resolutions[z] : null;   
 }
 
-export { Utilities, MapResolutions };
+export { Utilities, getResolutionForZoom };
