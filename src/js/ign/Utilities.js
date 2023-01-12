@@ -12,7 +12,7 @@ class Utilities {
     }
 
     static getMaxExtent3857() {
-        [-20037508.342789244, -238107693.26496765, 20037508.342789244, 238107693.26496765];
+        return [-20037508.342789244, -238107693.26496765, 20037508.342789244, 238107693.26496765];
     }
 
     /**
@@ -37,7 +37,7 @@ class MapResolutions
         }    
     } 
     
-    getResolution(zoom) {
+    getResolution(zoomLevel) {
         let z = zoomLevel.toString();
         return (z in resolutions) ? resolutions[z] : null;    
     }

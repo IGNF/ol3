@@ -4,6 +4,7 @@ import TileLayer from 'ol/layer/Tile';
 import TileWMS from 'ol/source/TileWMS';
 import WMTS from 'ol/source/WMTS';
 import VectorSource from 'ol/source/Vector';
+import VectorLayer from 'ol/layer/Vector';
 import { optionsFromCapabilities } from 'ol/source/WMTS';
 import { transformExtent } from 'ol/proj';
 import { Style, Circle, Stroke, Fill } from 'ol/style';
@@ -294,8 +295,7 @@ class GeoportalMap extends Map
 		this._gpConfig.getCapabilities(url)
 			.then(capabilities => {
 				let wmtsOptions = optionsFromCapabilities(capabilities, {
-					layer: geoservice.layers,
-					matrixSet: 'EPSG:3857'
+					layer: geoservice.layers
 				});
 				if (! wmtsOptions) {
 					throw new Error(`Layer [${geoservice.layers}] does not exist`);
@@ -305,7 +305,7 @@ class GeoportalMap extends Map
 				wmtsOptions['crossOrigin'] = 'Anonymous';
 				newLayer.setSource(new WMTS(wmtsOptions));
 			}).catch(error => {
-				this._removeLayer(newLayer);
+				this.removeLayer(newLayer);
 				if (error instanceof TypeError)
 					console.error(error.message);
 				else console.error(error);
