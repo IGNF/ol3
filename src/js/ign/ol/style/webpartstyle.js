@@ -2,15 +2,16 @@ import Style from 'ol/style/Style';
 import { getResolutionForZoom } from './../../Utilities';
 import WebpartStyleUtilities from './webpartstyleUtilities';
 
+require ('./mongo_parser');
+
+let styleCache = {};
+let predefined = ['troncon_de_route','batiment','toponymie'];
+
+// Utilitaires pour le style Webpart
+let wpsUtilities = new WebpartStyleUtilities();
 
 class WebpartStyle
 {	
-	static _styleCache = {};
-	static _predefined = ['troncon_de_route','batiment','toponymie'];
-
-	// Utilitaires pour le style Webpart
-	static _utilities = new WebpartStyleUtilities();
-
 	/** Get ol.style.function as defined in featureType
 	 * @param {featureType}
 	 * @return { ol.style.function | undefined }
@@ -21,7 +22,7 @@ class WebpartStyle
 		
 		// Sens de circulation
 		let directionStyle = new Style ({
-			text: this._utilities.getText ({
+			text: wpsUtilities.getText ({
 				label: '\u203A',
 				fontWeight: "bold",
 				fontSize: '25'
@@ -30,7 +31,7 @@ class WebpartStyle
 		
 		// Fonction de style
 		if (! featureType) featureType = {};
-		if (featureType.name && this._predefined.includes(featureType.name)) {
+		if (featureType.name && predefined.includes(featureType.name)) {
 			return this[featureType.name]();
 		}
 		
@@ -63,7 +64,7 @@ class WebpartStyle
 				}
 			}
 
-			let fstyle = this._utilities.formatFeatureStyle (style, feature);
+			let fstyle = wpsUtilities.formatFeatureStyle (style, feature);
 						
 			let displayText = true;
 			if (fstyle.labelMinZoom !== null) {
@@ -77,10 +78,10 @@ class WebpartStyle
 				if (style[i] !== fstyle[i]) cacheId += '-' + i + ':' + fstyle[i];
 			}
 			
-			style = this._styleCache[cacheId];
+			style = styleCache[cacheId];
 			if (style) {
-				style = this._styleCache[cacheId];
-				var textStyle = style[style.length-1].getText();
+				style = styleCache[cacheId];
+				let textStyle = style[style.length-1].getText();
 				
 				let text = '';
 				if (fstyle.label && displayText) text = fstyle.label;
@@ -88,14 +89,14 @@ class WebpartStyle
 			} else {
 				// L'etiquette
 				let textStyleConfig = {
-					text: this._utilities.getText (fstyle)
+					text: wpsUtilities.getText (fstyle)
 				};
 				if (fstyle.label)	{
 					/* Pour les multipolygones, on met le label sur le polygone dont
 					la surface est la plus grande */
 					if (feature.getGeometry().getType() === 'MultiPolygon') {
 						textStyleConfig['geometry'] = function(feature) {
-							var polygons = feature.getGeometry().getPolygons();
+							let polygons = feature.getGeometry().getPolygons();
 							polygons.sort(function (a, b) { return a.getArea()- b.getArea() });
 							return polygons[polygons.length - 1].getInteriorPoint();
 						};
@@ -108,9 +109,9 @@ class WebpartStyle
 
 				let textStyle = new Style(textStyleConfig);
 				let styleConfig = {
-					image: this._utilities.getImage (fstyle),
-					fill: this._utilities.getFill (fstyle),
-					stroke: this._utilities.getStroke(fstyle)
+					image: wpsUtilities.getImage (fstyle),
+					fill: wpsUtilities.getFill (fstyle),
+					stroke: wpsUtilities.getStroke(fstyle)
 				};
 				
 				let st = [new Style (styleConfig), textStyle];
@@ -119,16 +120,16 @@ class WebpartStyle
 				if (fstyle.externalGraphic) {
 					var img = st[0];
 					img.getImage().getImage().onerror = function () {
-						img.setImage(this._utilities.getImage({}));
+						img.setImage(wpsUtilities.getImage({}));
 					}
 				}
 				if (fstyle.strokeBorderColor) {
 					st.unshift( new Style ({
-						stroke: this._utilities.getStrokeBorder(fstyle),
+						stroke: wpsUtilities.getStrokeBorder(fstyle),
 						zIndex: -1
 					}));
 				}
-				style = this._styleCache[cacheId] = st;
+				style = styleCache[cacheId] = st;
 			}
 			
 			// Ajouter le sens de circulation
@@ -197,10 +198,10 @@ class WebpartStyle
 			}
 			return [
 				new Style ({
-					text: this._utilities.getText (fstyle),
-					image: this._utilities.getImage (fstyle),
-					fill: this._utilities.getFill (fstyle),
-					stroke: this._utilities.getStroke(fstyle)
+					text: wpsUtilities.getText (fstyle),
+					image: wpsUtilities.getImage (fstyle),
+					fill: wpsUtilities.getFill (fstyle),
+					stroke: wpsUtilities.getStroke(fstyle)
 				})
 			];
 		};
@@ -219,10 +220,10 @@ class WebpartStyle
 			}
 			return [
 				new Style ({
-					text: this._utilities.getText (fstyle),
-					image: this._utilities.getImage (fstyle),
-					fill: this._utilities.getFill (fstyle),
-					stroke: this._utilities.getStroke(fstyle)
+					text: wpsUtilities.getText (fstyle),
+					image: wpsUtilities.getImage (fstyle),
+					fill: wpsUtilities.getFill (fstyle),
+					stroke: wpsUtilities.getStroke(fstyle)
 				})
 			];
 		};
@@ -240,10 +241,10 @@ class WebpartStyle
 			}
 			return [
 				new Style ({
-					text: this._utilities.getText (fstyle),
-					image: this._utilities.getImage (fstyle),
-					fill: this._utilities.getFill (fstyle),
-					stroke: this._utilities.getStroke(fstyle)
+					text: wpsUtilities.getText (fstyle),
+					image: wpsUtilities.getImage (fstyle),
+					fill: wpsUtilities.getFill (fstyle),
+					stroke: wpsUtilities.getStroke(fstyle)
 				})
 			];
 		};
@@ -297,10 +298,10 @@ class WebpartStyle
 			};
 			return [
 				new Style({
-					text: this._utilities.getText(fstyle),
-					image: this._utilities.getImage(fstyle),
-					fill: this._utilities.getFill(fstyle),
-					stroke: this._utilities.getStroke(fstyle)
+					text: wpsUtilities.getText(fstyle),
+					image: wpsUtilities.getImage(fstyle),
+					fill: wpsUtilities.getFill(fstyle),
+					stroke: wpsUtilities.getStroke(fstyle)
 				})
 			];
 		};
@@ -377,7 +378,7 @@ class WebpartStyle
 			}
 			return [
 				new Style ({
-					stroke: this._utilities.getStroke(fstyle),
+					stroke: wpsUtilities.getStroke(fstyle),
 					zIndex: getZindex(feature)-100
 				})
 			];
@@ -402,7 +403,7 @@ class WebpartStyle
 			}
 			return [
 				new Style ({
-					text: this._utilities.getText (fstyle)
+					text: wpsUtilities.getText (fstyle)
 				})
 			];
 		};
@@ -411,8 +412,8 @@ class WebpartStyle
 	/** Affichage de la couche batiment
 	*	@param {Object} symbol (affiche un symbole Fontawesome), color (couleur du symbol)
 	*/
-	static batiment(options)
-	{	if (!options) options = {};
+	static batiment(options) {	
+		if (!options) options = {};
 
 		function getColor(feature, opacity) {
 			switch (feature.get('nature')) {
@@ -459,17 +460,17 @@ class WebpartStyle
 			if (fstyle.label) {
 				return [
 					new Style ({
-						text: this._utilities.getText (fstyle),
-						stroke: this._utilities.getStroke (fstyle),
-						fill: this._utilities.getFill (fstyle)
+						text: wpsUtilities.getText (fstyle),
+						stroke: wpsUtilities.getStroke (fstyle),
+						fill: wpsUtilities.getFill (fstyle)
 					})
 				];
 			}
 			
 			return [
 				new Style ({
-					stroke: this._utilities.getStroke (fstyle),
-					fill: this._utilities.getFill (fstyle)
+					stroke: wpsUtilities.getStroke (fstyle),
+					fill: wpsUtilities.getFill (fstyle)
 				})
 			];
 		};
@@ -517,7 +518,7 @@ class WebpartStyle
 			}
 			return [
 				new Style ({
-					text: this._utilities.getText(fstyle)
+					text: wpsUtilities.getText(fstyle)
 				})
 			];
 		};
@@ -535,7 +536,7 @@ class WebpartStyle
 		}
 
 		let featureType = layer.get('feature-type');
-		if (! this._predefined.includes(featureType.name)) {
+		if (! predefined.includes(featureType.name)) {
 			return;
 		}
 		if (! featureType.style) {

@@ -1,10 +1,19 @@
 class Utilities {
     /**
-     * Returns france center in WGS84 Web Mercator (EPSG:3857)
+     * Returns france center depending on option (wkt, 4326, epsg:4326, 3857 or epsg:4326)
      * @returns {ol.Coordinate}
      */
-    static getFranceCenter() {
-        return [ 251936.04517352092, 5916836.764449345 ];    
+    static getFranceCenter(srid, wkt) {
+        if (srid !== 3857 && srid !== 4326) return null;
+        let asWkt = (wkt === true) ? true : false;
+
+        switch(srid) {
+            case 3857: return asWkt ? 'POINT(251936.04517352092 5916836.764449345)' : [ 251936.04517352092, 5916836.764449345 ];
+            case 4226: return asWkt ? 'POINT(2.26318 46.84516)' : [ 2.26318, 46.84516 ];
+            default: break;
+        }
+
+        return null;
     }
 
     static getMaxExtent4326() {

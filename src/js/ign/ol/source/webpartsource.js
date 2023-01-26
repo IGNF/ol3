@@ -36,7 +36,7 @@ Feature.prototype.setState = function(state)
  * Get feature detruit field
  * @return string
  */
-Feature.prototype._getDetruitField = function() {
+Feature.prototype.getDetruitField = function() {
 	let detruit = this.get("detruit");
 	return (detruit !== undefined) ? 'detruit' : 'gcms_detruit';
 }
@@ -107,8 +107,9 @@ class WebpartSource extends VectorSource
 		parameters['featureFilter'] = options.filter ?? {};
 		parameters['maxResolution'] = options.maxResolution ?? 80;
 		parameters['resolution'] 	= options.resolution ?? null;
-		
-		let tiled 		= false;
+		parameters['maxFeatures']	= options.maxFeatures ?? 5000;
+
+		let tiled 	   	= false;
 		let maxReload 	= null;
 
 		// Strategy for loading source (bbox or tile)
@@ -135,14 +136,16 @@ class WebpartSource extends VectorSource
 			wrapX: options.wrapX
 		});
 	
+		this._parameters = parameters;
+
+		this._isloading 	= false;
 		this._tiled 		= tiled;
 		this._tileloading	= 0;
 		this._maxReload		= maxReload;
 		this.setLoader(this._loaderFn);
-		this._parameters = parameters;
 		
 		// Collection of feature we want to preserve when reloaded
-		this.preserved_ = options.preserved ?? new Collection();
+		this._preserved = options.preserved ?? new Collection();
 		
 		// Inserted features
 		this._insert = [];
@@ -157,6 +160,10 @@ class WebpartSource extends VectorSource
 		this.on ('changefeature', this._onUpdateFeature);
 	}
 
+	getFeatureType() {
+		return this._getParameter('featureType');
+	}
+	
 	/*
 	 * _reset edition
 	 */
@@ -369,14 +376,13 @@ class WebpartSource extends VectorSource
 	}
 
 	/**
-	 * Returns parameters whose name is name
-	 * @param {string} name 
-	 * @returns 
-	 */	
-	_getParameter(name) {
-		return this._parameters[name] ?? null;
+	 * Modify loading feature filter
+	 */
+	setFeatureFilter(filter, options) {
+		this._setParameter('featureFilter', {});
+		this._addFeatureFilter(filter, options);
 	}
-	
+
 	/**
 	 * Set parameter (it must exist)
 	 * @param {string} name 
@@ -385,7 +391,16 @@ class WebpartSource extends VectorSource
 	 */
 	_setParameter(name, value) {
 		if (! (name in this._parameters)) return;
-		this._parameters.name = value;
+		this._parameters[name] = value;
+	}
+	
+	/**
+	 * Returns parameters whose name is name
+	 * @param {string} name 
+	 * @returns 
+	 */	
+	_getParameter(name) {
+		return this._parameters[name] ?? null;
 	}
 	
 	// TODO A VOIR SI CE N'EST PAS LE CONTRAIRE
@@ -394,14 +409,6 @@ class WebpartSource extends VectorSource
 		return (featureType.database_type === 'bduni') ? 'detruit' : 'gcms_detruit';
 	}
 	
-	/**
-	 * Modify loading feature filter
-	 */
-	_setFeatureFilter(filter, options) {
-		this._setParameter('featureFilter', {});
-		this.addFeatureFilter(filter, options);
-	}
-
 	/**
 	 * Ajout d'un filtre
 	 * @param {string} filter 
@@ -450,7 +457,7 @@ class WebpartSource extends VectorSource
 	 * @param {type} e
 	 */
 	_onAddFeature(e) {   
-		if (! this._getParameter('isloading')) return;
+		if (this._isloading) return;
 
 		e.feature.setState(Feature.State.INSERT);
 		this._insert.push(e.feature);
@@ -462,7 +469,7 @@ class WebpartSource extends VectorSource
 	 * @param {type} e
 	 */
 	_onDeleteFeature(e) {   
-		if (! this._getParameter('isloading')) return;
+		if (this._isloading) return;
 
 		switch (e.feature.getState()) {
 			case Feature.State.INSERT:
@@ -483,7 +490,7 @@ class WebpartSource extends VectorSource
 	 * @param {type} e
 	 */
 	_onUpdateFeature(e) {
-		if (! this._isloading) return;
+		if (this._isloading) return;
 
 		// if feature has already a state attribute (INSERT),
 		// we don't need to add it in this._update

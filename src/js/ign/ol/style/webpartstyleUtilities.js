@@ -1,4 +1,4 @@
-import { Stroke, Fill, Text, Icon, RegularShape } from 'ol/style';
+import { Stroke, Fill, Text, Circle, Icon, RegularShape } from 'ol/style';
 import { asArray } from 'ol/color';
 import { default as FillPattern } from 'ol-ext-4.0.4/style/FillPattern';
 
