@@ -1,5 +1,5 @@
 import { asString } from 'ol/color';
-import ol_control_CanvasBase from 'ol-ext-4.0.4/control/CanvasBase';
+import ol_control_CanvasBase from 'ol-ext-4.0.5/control/CanvasBase';
 
 /**
  * Display a cross in the middle of the map

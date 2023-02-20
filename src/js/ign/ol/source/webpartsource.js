@@ -5,7 +5,7 @@ import { createXYZ } from 'ol/tilegrid';
 import Feature from 'ol/Feature';
 import  format_WKT from 'ol/format/WKT';
 import { transformExtent } from 'ol/proj';
-import { ol_geom_createFromType } from 'ol-ext-4.0.4/geom/GeomUtils';
+import { ol_geom_createFromType } from 'ol-ext-4.0.5/geom/GeomUtils';
 
 	
 Feature.State = {
