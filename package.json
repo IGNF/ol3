@@ -1,11 +1,7 @@
 {
-  "name": "ign-ol3",
-  "version": "1.3.0",
+  "name": "@ign-mut/ign-ol3",
+  "version": "3.0.6",
   "description": "Utilitaires IGN pour OL3",
-  "repository": {
-    "type": "git",
-    "url": "ssh://git@gitlab.dockerforge.ign.fr:10022/ign/ol3.git"
-  },
   "author": "Philippe Prévautel",
   "license": "Propriétaire",
   "dependencies": {
