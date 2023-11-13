@@ -94,7 +94,7 @@ ol.Map.Geoportail = function(opt_options)
 	let attribution = this._getAttribution({ 
 		'attribution_name': "Institut national de l'information géographique et forestière",
 		'attribution_url' : 'https://www.ign.fr/',
-		'attribution_logo_url': 'https://wxs.ign.fr/static/logos/IGN/IGN.gif'
+		'attribution_logo_url': 'https://data.geopf.fr/annexes/ressources/logos/ign.gif'
 
 	});
 	this._attributionIGN = new ol.Attribution({ html: attribution });
@@ -149,7 +149,7 @@ ol.Map.Geoportail.prototype.getLayersByName = function(name)
 	});
 	this.addLayer(newLayer);
   
-	let url = `https://wxs.ign.fr/${key}/geoportail/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
+	let url = `https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
 	if (this._proxyUrl) {
 		url = this._proxyUrl + encodeURIComponent(url);
 	}
@@ -354,7 +354,7 @@ ol.Map.Geoportail.prototype.addFeatureType = function (featureType, opt, source_
  */
 ol.Map.Geoportail.prototype.addWMSGeoservice = function (geoservice, options) 
 {
-	let isIGN = new RegExp(/https:\/\/wxs.ign.fr\//).test(geoservice.url);
+	let isIGN = new RegExp(/https:\/\/data.geopf.fr\//).test(geoservice.url);
 
 	let bbox = this.getExtent(geoservice.map_extent);
 
@@ -400,7 +400,7 @@ ol.Map.Geoportail.prototype.addWMSGeoservice = function (geoservice, options)
 ol.Map.Geoportail.prototype.addWMTSGeoservice = function (geoservice, options) 
 {
 	let _self = this;
-	let isIGN = new RegExp(/https:\/\/wxs.ign.fr\//).test(geoservice.url);
+	let isIGN = new RegExp(/https:\/\/data.geopf.fr\//).test(geoservice.url);
 
 	let bbox = this.getExtent(geoservice.map_extent);
 	let newLayer = new ol.layer.Tile({
