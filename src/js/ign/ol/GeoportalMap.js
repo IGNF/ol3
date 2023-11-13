@@ -45,7 +45,7 @@ class GeoportalMap extends Map
 		this._attributionIGN = this._getAttribution({ 
 			'attribution_name': "Institut national de l'information géographique et forestière",
 			'attribution_url' : 'https://www.ign.fr/',
-			'attribution_logo_url': 'https://wxs.ign.fr/static/logos/IGN/IGN.gif'
+			'attribution_logo_url': 'https://data.geopf.fr/annexes/ressources/logos/ign.gif'
 		});
 	}
 
@@ -69,7 +69,7 @@ class GeoportalMap extends Map
 		});
 		this.addLayer(newLayer);
 	  
-		let url = `https://wxs.ign.fr/${key}/geoportail/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
+		let url = `https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
 		this._gpConfig.getCapabilities(url)
 			.then(capabilities => {
 				// Recuperation des caracteristiques de la couche dans les capabilities
@@ -229,7 +229,7 @@ class GeoportalMap extends Map
 	 * @returns {layer}
 	 */
 	_addWMSGeoservice(geoservice, options) {
-		let isIGN = new RegExp(/https:\/\/wxs.ign.fr\//).test(geoservice.url);
+		let isIGN = new RegExp(/https:\/\/data.geopf.fr\//).test(geoservice.url);
 		let metadata = isIGN ? { url: this._metadataIGN } : { url: geoservice.link };
 
 		let bbox = this._getExtent(geoservice.map_extent);
@@ -268,7 +268,7 @@ class GeoportalMap extends Map
 	 * @returns {layer}
 	 */
 	_addWMTSGeoservice (geoservice, options) {
-		let isIGN = new RegExp(/https:\/\/wxs.ign.fr\//).test(geoservice.url);
+		let isIGN = new RegExp(/https:\/\/data.geopf.fr\//).test(geoservice.url);
 		let metadata = isIGN ? { url: this._metadataIGN } : { url: geoservice.link };
 
 		let bbox = this._getExtent(geoservice.map_extent);
