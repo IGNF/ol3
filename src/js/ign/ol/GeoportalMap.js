@@ -36,8 +36,8 @@ class GeoportalMap extends Map
 		this._gpConfig = new GPConfig();
 		if (options.addBaseLayer) {
 			if (this._apiKey) this.addGeoportalLayer(this._apiKey, "GEOGRAPHICALGRIDSYSTEMS.MAPS");
-			this.addGeoportalLayer("ortho", "ORTHOIMAGERY.ORTHOPHOTOS");
-			this.addGeoportalLayer("cartes", "GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2"); 
+			this.addGeoportalLayer(null, "ORTHOIMAGERY.ORTHOPHOTOS");
+			this.addGeoportalLayer(null, "GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2"); 
 		}
 	   
 		// Metadonnees et attribution IGN
@@ -70,11 +70,12 @@ class GeoportalMap extends Map
 		this.addLayer(newLayer);
 	  
 		let url = `https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
+		if (key) url = `https://data.geopf.fr/private/wmts?apikey=`+key+`&SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
 		this._gpConfig.getCapabilities(url)
 			.then(capabilities => {
 				// Recuperation des caracteristiques de la couche dans les capabilities
 				let wmtsOptions = getWMTSLayerOptionsFromCapabilities(capabilities, layer);
-				
+				if (key) wmtsOptions['urls'][0] = `https://data.geopf.fr/private/wmts?apikey=`+key;
 				let matrixIds = wmtsOptions.wmtsSourceOptions.tileGrid.getMatrixIds();
 				
 				let layerOptions = wmtsOptions.layerOptions;
