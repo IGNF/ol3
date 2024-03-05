@@ -55,8 +55,8 @@ ol.Map.Geoportail = function(opt_options)
 	this._gpConfig = new GPConfig();
 	if (options.addBaseLayer) {
 		if (this._apiKey) this.addGeoportalLayer(this._apiKey, "GEOGRAPHICALGRIDSYSTEMS.MAPS");
-		this.addGeoportalLayer("ortho", "ORTHOIMAGERY.ORTHOPHOTOS");
-		this.addGeoportalLayer("cartes", "GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2"); 
+		this.addGeoportalLayer(null, "ORTHOIMAGERY.ORTHOPHOTOS");
+		this.addGeoportalLayer(null, "GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2"); 
 	}
 
 	/**
@@ -150,6 +150,7 @@ ol.Map.Geoportail.prototype.getLayersByName = function(name)
 	this.addLayer(newLayer);
   
 	let url = `https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
+	if (key) url = `https://data.geopf.fr/private/wmts?apikey=`+key+`&SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
 	if (this._proxyUrl) {
 		url = this._proxyUrl + encodeURIComponent(url);
 	}
@@ -163,6 +164,7 @@ ol.Map.Geoportail.prototype.getLayersByName = function(name)
 			if (! wmtsOptions) {
 				throw new Error(`Layer [${layer}] does not exist`);
 			}
+			if (key) wmtsOptions['urls'][0] = `https://data.geopf.fr/private/wmts?apikey=`+key;
 			wmtsOptions['attributions'] = this._attributionIGN;
 			
 			let layers = capabilities['Contents']['Layer'];
@@ -442,6 +444,14 @@ ol.Map.Geoportail.prototype.addWMTSGeoservice = function (geoservice, options)
 			let attributions = new ol.Attribution({
 				html: this._getAttribution(geoservice)
 			});
+
+			const geoserviceUrl = new URL(geoservice.url);
+			if (geoserviceUrl.searchParams.get('apikey')) {
+				const url = new URL(wmtsOptions['urls'][0]);
+				url.searchParams.append('apikey', geoserviceUrl.searchParams.get('apikey'));
+				wmtsOptions['urls'][0] = url.toString();
+			}
+
 			wmtsOptions['attributions'] = attributions;
 			wmtsOptions['crossOrigin'] = 'Anonymous';
 			newLayer.setSource(new ol.source.WMTS(wmtsOptions));
