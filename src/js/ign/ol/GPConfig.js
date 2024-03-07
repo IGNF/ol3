@@ -11,6 +11,12 @@ class GPConfig
 {
 	constructor() {
 		this._capabilities = {};
+		// @TODO: patch provisoire: cette classe est à réécrire quand on saura comment vont fonctionner les geoservices prives
+		this._privateLayers = [
+			"GEOGRAPHICALGRIDSYSTEMS.MAPS",
+			"GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-OACI",
+			"GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN25TOUR"
+		];
 	}
 
 	async getCapabilities(url) {
