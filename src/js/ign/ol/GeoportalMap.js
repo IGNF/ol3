@@ -301,6 +301,13 @@ class GeoportalMap extends Map
 				if (! wmtsOptions) {
 					throw new Error(`Layer [${geoservice.layers}] does not exist`);
 				}
+
+				const geoserviceUrl = new URL(geoservice.url);
+				if (geoserviceUrl.searchParams.get('apikey')) {
+					const url = new URL(wmtsOptions['urls'][0]);
+					url.searchParams.append('apikey', geoserviceUrl.searchParams.get('apikey'));
+					wmtsOptions['urls'][0] = url.toString();
+				}
 	
 				wmtsOptions['attributions'] = this._getAttribution(geoservice);
 				wmtsOptions['crossOrigin'] = 'Anonymous';
