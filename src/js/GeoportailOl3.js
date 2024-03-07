@@ -3,6 +3,12 @@
  */
  GPConfig = function() {
 	this._capabilities = {};
+	// @TODO: patch provisoire: cette classe est à réécrire quand on saura comment vont fonctionner les geoservices prives
+	this._privateLayers = [
+		"GEOGRAPHICALGRIDSYSTEMS.MAPS",
+		"GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-OACI",
+		"GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN25TOUR"
+	];
 };
 
 /**
@@ -150,7 +156,7 @@ ol.Map.Geoportail.prototype.getLayersByName = function(name)
 	this.addLayer(newLayer);
   
 	let url = `https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
-	if (key) url = `https://data.geopf.fr/private/wmts?apikey=`+key+`&SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
+	if (key && _self._gpConfig._privateLayers.indexOf(layer) != -1) url = `https://data.geopf.fr/private/wmts?apikey=`+key+`&SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
 	if (this._proxyUrl) {
 		url = this._proxyUrl + encodeURIComponent(url);
 	}
