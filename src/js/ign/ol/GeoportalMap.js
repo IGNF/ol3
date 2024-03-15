@@ -75,7 +75,7 @@ class GeoportalMap extends Map
 			.then(capabilities => {
 				// Recuperation des caracteristiques de la couche dans les capabilities
 				let wmtsOptions = getWMTSLayerOptionsFromCapabilities(capabilities, layer);
-				if (key) wmtsOptions['urls'][0] = `https://data.geopf.fr/private/wmts?apikey=`+key;
+				if (key && 'wmtsSourceOptions' in wmtsOptions) wmtsOptions['wmtsSourceOptions']['urls'][0] = `https://data.geopf.fr/private/wmts?apikey=`+key;
 				let matrixIds = wmtsOptions.wmtsSourceOptions.tileGrid.getMatrixIds();
 				
 				let layerOptions = wmtsOptions.layerOptions;
