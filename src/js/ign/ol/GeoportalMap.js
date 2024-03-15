@@ -70,7 +70,7 @@ class GeoportalMap extends Map
 		this.addLayer(newLayer);
 	  
 		let url = `https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
-		if (key && _self._gpConfig._privateLayers.indexOf(layer) != -1) url = `https://data.geopf.fr/private/wmts?apikey=`+key+`&SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
+		if (key && this._gpConfig._privateLayers.indexOf(layer) != -1) url = `https://data.geopf.fr/private/wmts?apikey=`+key+`&SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetCapabilities`;
 		this._gpConfig.getCapabilities(url)
 			.then(capabilities => {
 				// Recuperation des caracteristiques de la couche dans les capabilities
