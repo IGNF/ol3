@@ -270,11 +270,15 @@ class WebpartSource extends VectorSource
 					properties = getPropertiesToUpdate(feature);
 				} 
 
-				actions.push({
+				let ancestor = "_ancestor" in properties ? properties["_ancestor"] : null;
+				delete properties["_ancestor"];
+				let action = {
 					feature: properties,
 					state: feature.getState(),
 					typeName: typeName
-				});
+				}
+				if (ancestor) action["ancestor"] = ancestor;
+				actions.push(action);
 				nb++;
 			}
 	
