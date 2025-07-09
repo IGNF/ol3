@@ -26,10 +26,21 @@ function addProjectionsToProj4() {
     proj4.defs("EPSG:2972","+proj=utm +zone=22 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
     
     // St-Pierre-et-Miquelon : RGSPM06 / UTM zone 21N
-	// st barth 
+    // st barth 
     proj4.defs("EPSG:4467","+proj=utm +zone=21 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
-	proj4.defs("EPSG:4559", "+proj=utm +zone=20 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
-				
+    proj4.defs("EPSG:4559", "+proj=utm +zone=20 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
+
+    // 7079: RGTAAF07 / UTM zone 42S (Iles Kerguelen)
+    proj4.defs("EPSG:7079","+proj=utm +zone=42 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs");
+    // 7076: RGTAAF07 / UTM zone 39S (Ile Crozet)
+    proj4.defs("EPSG:7076","+proj=utm +zone=39 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs");
+    // 7074: RGTAAF07 / UTM zone 37S (Ile Europa)
+    proj4.defs("EPSG:7074","+proj=utm +zone=37 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs");
+    // 7080: RGTAAF07 / UTM zone 43S (Iles St-Paul et Amsterdam)
+    proj4.defs("EPSG:7080","+proj=utm +zone=43 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs");
+    // 8455: RGTAAF07 / UTM zone 53S (Terre Adélie et Ile des Pétrels)
+    proj4.defs("EPSG:8455","+proj=utm +zone=53 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs");
+
     register(proj4);
 }
 

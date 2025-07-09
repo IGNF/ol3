@@ -1,6 +1,6 @@
 {
   "name": "@ign-mut/ign-ol3-dev",
-  "version": "4.0.0-dev-ol6",
+  "version": "4.0.1-dev-ol6",
   "description": "Utilitaires IGN pour OL3",
   "main": "index.js",
   "author": "Philippe Prévautel",
