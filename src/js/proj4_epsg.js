@@ -1,5 +1,8 @@
 ol.proj.setProj4(proj4);
 /*Ajout de quelques projections supplementaires par rapport à celles incluses dans GpPlugin */
+// France métropolitaine : Lambert 93 (RGF93)
+proj4.defs("EPSG:2154","+proj=lcc +lat_0=46.5 +lon_0=3 +lat_1=49 +lat_2=44 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs");
+ol.proj.get('EPSG:2154').setExtent([-378305.81, 6093283.21, 1422622.08, 7186901.68]);
 // Mayotte : RGM04 / UTM zone 38S
 proj4.defs("EPSG:4471","+proj=utm +zone=38 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 // Reunion : RGR92 / UTM zone 40S
