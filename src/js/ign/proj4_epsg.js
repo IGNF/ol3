@@ -40,7 +40,10 @@ function addProjectionsToProj4() {
     proj4.defs("EPSG:7080","+proj=utm +zone=43 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs");
     // 8455: RGTAAF07 / UTM zone 53S (Terre Adélie et Ile des Pétrels)
     proj4.defs("EPSG:8455","+proj=utm +zone=53 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs");
-
+    // 32738: WGS 84 / UTM zone 38S (Juan et Glorieuses)
+    proj4.defs("EPSG:32738","+proj=utm +zone=38 +south +datum=WGS84 +units=m +no_defs +type=crs");
+    // 32740: WGS 84 / UTM zone 40S (Tromelin)
+    proj4.defs("EPSG:32740","+proj=utm +zone=40 +south +datum=WGS84 +units=m +no_defs +type=crs");
     register(proj4);
 }
 
