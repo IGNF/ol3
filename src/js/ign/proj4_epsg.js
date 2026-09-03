@@ -13,8 +13,8 @@ function addProjectionsToProj4() {
     }
 
     /*Ajout de quelques projections supplementaires par rapport à celles incluses dans GpPlugin */
-    // Mayotte : RGM04 / UTM zone 38S
-    proj4.defs("EPSG:4471","+proj=utm +zone=38 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
+    // Mayotte : RGM23 / UTM zone 38S
+    proj4.defs("EPSG:10674","+proj=utm +zone=38 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 
     // Reunion : RGR92 / UTM zone 40S
     proj4.defs("EPSG:2975","+proj=utm +zone=40 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
